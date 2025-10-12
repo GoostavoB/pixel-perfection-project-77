@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { CheckCircle } from "lucide-react";
+import logo from "@/assets/logo.png";
 
 const Header = () => {
   const navItems = [
@@ -17,14 +18,11 @@ const Header = () => {
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2 group">
-            <div className="flex items-baseline">
-              <span className="text-3xl font-bold text-primary">Hospital</span>
-            </div>
-            <div className="flex items-baseline">
-              <span className="text-3xl font-bold text-foreground">Bill</span>
-              <span className="text-3xl font-normal text-foreground">Checker</span>
-              <CheckCircle className="w-8 h-8 text-success ml-1 group-hover:scale-110 transition-transform" />
-            </div>
+            <img 
+              src={logo} 
+              alt="Hospital Bill Checker" 
+              className="h-12 w-auto group-hover:scale-105 transition-transform"
+            />
           </Link>
 
           <nav className="hidden lg:flex items-center gap-6">
