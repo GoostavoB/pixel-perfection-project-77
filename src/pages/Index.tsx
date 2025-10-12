@@ -16,9 +16,9 @@ const Index = () => {
         </p>
         
         <div className="flex gap-4 justify-center animate-fade-in">
-          <Link to="/form">
+          <Link to="/upload">
             <Button size="lg" className="bg-primary hover:bg-primary/90">
-              Get Started
+              Upload Your Bill
             </Button>
           </Link>
           <Link to="/results">
@@ -26,6 +26,21 @@ const Index = () => {
               View Sample Results
             </Button>
           </Link>
+        </div>
+        
+        <div className="mt-16 grid md:grid-cols-3 gap-8 max-w-5xl mx-auto text-left">
+          <div className="p-6 bg-card rounded-lg border border-border">
+            <h3 className="text-xl font-bold text-foreground mb-2">80% Error Rate</h3>
+            <p className="text-muted-foreground">Most hospital bills contain overcharges or billing errors</p>
+          </div>
+          <div className="p-6 bg-card rounded-lg border border-border">
+            <h3 className="text-xl font-bold text-foreground mb-2">Free Analysis</h3>
+            <p className="text-muted-foreground">Get detailed bill analysis and dispute letters at no cost</p>
+          </div>
+          <div className="p-6 bg-card rounded-lg border border-border">
+            <h3 className="text-xl font-bold text-foreground mb-2">$650-$2,800</h3>
+            <p className="text-muted-foreground">Average savings per successfully disputed bill</p>
+          </div>
         </div>
       </main>
     </div>

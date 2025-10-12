@@ -1,16 +1,23 @@
 import { Link } from "react-router-dom";
-import { CheckCircle } from "lucide-react";
+import { ChevronDown } from "lucide-react";
+import {
+  NavigationMenu,
+  NavigationMenuContent,
+  NavigationMenuItem,
+  NavigationMenuLink,
+  NavigationMenuList,
+  NavigationMenuTrigger,
+} from "@/components/ui/navigation-menu";
 import logo from "@/assets/logo.png";
 
 const Header = () => {
-  const navItems = [
-    { label: "Home", path: "/" },
-    { label: "About", path: "/about" },
-    { label: "Upload Bill", path: "/upload" },
-    { label: "Disputed Codes", path: "/codes" },
-    { label: "Blog", path: "/blog" },
-    { label: "No Surprises Act", path: "/act" },
-    { label: "Credit Report", path: "/credit" },
+  const usefulLinks = [
+    { label: "No Surprises Act", path: "/no-surprises-act" },
+    { label: "Dispute Letter", path: "/dispute-letter" },
+    { label: "Voice Call Script", path: "/call-script" },
+    { label: "Disputed Codes", path: "/disputed-codes" },
+    { label: "Credit Report", path: "/credit-report" },
+    { label: "Hospital Billing Scoreboard", path: "/scoreboard", comingSoon: true },
   ];
 
   return (
@@ -25,17 +32,54 @@ const Header = () => {
             />
           </Link>
 
-          <nav className="hidden lg:flex items-center gap-6">
-            {navItems.map((item) => (
-              <Link
-                key={item.path}
-                to={item.path}
-                className="text-sm font-medium text-foreground hover:text-primary transition-colors relative after:absolute after:bottom-0 after:left-0 after:w-full after:h-0.5 after:bg-primary after:scale-x-0 after:origin-left after:transition-transform hover:after:scale-x-100"
-              >
-                {item.label}
-              </Link>
-            ))}
-          </nav>
+          <NavigationMenu className="hidden lg:flex">
+            <NavigationMenuList className="gap-6">
+              <NavigationMenuItem>
+                <Link to="/" className="text-sm font-medium text-foreground hover:text-primary transition-colors">
+                  Home
+                </Link>
+              </NavigationMenuItem>
+              
+              <NavigationMenuItem>
+                <Link to="/upload" className="text-sm font-medium text-foreground hover:text-primary transition-colors">
+                  Upload Bill
+                </Link>
+              </NavigationMenuItem>
+              
+              <NavigationMenuItem>
+                <Link to="/blog" className="text-sm font-medium text-foreground hover:text-primary transition-colors">
+                  Blog
+                </Link>
+              </NavigationMenuItem>
+              
+              <NavigationMenuItem>
+                <NavigationMenuTrigger className="text-sm font-medium bg-transparent hover:bg-transparent">
+                  Useful Links
+                </NavigationMenuTrigger>
+                <NavigationMenuContent>
+                  <ul className="grid w-[280px] gap-1 p-4 bg-card">
+                    {usefulLinks.map((link) => (
+                      <li key={link.path}>
+                        <Link
+                          to={link.path}
+                          className="block select-none rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+                        >
+                          <div className="text-sm font-medium leading-none flex items-center gap-2">
+                            {link.label}
+                            {link.comingSoon && (
+                              <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                                Soon
+                              </span>
+                            )}
+                          </div>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </NavigationMenuContent>
+              </NavigationMenuItem>
+            </NavigationMenuList>
+          </NavigationMenu>
         </div>
       </div>
     </header>
