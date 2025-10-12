@@ -16,7 +16,10 @@ const Header = () => {
     { label: "Dispute Letter", path: "/dispute-letter" },
     { label: "Voice Call Script", path: "/call-script" },
     { label: "Disputed Codes", path: "/disputed-codes" },
-    { label: "Credit Report", path: "/credit-report" },
+    { label: "Credit Report Impact", path: "/credit-report" },
+    { label: "How Long on Report", path: "/how-long-medical-bills" },
+    { label: "Emergency Room Charges", path: "/emergency-room-charges" },
+    { label: "Medical Collections", path: "/medical-billing-collections" },
     { label: "Hospital Billing Scoreboard", path: "/scoreboard", comingSoon: true },
   ];
 
@@ -28,7 +31,7 @@ const Header = () => {
             <img 
               src={logo} 
               alt="Hospital Bill Checker" 
-              className="h-12 w-auto group-hover:scale-105 transition-transform"
+              className="h-16 w-auto group-hover:scale-105 transition-transform"
             />
           </Link>
 
