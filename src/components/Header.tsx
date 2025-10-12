@@ -31,7 +31,7 @@ const Header = () => {
             <img 
               src={logo} 
               alt="Hospital Bill Checker" 
-              className="h-16 w-auto group-hover:scale-105 transition-transform"
+              className="h-20 w-auto group-hover:scale-105 transition-transform"
             />
           </Link>
 
