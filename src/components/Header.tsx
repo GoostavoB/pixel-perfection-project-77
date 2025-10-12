@@ -56,6 +56,12 @@ const Header = () => {
               </NavigationMenuItem>
               
               <NavigationMenuItem>
+                <Link to="/contact" className="text-sm font-medium text-foreground hover:text-primary transition-colors">
+                  Contact
+                </Link>
+              </NavigationMenuItem>
+              
+              <NavigationMenuItem>
                 <NavigationMenuTrigger className="text-sm font-medium bg-transparent hover:bg-transparent">
                   Useful Links
                 </NavigationMenuTrigger>

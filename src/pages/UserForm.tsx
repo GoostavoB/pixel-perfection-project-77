@@ -135,24 +135,43 @@ const UserForm = () => {
             </Select>
           </div>
 
-          <div className="flex items-start gap-3 pt-2">
-            <Checkbox
-              id="terms"
-              checked={agreed}
-              onCheckedChange={(checked) => setAgreed(checked as boolean)}
-              className="mt-1"
-            />
-            <Label htmlFor="terms" className="text-sm text-foreground cursor-pointer">
-              I agree to the{" "}
-              <Link to="/terms" className="text-secondary hover:underline font-medium">
-                Terms and Conditions
-              </Link>{" "}
-              and{" "}
-              <Link to="/privacy" className="text-secondary hover:underline font-medium">
-                Privacy Policy
-              </Link>{" "}
-              <span className="text-destructive">*</span>
-            </Label>
+          <div className="space-y-4 pt-2">
+            <div className="flex items-start gap-3">
+              <Checkbox
+                id="terms"
+                checked={agreed}
+                onCheckedChange={(checked) => setAgreed(checked as boolean)}
+                className="mt-1"
+              />
+              <Label htmlFor="terms" className="text-sm text-foreground cursor-pointer leading-relaxed">
+                I have read and accept the{" "}
+                <Link to="/terms" target="_blank" rel="noopener" className="text-primary hover:underline font-medium">
+                  Terms of Use
+                </Link>{" "}
+                and{" "}
+                <Link to="/privacy" target="_blank" rel="noopener" className="text-primary hover:underline font-medium">
+                  Privacy Policy
+                </Link>.{" "}
+                <span className="text-destructive">*</span>
+              </Label>
+            </div>
+
+            <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg">
+              <p className="text-sm text-foreground/80">
+                <strong className="text-foreground">Data safety:</strong> Files are encrypted in transit and at rest. We de-identify uploads before research. We keep hospital name, hospital location, bill details, and your year of birth only. We never sell personal data. You can request deletion at any time.
+              </p>
+            </div>
+
+            <div className="flex items-start gap-3">
+              <Checkbox
+                id="consent"
+                className="mt-1"
+              />
+              <Label htmlFor="consent" className="text-sm text-foreground cursor-pointer leading-relaxed">
+                I consent to Hospital Bill Checker processing my uploaded documents and data, which may include health information, to generate an educational report. I understand this is not medical or legal advice.{" "}
+                <span className="text-destructive">*</span>
+              </Label>
+            </div>
           </div>
 
           <Button

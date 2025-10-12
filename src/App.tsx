@@ -18,6 +18,9 @@ import CreditReport from "./pages/CreditReport";
 import HowLongMedicalBills from "./pages/HowLongMedicalBills";
 import EmergencyRoomCharges from "./pages/EmergencyRoomCharges";
 import MedicalBillingCollections from "./pages/MedicalBillingCollections";
+import Contact from "./pages/Contact";
+import Terms from "./pages/Terms";
+import Privacy from "./pages/Privacy";
 import Scoreboard from "./pages/Scoreboard";
 import NotFound from "./pages/NotFound";
 
@@ -45,6 +48,9 @@ const App = () => (
           <Route path="/how-long-medical-bills" element={<HowLongMedicalBills />} />
           <Route path="/emergency-room-charges" element={<EmergencyRoomCharges />} />
           <Route path="/medical-billing-collections" element={<MedicalBillingCollections />} />
+          <Route path="/contact" element={<Contact />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/privacy" element={<Privacy />} />
           <Route path="/scoreboard" element={<Scoreboard />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

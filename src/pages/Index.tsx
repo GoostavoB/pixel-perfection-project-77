@@ -14,6 +14,7 @@ import {
   Award
 } from "lucide-react";
 import Header from "@/components/Header";
+import Footer from "@/components/Footer";
 
 const Index = () => {
   return (
@@ -32,14 +33,14 @@ const Index = () => {
           80% of medical bills contain errors • Average savings: $650-$2,800
         </p>
         
-        <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12 animate-fade-in">
-          <Link to="/upload">
-            <Button size="lg" className="bg-primary hover:bg-primary/90 text-lg px-8 py-6">
+        <div className="flex flex-col items-center gap-4 justify-center mb-12 animate-fade-in max-w-md mx-auto">
+          <Link to="/upload" className="w-full">
+            <Button size="lg" className="bg-primary hover:bg-primary/90 text-xl px-12 py-8 w-full shadow-lg hover:shadow-xl transition-all">
               Upload Your Bill - It's Free
             </Button>
           </Link>
-          <Link to="/results">
-            <Button size="lg" variant="outline" className="text-lg px-8 py-6">
+          <Link to="/results" className="w-full">
+            <Button size="lg" variant="outline" className="text-base px-8 py-4 w-full">
               View Sample Report
             </Button>
           </Link>
@@ -84,7 +85,11 @@ const Index = () => {
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
             <Card className="p-6">
-              <AlertTriangle className="h-10 w-10 text-destructive mb-4" />
+              <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center mb-4">
+                <svg className="h-6 w-6 text-destructive" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" />
+                </svg>
+              </div>
               <h3 className="text-xl font-bold text-foreground mb-3">Duplicate Charges</h3>
               <p className="text-muted-foreground mb-4">
                 The same service billed multiple times, appearing on different dates or with slight name variations.
@@ -93,7 +98,9 @@ const Index = () => {
             </Card>
 
             <Card className="p-6">
-              <AlertTriangle className="h-10 w-10 text-destructive mb-4" />
+              <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center mb-4">
+                <TrendingUp className="h-6 w-6 text-destructive" />
+              </div>
               <h3 className="text-xl font-bold text-foreground mb-3">Upcoding Errors</h3>
               <p className="text-muted-foreground mb-4">
                 Billing for a more expensive procedure or service than what was actually provided.
@@ -102,7 +109,9 @@ const Index = () => {
             </Card>
 
             <Card className="p-6">
-              <AlertTriangle className="h-10 w-10 text-destructive mb-4" />
+              <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center mb-4">
+                <Shield className="h-6 w-6 text-destructive" />
+              </div>
               <h3 className="text-xl font-bold text-foreground mb-3">No Surprises Act Violations</h3>
               <p className="text-muted-foreground mb-4">
                 Out-of-network charges that should be covered under federal law for emergency care.
@@ -111,7 +120,12 @@ const Index = () => {
             </Card>
 
             <Card className="p-6">
-              <AlertTriangle className="h-10 w-10 text-destructive mb-4" />
+              <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center mb-4">
+                <svg className="h-6 w-6 text-destructive" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <line x1="9" y1="9" x2="15" y2="15" />
+                </svg>
+              </div>
               <h3 className="text-xl font-bold text-foreground mb-3">Services Not Received</h3>
               <p className="text-muted-foreground mb-4">
                 Charges for tests, procedures, or medications you never received during your visit.
@@ -120,7 +134,9 @@ const Index = () => {
             </Card>
 
             <Card className="p-6">
-              <AlertTriangle className="h-10 w-10 text-destructive mb-4" />
+              <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center mb-4">
+                <DollarSign className="h-6 w-6 text-destructive" />
+              </div>
               <h3 className="text-xl font-bold text-foreground mb-3">Inflated Prices</h3>
               <p className="text-muted-foreground mb-4">
                 Charges significantly higher than regional averages or Medicare benchmarks for the same service.
@@ -129,7 +145,14 @@ const Index = () => {
             </Card>
 
             <Card className="p-6">
-              <AlertTriangle className="h-10 w-10 text-destructive mb-4" />
+              <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center mb-4">
+                <svg className="h-6 w-6 text-destructive" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="3" y="3" width="7" height="7" rx="1" />
+                  <rect x="14" y="3" width="7" height="7" rx="1" />
+                  <rect x="14" y="14" width="7" height="7" rx="1" />
+                  <rect x="3" y="14" width="7" height="7" rx="1" />
+                </svg>
+              </div>
               <h3 className="text-xl font-bold text-foreground mb-3">Unbundling Scams</h3>
               <p className="text-muted-foreground mb-4">
                 Billing separately for services that should be bundled together at a lower combined rate.
@@ -451,6 +474,8 @@ const Index = () => {
           <p className="mt-4 opacity-75">No credit card required • Results in minutes</p>
         </div>
       </section>
+
+      <Footer />
     </div>
   );
 };
