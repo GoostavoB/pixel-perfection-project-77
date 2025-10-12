@@ -1,4 +1,5 @@
 import { CheckCircle, AlertCircle, AlertTriangle, DollarSign, Database, Mail, FileText, ArrowRight, Calendar, FileBarChart, TrendingDown } from "lucide-react";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -221,13 +222,15 @@ const Results = () => {
             Based on the findings in your report, we can generate a professional dispute letter 
             customized with your specific billing issues and supporting documentation.
           </p>
-          <Button 
-            size="lg"
-            className="bg-accent hover:bg-accent/90 text-accent-foreground font-semibold px-8 py-6 text-base group shadow-lg hover:shadow-xl transition-all"
-          >
-            Generate Your Dispute Letter
-            <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
-          </Button>
+          <Link to="/generate-letter">
+            <Button 
+              size="lg"
+              className="bg-accent hover:bg-accent/90 text-accent-foreground font-semibold px-8 py-6 text-base group shadow-lg hover:shadow-xl transition-all"
+            >
+              Generate Your Dispute Letter
+              <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
+            </Button>
+          </Link>
         </Card>
       </main>
     </div>
