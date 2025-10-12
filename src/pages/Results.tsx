@@ -222,7 +222,50 @@ const Results = () => {
             Based on the findings in your report, we can generate a professional dispute letter 
             customized with your specific billing issues and supporting documentation.
           </p>
-          <Link to="/generate-letter">
+          <Link 
+            to="/generate-letter"
+            state={{
+              issues: [
+                {
+                  category: "Pricing",
+                  finding: "Charges exceed Medicare allowable by 340%",
+                  severity: "Critical",
+                  impact: "$1,240",
+                  cptCode: "99285",
+                  description: "Emergency Department Visit - Level 5",
+                  details: "The charged amount of $1,650 significantly exceeds the Medicare allowable rate of $485 for this service code. This represents a 340% markup above standard reimbursement rates."
+                },
+                {
+                  category: "Billing Codes",
+                  finding: "Duplicate procedure codes identified",
+                  severity: "Critical",
+                  impact: "$580",
+                  cptCode: "80053",
+                  description: "Comprehensive Metabolic Panel",
+                  details: "CPT code 80053 appears twice on the same date of service (line items 14 and 27), resulting in duplicate billing for identical laboratory work."
+                },
+                {
+                  category: "Medication",
+                  finding: "Prescription costs above market average",
+                  severity: "Moderate",
+                  impact: "$340",
+                  cptCode: "J2405",
+                  description: "Ondansetron Injection",
+                  details: "Charged $340 for a single dose of ondansetron, which typically costs $15-30 per dose at market rates."
+                },
+                {
+                  category: "Lab Work",
+                  finding: "Test frequency exceeds standard protocol",
+                  severity: "Moderate",
+                  impact: "$290",
+                  cptCode: "85025",
+                  description: "Complete Blood Count",
+                  details: "CBC performed 4 times within 6 hours, exceeding standard medical protocol for monitoring frequency in non-critical care settings."
+                }
+              ],
+              totalSavings: "$2,450"
+            }}
+          >
             <Button 
               size="lg"
               className="bg-accent hover:bg-accent/90 text-accent-foreground font-semibold px-8 py-6 text-base group shadow-lg hover:shadow-xl transition-all"

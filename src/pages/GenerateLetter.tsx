@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { FileText, Download, Copy, CheckCircle } from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { FileText, Download, Copy, CheckCircle, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,9 +10,24 @@ import { Separator } from "@/components/ui/separator";
 import Header from "@/components/Header";
 import { toast } from "sonner";
 
+interface BillingIssue {
+  category: string;
+  finding: string;
+  severity: string;
+  impact: string;
+  cptCode: string;
+  description: string;
+  details: string;
+}
+
 const GenerateLetter = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [copied, setCopied] = useState(false);
+  
+  const billingIssues = (location.state?.issues as BillingIssue[]) || [];
+  const totalSavings = location.state?.totalSavings || "$0";
+  
   const [formData, setFormData] = useState({
     patientName: "",
     patientAddress: "",
@@ -25,7 +40,6 @@ const GenerateLetter = () => {
     providerCity: "",
     accountNumber: "",
     dateOfService: "",
-    issueDescription: "",
   });
 
   const currentDate = new Date().toLocaleDateString('en-US', { 
@@ -41,7 +55,44 @@ const GenerateLetter = () => {
     });
   };
 
+  const generateIssuesSection = () => {
+    if (billingIssues.length === 0) return "";
+    
+    const criticalIssues = billingIssues.filter(i => i.severity === "Critical");
+    const moderateIssues = billingIssues.filter(i => i.severity === "Moderate");
+    
+    let section = "";
+    
+    if (criticalIssues.length > 0) {
+      section += "CRITICAL BILLING ERRORS\n\n";
+      criticalIssues.forEach((issue, index) => {
+        section += `Issue ${index + 1}: ${issue.category} - ${issue.finding}\n`;
+        section += `CPT Code: ${issue.cptCode} - ${issue.description}\n`;
+        section += `Disputed Amount: ${issue.impact}\n\n`;
+        section += `Details: ${issue.details}\n\n`;
+        section += `REQUESTED ACTION: Review and correct this billing error. This charge should be adjusted or removed from my account.\n\n`;
+        section += "---\n\n";
+      });
+    }
+    
+    if (moderateIssues.length > 0) {
+      section += "ADDITIONAL BILLING CONCERNS\n\n";
+      moderateIssues.forEach((issue, index) => {
+        section += `Issue ${criticalIssues.length + index + 1}: ${issue.category} - ${issue.finding}\n`;
+        section += `CPT Code: ${issue.cptCode} - ${issue.description}\n`;
+        section += `Disputed Amount: ${issue.impact}\n\n`;
+        section += `Details: ${issue.details}\n\n`;
+        section += `REQUESTED ACTION: Provide justification for this charge or adjust to fair market rates.\n\n`;
+        section += "---\n\n";
+      });
+    }
+    
+    return section;
+  };
+
   const generateLetter = () => {
+    const issuesSection = generateIssuesSection();
+    
     return `${formData.patientName}
 ${formData.patientAddress}
 ${formData.patientCity}
@@ -61,49 +112,82 @@ Date of Service: ${formData.dateOfService}
 Patient Name: ${formData.patientName}
 Date of Birth: ${formData.patientDob}
 
+---
+
 Dear Billing Department,
 
-I am writing to formally dispute charges on the above-referenced medical bill. After careful review of the itemized statement, I have identified significant billing errors and potential violations of federal law that require immediate correction.
+I am writing to formally dispute charges on the above-referenced medical bill. After careful review of the itemized statement and comparison with standard medical billing practices and regulatory guidelines, I have identified significant billing errors that require immediate correction.
 
-${formData.issueDescription}
+---
+
+${issuesSection}
+
+SUMMARY OF REQUESTED CORRECTIONS
+
+Total Disputed Amount: ${totalSavings}
+
+I am requesting a comprehensive review of all charges listed above and appropriate adjustments to reflect accurate billing practices, standard medical protocols, and compliance with applicable healthcare billing regulations.
+
+---
 
 REQUESTED ACTIONS & TIMELINE
 
 1. Acknowledge receipt of this dispute within 7 business days
-2. Suspend all collection activity immediately
-3. Conduct internal audit of the charges identified above
+2. Suspend all collection activity immediately pending resolution
+3. Conduct internal audit of all charges identified above
 4. Provide corrected, itemized bill within 30 days showing:
-   - All adjustments made
+   - All adjustments made with explanations
    - Remaining patient responsibility (if any)
-   - Confirmation of compliance with applicable laws
+   - Confirmation of compliance with applicable laws and regulations
+   - Detailed breakdown of how corrected amounts were calculated
 
 5. Confirm in writing that:
-   - No negative credit reporting will occur
-   - Collection activity is suspended pending resolution
-   - My account is in good standing
+   - No negative credit reporting will occur during or as a result of this dispute
+   - All collection activity is suspended pending resolution
+   - My account remains in good standing
+   - This dispute will not affect my ability to receive future care at your facility
+
+---
+
+DOCUMENTATION ENCLOSED
+
+Please find enclosed:
+☐ Copy of original itemized bill
+☐ Explanation of Benefits (EOB) from insurance
+☐ Medical records excerpts
+☐ Insurance card (front and back)
+
+---
 
 CONTACT INFORMATION
 
 I can be reached at:
-- Phone: ${formData.patientPhone}
-- Email: ${formData.patientEmail}
+Phone: ${formData.patientPhone}
+Email: ${formData.patientEmail}
+Preferred contact method: Email
 
-I expect a written response within 30 days. If these billing errors are not corrected, I am prepared to:
+I expect a written response within 30 days of receipt of this letter. If these billing errors are not corrected in a timely manner, I am prepared to:
 
-1. File a No Surprises Act complaint with CMS (cms.gov/nosurprises)
-2. File a complaint with my State Department of Insurance
-3. File a complaint with the Consumer Financial Protection Bureau
+1. File a complaint with my State Department of Insurance
+2. File a complaint with the Consumer Financial Protection Bureau
+3. File a complaint with the Centers for Medicare & Medicaid Services if applicable
 4. Request mediation through my insurance company
-5. Consult with a patient advocacy organization or attorney
+5. Consult with a patient advocacy organization or healthcare attorney
 
-I trust this matter can be resolved professionally and promptly. I am a reasonable person seeking only to pay what is legally and correctly owed.
+I trust this matter can be resolved professionally and promptly. I am a reasonable person seeking only to pay what is legally and correctly owed according to standard billing practices and applicable regulations.
 
 Thank you for your immediate attention to this matter.
 
 Sincerely,
 
+
 ${formData.patientName}
-Date: ${currentDate}`;
+Date: ${currentDate}
+
+---
+
+CC: [Insurance Company Name] - Member Services
+    Patient Account Records`;
   };
 
   const handleCopyLetter = () => {
@@ -114,13 +198,17 @@ Date: ${currentDate}`;
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handlePrintLetter = () => {
+    window.print();
+  };
+
   const handleDownloadLetter = () => {
     const letter = generateLetter();
     const blob = new Blob([letter], { type: 'text/plain' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `dispute-letter-${formData.accountNumber || 'draft'}.txt`;
+    a.download = `Medical-Bill-Dispute-Letter-${formData.accountNumber || 'draft'}.txt`;
     document.body.appendChild(a);
     a.click();
     window.URL.revokeObjectURL(url);
@@ -132,13 +220,32 @@ Date: ${currentDate}`;
     return formData.patientName && 
            formData.patientEmail && 
            formData.providerName && 
-           formData.accountNumber &&
-           formData.issueDescription;
+           formData.accountNumber;
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background print:bg-white">
       <Header />
+      
+      <style>{`
+        @media print {
+          body * {
+            visibility: hidden;
+          }
+          .print-content, .print-content * {
+            visibility: visible;
+          }
+          .print-content {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+          }
+          .no-print {
+            display: none !important;
+          }
+        }
+      `}</style>
       
       <main className="container mx-auto px-4 py-8 max-w-6xl">
         <div className="mb-8">
@@ -300,45 +407,209 @@ Date: ${currentDate}`;
                 />
               </div>
 
-              <div>
-                <Label htmlFor="issueDescription">Issue Description *</Label>
-                <Textarea
-                  id="issueDescription"
-                  name="issueDescription"
-                  value={formData.issueDescription}
-                  onChange={handleInputChange}
-                  placeholder="Describe the billing issues you identified (e.g., duplicate charges, incorrect coding, balance billing violations, etc.)"
-                  rows={6}
-                  required
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Include specific details from your bill analysis: CPT codes, amounts, and why you're disputing them.
-                </p>
-              </div>
             </div>
           </Card>
 
           {/* Preview Section */}
           <div className="space-y-6">
-            <Card className="p-6 shadow-card">
-              <h2 className="text-xl font-bold text-foreground mb-4">Letter Preview</h2>
-              <div className="bg-muted/30 rounded-lg p-4 max-h-[600px] overflow-y-auto">
-                <pre className="text-sm text-foreground whitespace-pre-wrap font-mono">
-                  {generateLetter()}
-                </pre>
+            <Card className="p-0 shadow-card overflow-hidden">
+              <div className="p-6 bg-muted/30 border-b no-print">
+                <h2 className="text-xl font-bold text-foreground">Letter Preview</h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Professional dispute letter with {billingIssues.length} identified billing issue{billingIssues.length !== 1 ? 's' : ''}
+                </p>
+              </div>
+              <div className="bg-white p-8 md:p-12 max-h-[700px] overflow-y-auto print-content">
+                <div className="max-w-[8.5in] mx-auto space-y-6" style={{ fontFamily: 'Times New Roman, serif' }}>
+                  {/* Header */}
+                  <div className="space-y-1">
+                    <div className="font-bold text-base">{formData.patientName || "[Your Name]"}</div>
+                    <div className="text-sm">{formData.patientAddress || "[Your Address]"}</div>
+                    <div className="text-sm">{formData.patientCity || "[City, State ZIP]"}</div>
+                    <div className="text-sm">{formData.patientPhone || "[Your Phone]"}</div>
+                    <div className="text-sm">{formData.patientEmail || "[Your Email]"}</div>
+                  </div>
+
+                  <div className="text-sm">{currentDate}</div>
+
+                  {/* Provider Info */}
+                  <div className="space-y-1">
+                    <div className="text-sm">Billing Department</div>
+                    <div className="text-sm font-semibold">{formData.providerName || "[Provider Name]"}</div>
+                    <div className="text-sm">{formData.providerAddress || "[Provider Address]"}</div>
+                    <div className="text-sm">{formData.providerCity || "[City, State ZIP]"}</div>
+                  </div>
+
+                  <div className="border-t border-b border-gray-300 py-2 my-4">
+                    <div className="font-bold text-sm">RE: Medical Bill Dispute</div>
+                    <div className="text-sm mt-1">
+                      <div><span className="font-semibold">Account Number:</span> {formData.accountNumber || "[Account Number]"}</div>
+                      <div><span className="font-semibold">Date of Service:</span> {formData.dateOfService || "[Date of Service]"}</div>
+                      <div><span className="font-semibold">Patient Name:</span> {formData.patientName || "[Patient Name]"}</div>
+                      <div><span className="font-semibold">Date of Birth:</span> {formData.patientDob || "[Date of Birth]"}</div>
+                    </div>
+                  </div>
+
+                  {/* Body */}
+                  <div className="text-sm space-y-4">
+                    <div>Dear Billing Department,</div>
+                    
+                    <div className="text-justify">
+                      I am writing to formally dispute charges on the above-referenced medical bill. After careful review of the itemized statement and comparison with standard medical billing practices and regulatory guidelines, I have identified significant billing errors that require immediate correction.
+                    </div>
+
+                    {billingIssues.length > 0 && (
+                      <>
+                        <div className="border-t border-gray-300 my-4"></div>
+                        
+                        {billingIssues.filter(i => i.severity === "Critical").length > 0 && (
+                          <div>
+                            <div className="font-bold text-base mb-3">CRITICAL BILLING ERRORS</div>
+                            {billingIssues.filter(i => i.severity === "Critical").map((issue, index) => (
+                              <div key={index} className="mb-4 pl-4 border-l-4 border-destructive">
+                                <div className="font-semibold mb-1">
+                                  Issue {index + 1}: {issue.category} - {issue.finding}
+                                </div>
+                                <div className="mb-1">
+                                  <span className="font-semibold">CPT Code:</span> {issue.cptCode} - {issue.description}
+                                </div>
+                                <div className="mb-1">
+                                  <span className="font-semibold">Disputed Amount:</span> {issue.impact}
+                                </div>
+                                <div className="mb-2 text-justify">
+                                  <span className="font-semibold">Details:</span> {issue.details}
+                                </div>
+                                <div className="mb-2 italic">
+                                  <span className="font-semibold">REQUESTED ACTION:</span> Review and correct this billing error. This charge should be adjusted or removed from my account.
+                                </div>
+                                {index < billingIssues.filter(i => i.severity === "Critical").length - 1 && (
+                                  <div className="border-t border-gray-200 mt-3"></div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {billingIssues.filter(i => i.severity === "Moderate").length > 0 && (
+                          <div>
+                            <div className="font-bold text-base mb-3 mt-6">ADDITIONAL BILLING CONCERNS</div>
+                            {billingIssues.filter(i => i.severity === "Moderate").map((issue, index) => {
+                              const issueNumber = billingIssues.filter(i => i.severity === "Critical").length + index + 1;
+                              return (
+                                <div key={index} className="mb-4 pl-4 border-l-4 border-warning">
+                                  <div className="font-semibold mb-1">
+                                    Issue {issueNumber}: {issue.category} - {issue.finding}
+                                  </div>
+                                  <div className="mb-1">
+                                    <span className="font-semibold">CPT Code:</span> {issue.cptCode} - {issue.description}
+                                  </div>
+                                  <div className="mb-1">
+                                    <span className="font-semibold">Disputed Amount:</span> {issue.impact}
+                                  </div>
+                                  <div className="mb-2 text-justify">
+                                    <span className="font-semibold">Details:</span> {issue.details}
+                                  </div>
+                                  <div className="mb-2 italic">
+                                    <span className="font-semibold">REQUESTED ACTION:</span> Provide justification for this charge or adjust to fair market rates.
+                                  </div>
+                                  {index < billingIssues.filter(i => i.severity === "Moderate").length - 1 && (
+                                    <div className="border-t border-gray-200 mt-3"></div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        <div className="border-t border-gray-300 my-4"></div>
+
+                        <div>
+                          <div className="font-bold text-base mb-2">SUMMARY OF REQUESTED CORRECTIONS</div>
+                          <div className="text-base">
+                            <span className="font-semibold">Total Disputed Amount:</span> {totalSavings}
+                          </div>
+                          <div className="mt-2 text-justify">
+                            I am requesting a comprehensive review of all charges listed above and appropriate adjustments to reflect accurate billing practices, standard medical protocols, and compliance with applicable healthcare billing regulations.
+                          </div>
+                        </div>
+
+                        <div className="border-t border-gray-300 my-4"></div>
+                      </>
+                    )}
+
+                    <div>
+                      <div className="font-bold text-base mb-2">REQUESTED ACTIONS & TIMELINE</div>
+                      <ol className="list-decimal list-inside space-y-1 ml-2">
+                        <li>Acknowledge receipt of this dispute within 7 business days</li>
+                        <li>Suspend all collection activity immediately pending resolution</li>
+                        <li>Conduct internal audit of all charges identified above</li>
+                        <li>Provide corrected, itemized bill within 30 days showing:
+                          <ul className="list-disc list-inside ml-6 mt-1">
+                            <li>All adjustments made with explanations</li>
+                            <li>Remaining patient responsibility (if any)</li>
+                            <li>Confirmation of compliance with applicable laws</li>
+                          </ul>
+                        </li>
+                        <li>Confirm in writing that:
+                          <ul className="list-disc list-inside ml-6 mt-1">
+                            <li>No negative credit reporting will occur</li>
+                            <li>Collection activity is suspended pending resolution</li>
+                            <li>My account remains in good standing</li>
+                          </ul>
+                        </li>
+                      </ol>
+                    </div>
+
+                    <div className="border-t border-gray-300 my-4"></div>
+
+                    <div>
+                      <div className="font-bold text-base mb-2">CONTACT INFORMATION</div>
+                      <div>I can be reached at:</div>
+                      <div className="ml-4">
+                        <div><span className="font-semibold">Phone:</span> {formData.patientPhone || "[Your Phone]"}</div>
+                        <div><span className="font-semibold">Email:</span> {formData.patientEmail || "[Your Email]"}</div>
+                        <div><span className="font-semibold">Preferred contact method:</span> Email</div>
+                      </div>
+                    </div>
+
+                    <div className="text-justify">
+                      I expect a written response within 30 days of receipt of this letter. If these billing errors are not corrected in a timely manner, I am prepared to file complaints with the appropriate regulatory agencies and consult with patient advocacy resources.
+                    </div>
+
+                    <div className="text-justify">
+                      I trust this matter can be resolved professionally and promptly. I am a reasonable person seeking only to pay what is legally and correctly owed according to standard billing practices and applicable regulations.
+                    </div>
+
+                    <div>Thank you for your immediate attention to this matter.</div>
+
+                    <div className="mt-8">
+                      <div>Sincerely,</div>
+                      <div className="mt-12 border-b border-gray-400 w-48"></div>
+                      <div className="mt-1 font-semibold">{formData.patientName || "[Your Name]"}</div>
+                      <div>Date: {currentDate}</div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </Card>
 
-            <Card className="p-6 bg-gradient-to-br from-accent/5 to-accent/10 border-accent/20 shadow-card">
+            <Card className="p-6 bg-gradient-to-br from-accent/5 to-accent/10 border-accent/20 shadow-card no-print">
               <h3 className="text-lg font-bold text-foreground mb-4">Download Your Letter</h3>
               <p className="text-sm text-muted-foreground mb-4">
-                Once you've filled in all required information, you can copy or download your professional dispute letter.
+                Once you've filled in all required information, you can print, copy, or download your professional dispute letter.
               </p>
-              <div className="flex gap-3">
+              <div className="grid grid-cols-3 gap-3">
+                <Button
+                  onClick={handlePrintLetter}
+                  disabled={!isFormValid()}
+                  variant="outline"
+                >
+                  <Printer className="mr-2 w-4 h-4" />
+                  Print
+                </Button>
                 <Button
                   onClick={handleCopyLetter}
                   disabled={!isFormValid()}
-                  className="flex-1"
                   variant="outline"
                 >
                   {copied ? (
@@ -349,14 +620,14 @@ Date: ${currentDate}`;
                   ) : (
                     <>
                       <Copy className="mr-2 w-4 h-4" />
-                      Copy Letter
+                      Copy
                     </>
                   )}
                 </Button>
                 <Button
                   onClick={handleDownloadLetter}
                   disabled={!isFormValid()}
-                  className="flex-1 bg-accent hover:bg-accent/90"
+                  className="bg-accent hover:bg-accent/90"
                 >
                   <Download className="mr-2 w-4 h-4" />
                   Download
@@ -364,7 +635,7 @@ Date: ${currentDate}`;
               </div>
             </Card>
 
-            <Card className="p-4 border-warning/20 bg-warning/5">
+            <Card className="p-4 border-warning/20 bg-warning/5 no-print">
               <h4 className="text-sm font-bold text-foreground mb-2">Important Tips:</h4>
               <ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside">
                 <li>Send via certified mail with return receipt requested</li>
@@ -373,6 +644,20 @@ Date: ${currentDate}`;
                 <li>Follow up if you don't receive a response within 30 days</li>
               </ul>
             </Card>
+
+            {billingIssues.length > 0 && (
+              <Card className="p-4 border-success/20 bg-success/5 no-print">
+                <h4 className="text-sm font-bold text-foreground mb-2">✓ Bill Analysis Complete</h4>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Your letter includes {billingIssues.length} specific billing issue{billingIssues.length !== 1 ? 's' : ''} with detailed documentation:
+                </p>
+                <ul className="text-xs text-muted-foreground space-y-1 list-disc list-inside ml-2">
+                  {billingIssues.map((issue, index) => (
+                    <li key={index}>{issue.category}: {issue.impact}</li>
+                  ))}
+                </ul>
+              </Card>
+            )}
           </div>
         </div>
       </main>
