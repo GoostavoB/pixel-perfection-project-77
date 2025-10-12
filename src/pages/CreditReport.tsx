@@ -52,55 +52,55 @@ const CreditReport = () => {
             </Card>
 
             <Card className="p-6 md:p-8">
-              <h2 className="text-2xl font-bold text-foreground mb-4">Timeline: From Bill to Credit Report</h2>
-              <div className="space-y-4">
-                <div className="flex gap-4">
-                  <div className="flex-shrink-0 w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary">
-                    Day 1
+              <h2 className="text-2xl font-bold text-foreground mb-6">Timeline: From Bill to Credit Report</h2>
+              <div className="space-y-6">
+                <div className="flex gap-6">
+                  <div className="flex-shrink-0 w-24 pt-1">
+                    <span className="text-sm font-bold text-primary">Day 1</span>
                   </div>
-                  <div className="pt-4">
+                  <div className="flex-1">
                     <h3 className="font-bold text-foreground mb-1">You receive medical bill</h3>
-                    <p className="text-foreground/80 text-sm">Payment typically due within 30 days. Set up payment plan if needed.</p>
+                    <p className="text-muted-foreground text-sm">Payment typically due within 30 days. Set up payment plan if needed.</p>
                   </div>
                 </div>
 
-                <div className="flex gap-4">
-                  <div className="flex-shrink-0 w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center font-bold text-primary">
-                    30-90 days
+                <div className="flex gap-6">
+                  <div className="flex-shrink-0 w-24 pt-1">
+                    <span className="text-sm font-bold text-primary">30-90<br/>days</span>
                   </div>
-                  <div className="pt-4">
+                  <div className="flex-1">
                     <h3 className="font-bold text-foreground mb-1">Hospital sends reminders</h3>
-                    <p className="text-foreground/80 text-sm">Multiple billing statements and phone calls. Still time to negotiate or dispute.</p>
+                    <p className="text-muted-foreground text-sm">Multiple billing statements and phone calls. Still time to negotiate or dispute.</p>
                   </div>
                 </div>
 
-                <div className="flex gap-4">
-                  <div className="flex-shrink-0 w-20 h-20 rounded-full bg-destructive/10 flex items-center justify-center font-bold text-destructive">
-                    90-120 days
+                <div className="flex gap-6">
+                  <div className="flex-shrink-0 w-24 pt-1">
+                    <span className="text-sm font-bold text-destructive">90-120<br/>days</span>
                   </div>
-                  <div className="pt-4">
+                  <div className="flex-1">
                     <h3 className="font-bold text-foreground mb-1">Sent to collections</h3>
-                    <p className="text-foreground/80 text-sm">Hospital may sell debt to collection agency. Your account is now "in collections."</p>
+                    <p className="text-muted-foreground text-sm">Hospital may sell debt to collection agency. Your account is now "in collections."</p>
                   </div>
                 </div>
 
-                <div className="flex gap-4">
-                  <div className="flex-shrink-0 w-20 h-20 rounded-full bg-destructive/10 flex items-center justify-center font-bold text-destructive">
-                    1 year
+                <div className="flex gap-6">
+                  <div className="flex-shrink-0 w-24 pt-1">
+                    <span className="text-sm font-bold text-destructive">1 year</span>
                   </div>
-                  <div className="pt-4">
+                  <div className="flex-1">
                     <h3 className="font-bold text-foreground mb-1">Appears on credit report</h3>
-                    <p className="text-foreground/80 text-sm">If still unpaid and over $500, the debt now appears on your credit report.</p>
+                    <p className="text-muted-foreground text-sm">If still unpaid and over $500, the debt now appears on your credit report.</p>
                   </div>
                 </div>
 
-                <div className="flex gap-4">
-                  <div className="flex-shrink-0 w-20 h-20 rounded-full bg-muted flex items-center justify-center font-bold text-foreground">
-                    7 years
+                <div className="flex gap-6">
+                  <div className="flex-shrink-0 w-24 pt-1">
+                    <span className="text-sm font-bold text-muted-foreground">7 years</span>
                   </div>
-                  <div className="pt-4">
+                  <div className="flex-1">
                     <h3 className="font-bold text-foreground mb-1">Automatically removed</h3>
-                    <p className="text-foreground/80 text-sm">Even if unpaid, medical collections are removed from your report after 7 years.</p>
+                    <p className="text-muted-foreground text-sm">Even if unpaid, medical collections are removed from your report after 7 years.</p>
                   </div>
                 </div>
               </div>
