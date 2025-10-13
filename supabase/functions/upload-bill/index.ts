@@ -165,40 +165,54 @@ async function extractPdfText(file: File): Promise<string> {
 }
 
 async function extractImageText(file: File): Promise<string> {
-  // For image OCR, we'll use Lovable AI with vision capabilities
-  const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-  const arrayBuffer = await file.arrayBuffer();
-  const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
-  const dataUrl = `data:${file.type};base64,${base64}`;
+  try {
+    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+    if (!LOVABLE_API_KEY) {
+      throw new Error('LOVABLE_API_KEY not configured');
+    }
 
-  const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'google/gemini-2.5-flash',
-      messages: [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'text',
-              text: 'Extract all text from this medical bill image. Return the complete text exactly as it appears, maintaining structure and layout.'
-            },
-            {
-              type: 'image_url',
-              image_url: { url: dataUrl }
-            }
-          ]
-        }
-      ]
-    })
-  });
+    const arrayBuffer = await file.arrayBuffer();
+    const uint8Array = new Uint8Array(arrayBuffer);
+    const base64 = btoa(String.fromCharCode.apply(null, Array.from(uint8Array)));
+    const dataUrl = `data:${file.type};base64,${base64}`;
 
-  const data = await response.json();
-  return data.choices?.[0]?.message?.content || '';
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash',
+        messages: [
+          {
+            role: 'user',
+            content: [
+              {
+                type: 'text',
+                text: 'Extract all text from this medical bill image. Return the complete text exactly as it appears, maintaining structure and layout.'
+              },
+              {
+                type: 'image_url',
+                image_url: { url: dataUrl }
+              }
+            ]
+          }
+        ]
+      })
+    });
+
+    if (!response.ok) {
+      console.error('Vision API error:', response.status, await response.text());
+      return 'Failed to extract text from image';
+    }
+
+    const data = await response.json();
+    return data.choices?.[0]?.message?.content || '';
+  } catch (error) {
+    console.error('Error in extractImageText:', error);
+    return 'Error extracting text from image';
+  }
 }
 
 async function analyzeBillWithAI(billText: string): Promise<any> {

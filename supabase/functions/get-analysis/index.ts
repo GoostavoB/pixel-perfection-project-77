@@ -12,8 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const url = new URL(req.url);
-    const sessionId = url.searchParams.get('sessionId');
+    const { sessionId } = await req.json();
 
     if (!sessionId) {
       return new Response(
@@ -23,7 +22,7 @@ serve(async (req) => {
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_PUBLISHABLE_KEY')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     const { data: analysis, error } = await supabase

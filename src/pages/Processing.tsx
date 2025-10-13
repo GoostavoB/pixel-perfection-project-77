@@ -34,19 +34,17 @@ const Processing = () => {
     
     const checkStatus = async () => {
       try {
-        const response = await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-analysis?sessionId=${sessionId}`,
-          {
-            headers: {
-              'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || ''
-            }
-          }
-        );
+        const { data, error } = await supabase.functions.invoke('get-analysis', {
+          body: { sessionId }
+        });
         
-        const result = await response.json();
+        if (error) {
+          console.error('Function invocation error:', error);
+          return;
+        }
         
-        if (result.analysis) {
-          const { status: analysisStatus } = result.analysis;
+        if (data?.analysis) {
+          const { status: analysisStatus } = data.analysis;
           
           if (analysisStatus === 'completed') {
             setProgress(100);
