@@ -6,12 +6,28 @@ import Header from "@/components/Header";
 
 const blogPosts = [
   {
-    slug: "medical-debt-credit-report",
-    title: "How Medical Debt Affects Your Credit Report",
-    excerpt: "Understanding the impact of medical bills on your credit score and how to protect yourself from collections.",
+    slug: "remove-medical-bills-credit",
+    title: "How to Remove Medical Bills from Your Credit Report",
+    excerpt: "Step-by-step guide to disputing medical collections and removing them from your credit report using proven strategies.",
     category: "Credit & Debt",
-    readTime: "5 min read",
+    readTime: "8 min read",
+    date: "October 12, 2025",
+  },
+  {
+    slug: "medical-debt-credit-impact",
+    title: "Medical Debt and Your Credit Report: What You Need to Know",
+    excerpt: "Understanding how medical bills affect your credit score, FICO scoring models, and recent policy changes.",
+    category: "Credit & Debt",
+    readTime: "7 min read",
     date: "October 10, 2025",
+  },
+  {
+    slug: "how-long-medical-bills-stay",
+    title: "How Long Do Medical Bills Stay on Your Credit Report?",
+    excerpt: "Complete timeline guide from billing to removal, plus strategies to remove medical debt before 7 years.",
+    category: "Credit & Debt",
+    readTime: "6 min read",
+    date: "October 8, 2025",
   },
   {
     slug: "no-surprises-act-guide",

@@ -10,6 +10,9 @@ import Results from "./pages/Results";
 import UserForm from "./pages/UserForm";
 import Blog from "./pages/Blog";
 import MedicalDebtCreditReport from "./pages/blog/MedicalDebtCreditReport";
+import RemoveMedicalBills from "./pages/blog/RemoveMedicalBills";
+import MedicalDebtCreditImpact from "./pages/blog/MedicalDebtCreditImpact";
+import HowLongMedicalBillsStay from "./pages/blog/HowLongMedicalBillsStay";
 import NoSurprisesAct from "./pages/NoSurprisesAct";
 import DisputeLetter from "./pages/DisputeLetter";
 import CallScript from "./pages/CallScript";
@@ -41,6 +44,9 @@ const App = () => (
           <Route path="/results" element={<Results />} />
           <Route path="/blog" element={<Blog />} />
           <Route path="/blog/medical-debt-credit-report" element={<MedicalDebtCreditReport />} />
+          <Route path="/blog/remove-medical-bills-credit" element={<RemoveMedicalBills />} />
+          <Route path="/blog/medical-debt-credit-impact" element={<MedicalDebtCreditImpact />} />
+          <Route path="/blog/how-long-medical-bills-stay" element={<HowLongMedicalBillsStay />} />
           <Route path="/no-surprises-act" element={<NoSurprisesAct />} />
           <Route path="/dispute-letter" element={<DisputeLetter />} />
           <Route path="/call-script" element={<CallScript />} />
