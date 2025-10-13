@@ -28,10 +28,12 @@ const Results = () => {
     day: 'numeric' 
   });
 
-  const criticalIssues = analysis.critical_issues || 0;
-  const moderateIssues = analysis.moderate_issues || 0;
-  const estimatedSavings = analysis.estimated_savings || 0;
-  const issues = analysis.issues || [];
+  const criticalIssues = analysis.analysis_result?.summary?.critical_issues || analysis.critical_issues || 0;
+  const moderateIssues = analysis.analysis_result?.summary?.moderate_issues || analysis.moderate_issues || 0;
+  const estimatedSavings = analysis.analysis_result?.summary?.estimated_savings || analysis.estimated_savings || 0;
+  const hospitalName = analysis.analysis_result?.hospital_name || '';
+  const dataSources = analysis.analysis_result?.data_sources || [];
+  const tags = analysis.analysis_result?.issues || [];
 
   return (
     <div className="min-h-screen bg-background">
@@ -90,7 +92,7 @@ const Results = () => {
                 <div className="p-2 bg-destructive/10 rounded">
                   <AlertCircle className="w-5 h-5 text-destructive" />
                 </div>
-                <span className="text-3xl font-bold text-destructive">5</span>
+                <span className="text-3xl font-bold text-destructive">{criticalIssues}</span>
               </div>
               <h3 className="text-sm font-semibold text-foreground mb-1">Critical Issues</h3>
               <p className="text-xs text-muted-foreground">Require immediate attention</p>
@@ -102,7 +104,7 @@ const Results = () => {
                 <div className="p-2 bg-warning/10 rounded">
                   <AlertTriangle className="w-5 h-5 text-warning" />
                 </div>
-                <span className="text-3xl font-bold text-warning">8</span>
+                <span className="text-3xl font-bold text-warning">{moderateIssues}</span>
               </div>
               <h3 className="text-sm font-semibold text-foreground mb-1">Moderate Concerns</h3>
               <p className="text-xs text-muted-foreground">For further review</p>
@@ -114,7 +116,7 @@ const Results = () => {
                 <div className="p-2 bg-success/10 rounded">
                   <TrendingDown className="w-5 h-5 text-success" />
                 </div>
-                <span className="text-3xl font-bold text-success">$2,450</span>
+                <span className="text-3xl font-bold text-success">${estimatedSavings.toLocaleString()}</span>
               </div>
               <h3 className="text-sm font-semibold text-foreground mb-1">Est. Savings</h3>
               <p className="text-xs text-muted-foreground">Potential cost reduction</p>
@@ -126,72 +128,39 @@ const Results = () => {
                 <div className="p-2 bg-secondary/10 rounded">
                   <Database className="w-5 h-5 text-secondary" />
                 </div>
-                <span className="text-3xl font-bold text-secondary">12</span>
+                <span className="text-3xl font-bold text-secondary">{dataSources.length}</span>
               </div>
               <h3 className="text-sm font-semibold text-foreground mb-1">Data Sources</h3>
-              <p className="text-xs text-muted-foreground">Referenced databases</p>
+              <p className="text-xs text-muted-foreground">{dataSources.join(', ') || 'Referenced databases'}</p>
             </Card>
           </div>
         </div>
 
-        {/* Detailed Findings Table */}
-        <Card className="mb-6 overflow-hidden shadow-card">
-          <div className="p-6 bg-muted/30 border-b">
-            <h2 className="text-xl font-bold text-foreground">Issue Breakdown</h2>
-          </div>
-          <div className="p-0">
-            <table className="w-full">
-              <thead className="bg-muted/50">
-                <tr className="border-b">
-                  <th className="text-left p-4 text-sm font-semibold text-foreground">Category</th>
-                  <th className="text-left p-4 text-sm font-semibold text-foreground">Finding</th>
-                  <th className="text-center p-4 text-sm font-semibold text-foreground">Severity</th>
-                  <th className="text-right p-4 text-sm font-semibold text-foreground">Impact</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr className="border-b hover:bg-muted/20 transition-colors">
-                  <td className="p-4 text-sm font-medium text-foreground">Pricing</td>
-                  <td className="p-4 text-sm text-muted-foreground">Charges exceed Medicare allowable by 340%</td>
-                  <td className="p-4 text-center">
-                    <Badge variant="destructive" className="text-xs">Critical</Badge>
-                  </td>
-                  <td className="p-4 text-right text-sm font-semibold text-destructive">$1,240</td>
-                </tr>
-                <tr className="border-b hover:bg-muted/20 transition-colors">
-                  <td className="p-4 text-sm font-medium text-foreground">Billing Codes</td>
-                  <td className="p-4 text-sm text-muted-foreground">Duplicate procedure codes identified</td>
-                  <td className="p-4 text-center">
-                    <Badge variant="destructive" className="text-xs">Critical</Badge>
-                  </td>
-                  <td className="p-4 text-right text-sm font-semibold text-destructive">$580</td>
-                </tr>
-                <tr className="border-b hover:bg-muted/20 transition-colors">
-                  <td className="p-4 text-sm font-medium text-foreground">Medication</td>
-                  <td className="p-4 text-sm text-muted-foreground">Prescription costs above market average</td>
-                  <td className="p-4 text-center">
-                    <Badge className="bg-warning/10 text-warning border-warning/20 text-xs">Moderate</Badge>
-                  </td>
-                  <td className="p-4 text-right text-sm font-semibold text-warning">$340</td>
-                </tr>
-                <tr className="border-b hover:bg-muted/20 transition-colors">
-                  <td className="p-4 text-sm font-medium text-foreground">Lab Work</td>
-                  <td className="p-4 text-sm text-muted-foreground">Test frequency exceeds standard protocol</td>
-                  <td className="p-4 text-center">
-                    <Badge className="bg-warning/10 text-warning border-warning/20 text-xs">Moderate</Badge>
-                  </td>
-                  <td className="p-4 text-right text-sm font-semibold text-warning">$290</td>
-                </tr>
-              </tbody>
-              <tfoot className="bg-muted/30 border-t-2">
-                <tr>
-                  <td colSpan={3} className="p-4 text-sm font-bold text-foreground">Total Estimated Overcharges</td>
-                  <td className="p-4 text-right text-lg font-bold text-success">$2,450</td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        </Card>
+        {/* Tags/Issues Summary */}
+        {tags.length > 0 && (
+          <Card className="mb-6 p-6 shadow-card">
+            <h2 className="text-xl font-bold text-foreground mb-4">Identified Issues</h2>
+            <div className="flex flex-wrap gap-2">
+              {tags.map((tag: string, index: number) => (
+                <Badge key={index} variant="outline" className="text-sm px-3 py-1">
+                  {tag}
+                </Badge>
+              ))}
+            </div>
+          </Card>
+        )}
+
+        {hospitalName && (
+          <Card className="mb-6 p-6 border-l-4 border-l-secondary shadow-card">
+            <div className="flex items-start gap-3">
+              <Database className="w-5 h-5 text-secondary mt-0.5" />
+              <div>
+                <h3 className="text-sm font-semibold text-foreground mb-1">Facility Information</h3>
+                <p className="text-sm text-muted-foreground">{hospitalName}</p>
+              </div>
+            </div>
+          </Card>
+        )}
 
         {/* Included in Report */}
         <Card className="mb-6 p-6 border-secondary/20 shadow-card">
@@ -241,27 +210,31 @@ const Results = () => {
               Download Full Report
             </h3>
             <p className="text-sm text-muted-foreground mb-4">
-              Get your complete comprehensive analysis report with all findings and documentation
+              Get your complete comprehensive analysis report with detailed CPT code explanations, pricing breakdowns, and actionable recommendations
             </p>
             <Button 
               size="lg"
               variant="outline"
               className="border-secondary text-secondary hover:bg-secondary hover:text-secondary-foreground font-semibold group"
               onClick={() => {
-                // User will add their N8n webhook URL here
-                const webhookUrl = prompt("Please enter your N8n webhook URL to download the comprehensive report:");
+                const webhookUrl = prompt("Please enter your N8n webhook URL to generate the detailed PDF report:");
                 if (webhookUrl) {
                   fetch(webhookUrl, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     mode: "no-cors",
                     body: JSON.stringify({
-                      reportId: "#HBC-2024-1847",
-                      timestamp: new Date().toISOString(),
-                      requestType: "comprehensive_report"
+                      session_id: sessionId,
+                      hospital_name: hospitalName,
+                      high_priority_count: criticalIssues,
+                      potential_issues_count: moderateIssues,
+                      estimated_savings: estimatedSavings,
+                      data_sources: dataSources,
+                      tags: tags,
+                      requestType: "detailed_pdf_report"
                     })
                   }).then(() => {
-                    alert("Report request sent! Check your email for the download link.");
+                    alert("PDF report generation started! You will receive the detailed report with CPT code explanations and full analysis.");
                   }).catch(() => {
                     alert("Request sent to your webhook. Please check your N8n workflow.");
                   });
@@ -269,7 +242,7 @@ const Results = () => {
               }}
             >
               <FileBarChart className="mr-2 w-5 h-5" />
-              Download Report
+              Download Detailed Report
             </Button>
           </Card>
 
@@ -284,50 +257,19 @@ const Results = () => {
               Generate Dispute Letter
             </h3>
             <p className="text-sm text-muted-foreground mb-4">
-              Create a professional dispute letter with your specific billing issues
+              Create a professional dispute letter based on your analysis findings
             </p>
             <Link 
               to="/generate-letter"
               state={{
-                issues: [
-                  {
-                    category: "Pricing",
-                    finding: "Charges exceed Medicare allowable by 340%",
-                    severity: "Critical",
-                    impact: "$1,240",
-                    cptCode: "99285",
-                    description: "Emergency Department Visit - Level 5",
-                    details: "The charged amount of $1,650 significantly exceeds the Medicare allowable rate of $485 for this service code. This represents a 340% markup above standard reimbursement rates."
-                  },
-                  {
-                    category: "Billing Codes",
-                    finding: "Duplicate procedure codes identified",
-                    severity: "Critical",
-                    impact: "$580",
-                    cptCode: "80053",
-                    description: "Comprehensive Metabolic Panel",
-                    details: "CPT code 80053 appears twice on the same date of service (line items 14 and 27), resulting in duplicate billing for identical laboratory work."
-                  },
-                  {
-                    category: "Medication",
-                    finding: "Prescription costs above market average",
-                    severity: "Moderate",
-                    impact: "$340",
-                    cptCode: "J2405",
-                    description: "Ondansetron Injection",
-                    details: "Charged $340 for a single dose of ondansetron, which typically costs $15-30 per dose at market rates."
-                  },
-                  {
-                    category: "Lab Work",
-                    finding: "Test frequency exceeds standard protocol",
-                    severity: "Moderate",
-                    impact: "$290",
-                    cptCode: "85025",
-                    description: "Complete Blood Count",
-                    details: "CBC performed 4 times within 6 hours, exceeding standard medical protocol for monitoring frequency in non-critical care settings."
-                  }
-                ],
-                totalSavings: "$2,450"
+                issues: tags.map((tag: string) => ({
+                  category: "Billing Issue",
+                  finding: tag,
+                  severity: "Review Required",
+                  impact: `Part of $${estimatedSavings.toLocaleString()} total savings`
+                })),
+                totalSavings: `$${estimatedSavings.toLocaleString()}`,
+                sessionId
               }}
             >
               <Button 
