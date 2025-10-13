@@ -144,17 +144,20 @@ async function analyzeBill(supabase: any, analysisId: string, file: File, sessio
     }
 
     // Map n8n results to our database schema
+    const uiSummary = n8nResult.ui_summary || {};
     const mappedAnalysis = {
       summary: {
-        critical_issues: n8nResult.high_priority_count || 0,
-        moderate_issues: n8nResult.potential_issues_count || 0,
-        estimated_savings: n8nResult.estimated_savings || 0,
-        total_overcharges: n8nResult.estimated_savings || 0,
+        critical_issues: uiSummary.high_priority_count || 0,
+        moderate_issues: uiSummary.potential_issues_count || 0,
+        estimated_savings: uiSummary.estimated_savings_if_corrected || 0,
+        total_overcharges: uiSummary.estimated_savings_if_corrected || 0,
       },
       issues: [],
-      hospital_name: n8nResult.hospital_name || '',
-      data_sources: n8nResult.ui_summary?.data_sources_used || [],
-      created_at: n8nResult.created_at
+      hospital_name: n8nResult.hospital_name || uiSummary.hospital_name || '',
+      data_sources: uiSummary.data_sources_used || [],
+      tags: uiSummary.tags || [],
+      created_at: n8nResult.created_at || new Date().toISOString(),
+      email_sent: n8nResult.email_sent || false
     };
 
     // Update with final results

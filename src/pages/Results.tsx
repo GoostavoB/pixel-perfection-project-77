@@ -33,7 +33,8 @@ const Results = () => {
   const estimatedSavings = analysis.analysis_result?.summary?.estimated_savings || analysis.estimated_savings || 0;
   const hospitalName = analysis.analysis_result?.hospital_name || '';
   const dataSources = analysis.analysis_result?.data_sources || [];
-  const tags = analysis.analysis_result?.issues || [];
+  const tags = analysis.analysis_result?.tags || [];
+  const emailSent = analysis.analysis_result?.email_sent || false;
 
   return (
     <div className="min-h-screen bg-background">
@@ -67,20 +68,22 @@ const Results = () => {
         </div>
 
         {/* Executive Summary */}
-        <Card className="mb-6 p-6 border-l-4 border-l-secondary shadow-card">
-          <div className="flex items-start gap-4 mb-4">
-            <div className="p-2 bg-secondary/10 rounded">
-              <Mail className="w-5 h-5 text-secondary" />
+        {emailSent && (
+          <Card className="mb-6 p-6 border-l-4 border-l-success shadow-card bg-success/5">
+            <div className="flex items-start gap-4 mb-4">
+              <div className="p-2 bg-success/10 rounded">
+                <CheckCircle className="w-5 h-5 text-success" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-foreground mb-1">Report Delivered Successfully</h2>
+                <p className="text-sm text-muted-foreground">
+                  Your comprehensive PDF analysis report has been sent to <span className="font-semibold text-success">your registered email address</span>. 
+                  Please check your inbox for the complete report with detailed CPT code explanations, pricing breakdowns, and actionable recommendations.
+                </p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-lg font-bold text-foreground mb-1">Report Delivery Status</h2>
-              <p className="text-sm text-muted-foreground">
-                Your comprehensive analysis has been generated and sent to <span className="font-semibold text-secondary">your registered email address</span>. 
-                Please check your inbox for the complete PDF report with detailed findings and recommendations.
-              </p>
-            </div>
-          </div>
-        </Card>
+          </Card>
+        )}
 
         {/* Key Metrics Grid */}
         <div className="mb-6">
