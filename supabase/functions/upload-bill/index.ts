@@ -103,12 +103,21 @@ async function analyzeBill(supabase: any, analysisId: string, file: File, sessio
     const formData = new FormData();
     formData.append('file', file);
     formData.append('session_id', sessionId);
+    formData.append('file_name', file.name);
+    formData.append('analysis_id', analysisId);
 
-    console.log('Sending to n8n webhook...');
+    console.log('Sending to n8n webhook with data:', { 
+      session_id: sessionId, 
+      file_name: file.name,
+      analysis_id: analysisId 
+    });
+
     const n8nResponse = await fetch('https://learnlearnlearn.app.n8n.cloud/webhook/upload-bill', {
       method: 'POST',
       body: formData
     });
+
+    console.log('n8n webhook response status:', n8nResponse.status);
 
     if (!n8nResponse.ok) {
       const errorText = await n8nResponse.text();
@@ -116,8 +125,23 @@ async function analyzeBill(supabase: any, analysisId: string, file: File, sessio
       throw new Error(`n8n webhook failed: ${n8nResponse.status}`);
     }
 
-    const n8nResult = await n8nResponse.json();
-    console.log('n8n analysis complete:', JSON.stringify(n8nResult));
+    // Try to parse response, but handle empty responses
+    const responseText = await n8nResponse.text();
+    console.log('n8n raw response:', responseText);
+    
+    let n8nResult;
+    if (responseText && responseText.trim()) {
+      try {
+        n8nResult = JSON.parse(responseText);
+        console.log('n8n analysis complete:', JSON.stringify(n8nResult));
+      } catch (parseError) {
+        console.warn('Could not parse n8n response as JSON:', responseText);
+        n8nResult = { success: true };
+      }
+    } else {
+      console.warn('Empty response from n8n, assuming success');
+      n8nResult = { success: true };
+    }
 
     // Map n8n results to our database schema
     const mappedAnalysis = {
