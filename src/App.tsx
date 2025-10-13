@@ -13,14 +13,14 @@ import MedicalDebtCreditReport from "./pages/blog/MedicalDebtCreditReport";
 import RemoveMedicalBills from "./pages/blog/RemoveMedicalBills";
 import MedicalDebtCreditImpact from "./pages/blog/MedicalDebtCreditImpact";
 import HowLongMedicalBillsStay from "./pages/blog/HowLongMedicalBillsStay";
+import MedicalBillingCollections from "./pages/blog/MedicalBillingCollections";
+import EmergencyRoomCharges from "./pages/blog/EmergencyRoomCharges";
 import NoSurprisesAct from "./pages/NoSurprisesAct";
 import DisputeLetter from "./pages/DisputeLetter";
 import CallScript from "./pages/CallScript";
 import DisputedCodes from "./pages/DisputedCodes";
 import CreditReport from "./pages/CreditReport";
 import HowLongMedicalBills from "./pages/HowLongMedicalBills";
-import EmergencyRoomCharges from "./pages/EmergencyRoomCharges";
-import MedicalBillingCollections from "./pages/MedicalBillingCollections";
 import Contact from "./pages/Contact";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
@@ -47,6 +47,8 @@ const App = () => (
           <Route path="/blog/remove-medical-bills-credit" element={<RemoveMedicalBills />} />
           <Route path="/blog/medical-debt-credit-impact" element={<MedicalDebtCreditImpact />} />
           <Route path="/blog/how-long-medical-bills-stay" element={<HowLongMedicalBillsStay />} />
+          <Route path="/blog/medical-billing-collections" element={<MedicalBillingCollections />} />
+          <Route path="/blog/emergency-room-charges" element={<EmergencyRoomCharges />} />
           <Route path="/no-surprises-act" element={<NoSurprisesAct />} />
           <Route path="/dispute-letter" element={<DisputeLetter />} />
           <Route path="/call-script" element={<CallScript />} />
