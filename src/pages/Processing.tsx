@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Progress } from "@/components/ui/progress";
 import { Card } from "@/components/ui/card";
 import Header from "@/components/Header";
+import { supabase } from "@/integrations/supabase/client";
 
 const facts = [
   "80% of medical bills contain errors that could cost you hundreds or thousands of dollars.",
@@ -18,29 +19,68 @@ const facts = [
 const Processing = () => {
   const [progress, setProgress] = useState(0);
   const [currentFact, setCurrentFact] = useState(0);
+  const [status, setStatus] = useState('Initializing analysis...');
   const navigate = useNavigate();
+  const location = useLocation();
+  const { sessionId } = (location.state as { sessionId?: string }) || {};
 
   useEffect(() => {
-    const progressInterval = setInterval(() => {
-      setProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(progressInterval);
-          setTimeout(() => navigate("/form"), 500);
-          return 100;
+    if (!sessionId) {
+      navigate('/upload');
+      return;
+    }
+
+    let pollInterval: ReturnType<typeof setInterval>;
+    
+    const checkStatus = async () => {
+      try {
+        const response = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get-analysis?sessionId=${sessionId}`,
+          {
+            headers: {
+              'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || ''
+            }
+          }
+        );
+        
+        const result = await response.json();
+        
+        if (result.analysis) {
+          const { status: analysisStatus } = result.analysis;
+          
+          if (analysisStatus === 'completed') {
+            setProgress(100);
+            setStatus('Analysis complete!');
+            clearInterval(pollInterval);
+            setTimeout(() => navigate('/form'), 500);
+          } else if (analysisStatus === 'error') {
+            setStatus('Analysis failed. Please try again.');
+            clearInterval(pollInterval);
+          } else {
+            // Still processing
+            setProgress(prev => Math.min(prev + 5, 90));
+          }
         }
-        return prev + 1;
-      });
-    }, 100);
+      } catch (error) {
+        console.error('Status check error:', error);
+      }
+    };
+
+    // Start polling
+    pollInterval = setInterval(checkStatus, 2000);
+    
+    // Initial check
+    checkStatus();
 
     const factInterval = setInterval(() => {
       setCurrentFact((prev) => (prev + 1) % facts.length);
     }, 3000);
 
     return () => {
-      clearInterval(progressInterval);
+      clearInterval(pollInterval);
       clearInterval(factInterval);
     };
-  }, [navigate]);
+  }, [navigate, sessionId]);
 
   const getStageMessage = () => {
     if (progress < 25) return "Transcribing your medical bill...";
@@ -64,7 +104,7 @@ const Processing = () => {
                 Analyzing Your Bill
               </h2>
               <p className="text-muted-foreground">
-                {getStageMessage()}
+                {status || getStageMessage()}
               </p>
             </div>
 

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import Header from "@/components/Header";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const Upload = () => {
   const [file, setFile] = useState<File | null>(null);
@@ -35,7 +36,7 @@ const Upload = () => {
     }
   };
 
-  const handleUpload = () => {
+  const handleUpload = async () => {
     if (!file) {
       toast({
         title: "No file selected",
@@ -44,7 +45,37 @@ const Upload = () => {
       });
       return;
     }
-    navigate("/processing");
+
+    // Generate session ID
+    const sessionId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Store session ID for later use
+    localStorage.setItem('billAnalysisSessionId', sessionId);
+    
+    // Navigate to processing immediately
+    navigate("/processing", { state: { sessionId, file: file.name } });
+    
+    // Upload in background
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('sessionId', sessionId);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('upload-bill', {
+        body: formData
+      });
+
+      if (error) throw error;
+      
+      console.log('Upload initiated:', data);
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast({
+        title: "Upload failed",
+        description: "Please try again",
+        variant: "destructive",
+      });
+    }
   };
 
   return (

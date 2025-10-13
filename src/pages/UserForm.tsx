@@ -7,14 +7,66 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Link, useNavigate } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const UserForm = () => {
   const [agreed, setAgreed] = useState(false);
+  const [consent, setConsent] = useState(false);
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { toast } = useToast();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    navigate('/results');
+    
+    if (!agreed || !consent) {
+      toast({
+        title: "Consent required",
+        description: "Please accept the terms and privacy policy to continue",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+    const sessionId = localStorage.getItem('billAnalysisSessionId');
+    
+    if (!sessionId) {
+      toast({
+        title: "Session expired",
+        description: "Please upload your bill again",
+        variant: "destructive",
+      });
+      navigate('/upload');
+      return;
+    }
+
+    const formData = new FormData(e.target as HTMLFormElement);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('submit-form', {
+        body: {
+          sessionId,
+          email: formData.get('email'),
+          name: formData.get('fullName'),
+          phone: formData.get('phone') || ''
+        }
+      });
+
+      if (error) throw error;
+
+      navigate('/results', { state: { analysis: data.analysis, sessionId } });
+    } catch (error) {
+      console.error('Form submission error:', error);
+      toast({
+        title: "Submission failed",
+        description: "Please try again",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const currentYear = new Date().getFullYear();
@@ -171,6 +223,8 @@ const UserForm = () => {
             <div className="flex items-start gap-3">
               <Checkbox
                 id="consent"
+                checked={consent}
+                onCheckedChange={(checked) => setConsent(checked as boolean)}
                 className="mt-1"
               />
               <Label htmlFor="consent" className="text-sm text-foreground cursor-pointer leading-relaxed">
@@ -184,9 +238,9 @@ const UserForm = () => {
             type="submit"
             size="lg"
             className="w-full bg-secondary hover:bg-secondary/90 text-secondary-foreground font-semibold text-lg py-6 shadow-lg hover:shadow-xl transition-all"
-            disabled={!agreed}
+            disabled={!agreed || !consent || loading}
           >
-            Get My Full Report
+            {loading ? 'Submitting...' : 'Get My Full Report'}
           </Button>
         </form>
 

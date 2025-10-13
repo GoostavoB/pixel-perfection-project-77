@@ -14,7 +14,69 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      bill_analyses: {
+        Row: {
+          analysis_result: Json | null
+          created_at: string
+          critical_issues: number | null
+          estimated_savings: number | null
+          extracted_text: string | null
+          file_name: string
+          file_type: string
+          file_url: string
+          id: string
+          issues: Json | null
+          moderate_issues: number | null
+          session_id: string
+          status: string
+          total_overcharges: number | null
+          updated_at: string
+          user_email: string | null
+          user_name: string | null
+          user_phone: string | null
+        }
+        Insert: {
+          analysis_result?: Json | null
+          created_at?: string
+          critical_issues?: number | null
+          estimated_savings?: number | null
+          extracted_text?: string | null
+          file_name: string
+          file_type: string
+          file_url: string
+          id?: string
+          issues?: Json | null
+          moderate_issues?: number | null
+          session_id: string
+          status?: string
+          total_overcharges?: number | null
+          updated_at?: string
+          user_email?: string | null
+          user_name?: string | null
+          user_phone?: string | null
+        }
+        Update: {
+          analysis_result?: Json | null
+          created_at?: string
+          critical_issues?: number | null
+          estimated_savings?: number | null
+          extracted_text?: string | null
+          file_name?: string
+          file_type?: string
+          file_url?: string
+          id?: string
+          issues?: Json | null
+          moderate_issues?: number | null
+          session_id?: string
+          status?: string
+          total_overcharges?: number | null
+          updated_at?: string
+          user_email?: string | null
+          user_name?: string | null
+          user_phone?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

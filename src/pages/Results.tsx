@@ -1,17 +1,37 @@
 import { CheckCircle, AlertCircle, AlertTriangle, DollarSign, Database, Mail, FileText, ArrowRight, Calendar, FileBarChart, TrendingDown } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import Header from "@/components/Header";
+import { useEffect, useState } from "react";
 
 const Results = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { analysis: passedAnalysis, sessionId } = (location.state as { analysis?: any; sessionId?: string }) || {};
+  
+  const [analysis, setAnalysis] = useState(passedAnalysis);
+  
+  useEffect(() => {
+    if (!analysis || !sessionId) {
+      navigate('/upload');
+    }
+  }, [analysis, sessionId, navigate]);
+
+  if (!analysis) return null;
+
   const analysisDate = new Date().toLocaleDateString('en-US', { 
     year: 'numeric', 
     month: 'long', 
     day: 'numeric' 
   });
+
+  const criticalIssues = analysis.critical_issues || 0;
+  const moderateIssues = analysis.moderate_issues || 0;
+  const estimatedSavings = analysis.estimated_savings || 0;
+  const issues = analysis.issues || [];
 
   return (
     <div className="min-h-screen bg-background">
