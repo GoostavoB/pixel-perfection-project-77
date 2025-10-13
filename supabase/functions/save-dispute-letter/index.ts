@@ -16,16 +16,17 @@ serve(async (req) => {
 
     if (!sessionId || !letterText) {
       return new Response(
-        JSON.stringify({ success: false, error: 'sessionId and letterText are required' }),
+        JSON.stringify({ success: false, error: 'session_id and letter_text required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    console.log('Saving dispute letter for session:', sessionId);
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Check if dispute letter already exists
     const { data: existing } = await supabase
       .from('dispute_letters')
       .select('id')
@@ -34,47 +35,39 @@ serve(async (req) => {
 
     let result;
     if (existing) {
-      // Update existing
       const { data, error } = await supabase
         .from('dispute_letters')
         .update({
           template_text: letterText,
-          user_name: userName,
-          user_address: userAddress,
+          user_name: userName || null,
+          user_address: userAddress || null,
+          updated_at: new Date().toISOString()
         })
         .eq('session_id', sessionId)
         .select()
         .single();
-      
-      result = { data, error };
+
+      if (error) throw error;
+      result = data;
     } else {
-      // Insert new
       const { data, error } = await supabase
         .from('dispute_letters')
         .insert({
           session_id: sessionId,
           template_text: letterText,
-          user_name: userName,
-          user_address: userAddress,
+          user_name: userName || null,
+          user_address: userAddress || null
         })
         .select()
         .single();
-      
-      result = { data, error };
+
+      if (error) throw error;
+      result = data;
     }
 
-    if (result.error) {
-      console.error('Database error:', result.error);
-      return new Response(
-        JSON.stringify({ success: false, error: 'Failed to save dispute letter' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Optionally forward to n8n for PDF generation
-    const n8nWebhook = 'https://learnlearnlearn.app.n8n.cloud/webhook/save-dispute-letter';
+    // Send to n8n for PDF generation (background)
     try {
-      await fetch(n8nWebhook, {
+      const n8nResponse = await fetch('https://learnlearnlearn.app.n8n.cloud/webhook/save-dispute-letter', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -84,16 +77,26 @@ serve(async (req) => {
           letter_text: letterText
         })
       });
-      console.log('Sent to n8n for PDF generation');
+
+      if (n8nResponse.ok) {
+        const n8nData = await n8nResponse.json();
+        if (n8nData.pdf_url) {
+          await supabase
+            .from('dispute_letters')
+            .update({ pdf_url: n8nData.pdf_url })
+            .eq('session_id', sessionId);
+          result.pdf_url = n8nData.pdf_url;
+        }
+      }
     } catch (n8nError) {
-      console.warn('n8n webhook failed (non-fatal):', n8nError);
+      console.warn('N8N PDF generation failed (non-critical):', n8nError);
     }
 
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         success: true,
-        message: 'Dispute letter saved',
-        id: result.data.id
+        message: 'Dispute letter saved successfully',
+        dispute_letter: result
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

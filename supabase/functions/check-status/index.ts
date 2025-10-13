@@ -12,12 +12,11 @@ serve(async (req) => {
   }
 
   try {
-    const url = new URL(req.url);
-    const sessionId = url.searchParams.get('sessionId');
+    const { sessionId } = await req.json();
 
     if (!sessionId) {
       return new Response(
-        JSON.stringify({ success: false, error: 'sessionId parameter required' }),
+        JSON.stringify({ success: false, error: 'session_id required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -26,13 +25,14 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { data: analysis, error } = await supabase
+    const { data, error } = await supabase
       .from('bill_analyses')
-      .select('session_id, status, created_at, updated_at, file_name')
+      .select('session_id, status, created_at, updated_at')
       .eq('session_id', sessionId)
       .single();
 
-    if (error || !analysis) {
+    if (error || !data) {
+      console.error('Status check error:', error);
       return new Response(
         JSON.stringify({ success: false, error: 'Analysis not found' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -40,13 +40,12 @@ serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         success: true,
-        session_id: analysis.session_id,
-        status: analysis.status,
-        file_name: analysis.file_name,
-        created_at: analysis.created_at,
-        updated_at: analysis.updated_at
+        session_id: data.session_id,
+        status: data.status,
+        created_at: data.created_at,
+        updated_at: data.updated_at
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

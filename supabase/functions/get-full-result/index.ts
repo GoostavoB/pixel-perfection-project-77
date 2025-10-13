@@ -12,12 +12,11 @@ serve(async (req) => {
   }
 
   try {
-    const url = new URL(req.url);
-    const sessionId = url.searchParams.get('sessionId');
+    const { sessionId } = await req.json();
 
     if (!sessionId) {
       return new Response(
-        JSON.stringify({ success: false, error: 'sessionId parameter required' }),
+        JSON.stringify({ success: false, error: 'session_id required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -26,7 +25,6 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Get bill analysis
     const { data: analysis, error: analysisError } = await supabase
       .from('bill_analyses')
       .select('*')
@@ -34,20 +32,19 @@ serve(async (req) => {
       .single();
 
     if (analysisError || !analysis) {
+      console.error('Analysis query error:', analysisError);
       return new Response(
-        JSON.stringify({ success: false, error: 'Results not found' }),
+        JSON.stringify({ success: false, error: 'Analysis not found' }),
         { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Get user form data if exists
     const { data: formData } = await supabase
       .from('user_form_data')
       .select('*')
       .eq('session_id', sessionId)
       .maybeSingle();
 
-    // Get dispute letter if exists
     const { data: disputeLetter } = await supabase
       .from('dispute_letters')
       .select('*')
@@ -55,25 +52,24 @@ serve(async (req) => {
       .maybeSingle();
 
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         success: true,
         session_id: analysis.session_id,
         status: analysis.status,
         hospital_name: analysis.analysis_result?.hospital_name || '',
-        ui_summary: analysis.analysis_result || {},
-        analysis_result: analysis.analysis_result,
-        file_name: analysis.file_name,
-        file_url: analysis.file_url,
-        critical_issues: analysis.critical_issues,
-        moderate_issues: analysis.moderate_issues,
-        estimated_savings: analysis.estimated_savings,
-        total_overcharges: analysis.total_overcharges,
-        issues: analysis.issues,
+        ui_summary: {
+          high_priority_count: analysis.critical_issues || 0,
+          potential_issues_count: analysis.moderate_issues || 0,
+          estimated_savings_if_corrected: analysis.estimated_savings || 0,
+          data_sources_used: analysis.analysis_result?.data_sources || [],
+          tags: analysis.analysis_result?.tags || []
+        },
+        findings: analysis.issues || [],
+        full_analysis: analysis.analysis_result || {},
+        email_sent: analysis.analysis_result?.email_sent || false,
         user_data: formData || null,
         dispute_letter_template: disputeLetter?.template_text || null,
-        dispute_letter_pdf_url: disputeLetter?.pdf_url || null,
-        created_at: analysis.created_at,
-        updated_at: analysis.updated_at
+        dispute_letter_pdf_url: disputeLetter?.pdf_url || null
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
