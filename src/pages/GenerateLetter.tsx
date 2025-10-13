@@ -451,11 +451,13 @@ CC: [Insurance Company Name] - Member Services
 
                     {billingIssues.length > 0 && (
                       <>
-                        <div className="border-t border-gray-300 my-4"></div>
+                        <div className="border-t-2 border-gray-400 my-6"></div>
                         
                         <div>
-                          <div className="font-bold text-base mb-3 uppercase">Disputed Charges - Itemized Findings</div>
-                          <div className="text-justify mb-3">
+                          <div className="font-bold text-lg mb-4 uppercase text-center" style={{ letterSpacing: '0.5px' }}>
+                            DISPUTED CHARGES - ITEMIZED FINDINGS
+                          </div>
+                          <div className="text-justify mb-4 bg-gray-50 p-3 border-l-4 border-gray-400">
                             Based on my thorough analysis of the itemized bill, I am disputing the following charges:
                           </div>
                           

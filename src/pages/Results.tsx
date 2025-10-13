@@ -208,73 +208,118 @@ const Results = () => {
           </div>
         </Card>
 
-        {/* Next Steps CTA */}
-        <Card className="p-8 text-center border-accent/20 bg-gradient-to-br from-accent/5 to-accent/10 shadow-card">
-          <div className="flex justify-center mb-4">
-            <div className="p-3 bg-accent/10 rounded-lg">
-              <FileText className="w-8 h-8 text-accent" />
+        {/* Action Buttons */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+          {/* Download Comprehensive Report */}
+          <Card className="p-6 text-center border-secondary/20 bg-gradient-to-br from-secondary/5 to-secondary/10 shadow-card">
+            <div className="flex justify-center mb-3">
+              <div className="p-3 bg-secondary/10 rounded-lg">
+                <FileBarChart className="w-7 h-7 text-secondary" />
+              </div>
             </div>
-          </div>
-          <h2 className="text-2xl font-bold text-foreground mb-2">
-            Next Step: Generate Dispute Letter
-          </h2>
-          <p className="text-muted-foreground mb-6 max-w-2xl mx-auto">
-            Based on the findings in your report, we can generate a professional dispute letter 
-            customized with your specific billing issues and supporting documentation.
-          </p>
-          <Link 
-            to="/generate-letter"
-            state={{
-              issues: [
-                {
-                  category: "Pricing",
-                  finding: "Charges exceed Medicare allowable by 340%",
-                  severity: "Critical",
-                  impact: "$1,240",
-                  cptCode: "99285",
-                  description: "Emergency Department Visit - Level 5",
-                  details: "The charged amount of $1,650 significantly exceeds the Medicare allowable rate of $485 for this service code. This represents a 340% markup above standard reimbursement rates."
-                },
-                {
-                  category: "Billing Codes",
-                  finding: "Duplicate procedure codes identified",
-                  severity: "Critical",
-                  impact: "$580",
-                  cptCode: "80053",
-                  description: "Comprehensive Metabolic Panel",
-                  details: "CPT code 80053 appears twice on the same date of service (line items 14 and 27), resulting in duplicate billing for identical laboratory work."
-                },
-                {
-                  category: "Medication",
-                  finding: "Prescription costs above market average",
-                  severity: "Moderate",
-                  impact: "$340",
-                  cptCode: "J2405",
-                  description: "Ondansetron Injection",
-                  details: "Charged $340 for a single dose of ondansetron, which typically costs $15-30 per dose at market rates."
-                },
-                {
-                  category: "Lab Work",
-                  finding: "Test frequency exceeds standard protocol",
-                  severity: "Moderate",
-                  impact: "$290",
-                  cptCode: "85025",
-                  description: "Complete Blood Count",
-                  details: "CBC performed 4 times within 6 hours, exceeding standard medical protocol for monitoring frequency in non-critical care settings."
-                }
-              ],
-              totalSavings: "$2,450"
-            }}
-          >
+            <h3 className="text-lg font-bold text-foreground mb-2">
+              Download Full Report
+            </h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Get your complete comprehensive analysis report with all findings and documentation
+            </p>
             <Button 
               size="lg"
-              className="bg-accent hover:bg-accent/90 text-accent-foreground font-semibold px-8 py-6 text-base group shadow-lg hover:shadow-xl transition-all"
+              variant="outline"
+              className="border-secondary text-secondary hover:bg-secondary hover:text-secondary-foreground font-semibold group"
+              onClick={() => {
+                // User will add their N8n webhook URL here
+                const webhookUrl = prompt("Please enter your N8n webhook URL to download the comprehensive report:");
+                if (webhookUrl) {
+                  fetch(webhookUrl, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    mode: "no-cors",
+                    body: JSON.stringify({
+                      reportId: "#HBC-2024-1847",
+                      timestamp: new Date().toISOString(),
+                      requestType: "comprehensive_report"
+                    })
+                  }).then(() => {
+                    alert("Report request sent! Check your email for the download link.");
+                  }).catch(() => {
+                    alert("Request sent to your webhook. Please check your N8n workflow.");
+                  });
+                }
+              }}
             >
-              Generate Your Dispute Letter
-              <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              <FileBarChart className="mr-2 w-5 h-5" />
+              Download Report
             </Button>
-          </Link>
-        </Card>
+          </Card>
+
+          {/* Generate Dispute Letter */}
+          <Card className="p-6 text-center border-accent/20 bg-gradient-to-br from-accent/5 to-accent/10 shadow-card">
+            <div className="flex justify-center mb-3">
+              <div className="p-3 bg-accent/10 rounded-lg">
+                <FileText className="w-7 h-7 text-accent" />
+              </div>
+            </div>
+            <h3 className="text-lg font-bold text-foreground mb-2">
+              Generate Dispute Letter
+            </h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Create a professional dispute letter with your specific billing issues
+            </p>
+            <Link 
+              to="/generate-letter"
+              state={{
+                issues: [
+                  {
+                    category: "Pricing",
+                    finding: "Charges exceed Medicare allowable by 340%",
+                    severity: "Critical",
+                    impact: "$1,240",
+                    cptCode: "99285",
+                    description: "Emergency Department Visit - Level 5",
+                    details: "The charged amount of $1,650 significantly exceeds the Medicare allowable rate of $485 for this service code. This represents a 340% markup above standard reimbursement rates."
+                  },
+                  {
+                    category: "Billing Codes",
+                    finding: "Duplicate procedure codes identified",
+                    severity: "Critical",
+                    impact: "$580",
+                    cptCode: "80053",
+                    description: "Comprehensive Metabolic Panel",
+                    details: "CPT code 80053 appears twice on the same date of service (line items 14 and 27), resulting in duplicate billing for identical laboratory work."
+                  },
+                  {
+                    category: "Medication",
+                    finding: "Prescription costs above market average",
+                    severity: "Moderate",
+                    impact: "$340",
+                    cptCode: "J2405",
+                    description: "Ondansetron Injection",
+                    details: "Charged $340 for a single dose of ondansetron, which typically costs $15-30 per dose at market rates."
+                  },
+                  {
+                    category: "Lab Work",
+                    finding: "Test frequency exceeds standard protocol",
+                    severity: "Moderate",
+                    impact: "$290",
+                    cptCode: "85025",
+                    description: "Complete Blood Count",
+                    details: "CBC performed 4 times within 6 hours, exceeding standard medical protocol for monitoring frequency in non-critical care settings."
+                  }
+                ],
+                totalSavings: "$2,450"
+              }}
+            >
+              <Button 
+                size="lg"
+                className="bg-accent hover:bg-accent/90 text-accent-foreground font-semibold group"
+              >
+                Generate Letter
+                <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              </Button>
+            </Link>
+          </Card>
+        </div>
       </main>
     </div>
   );
