@@ -151,11 +151,11 @@ const UserForm = () => {
               />
               <Label htmlFor="terms" className="text-sm text-foreground cursor-pointer leading-relaxed">
                 I have read and accept the{" "}
-                <Link to="/terms" target="_blank" rel="noopener" className="text-primary hover:underline font-medium">
+                <Link to="/terms" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-medium">
                   Terms of Use
                 </Link>{" "}
                 and{" "}
-                <Link to="/privacy" target="_blank" rel="noopener" className="text-primary hover:underline font-medium">
+                <Link to="/privacy" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-medium">
                   Privacy Policy
                 </Link>.{" "}
                 <span className="text-destructive">*</span>
