@@ -58,34 +58,25 @@ const GenerateLetter = () => {
   const generateIssuesSection = () => {
     if (billingIssues.length === 0) return "";
     
-    const criticalIssues = billingIssues.filter(i => i.severity === "Critical");
-    const moderateIssues = billingIssues.filter(i => i.severity === "Moderate");
+    let section = "DISPUTED CHARGES - ITEMIZED FINDINGS\n\n";
+    section += "Based on my thorough analysis of the itemized bill, I am disputing the following charges:\n\n";
     
-    let section = "";
-    
-    if (criticalIssues.length > 0) {
-      section += "CRITICAL BILLING ERRORS\n\n";
-      criticalIssues.forEach((issue, index) => {
-        section += `Issue ${index + 1}: ${issue.category} - ${issue.finding}\n`;
-        section += `CPT Code: ${issue.cptCode} - ${issue.description}\n`;
-        section += `Disputed Amount: ${issue.impact}\n\n`;
-        section += `Details: ${issue.details}\n\n`;
-        section += `REQUESTED ACTION: Review and correct this billing error. This charge should be adjusted or removed from my account.\n\n`;
-        section += "---\n\n";
-      });
-    }
-    
-    if (moderateIssues.length > 0) {
-      section += "ADDITIONAL BILLING CONCERNS\n\n";
-      moderateIssues.forEach((issue, index) => {
-        section += `Issue ${criticalIssues.length + index + 1}: ${issue.category} - ${issue.finding}\n`;
-        section += `CPT Code: ${issue.cptCode} - ${issue.description}\n`;
-        section += `Disputed Amount: ${issue.impact}\n\n`;
-        section += `Details: ${issue.details}\n\n`;
-        section += `REQUESTED ACTION: Provide justification for this charge or adjust to fair market rates.\n\n`;
-        section += "---\n\n";
-      });
-    }
+    billingIssues.forEach((issue, index) => {
+      section += `${index + 1}. ${issue.category} - ${issue.finding}\n`;
+      section += `   CPT Code: ${issue.cptCode} - ${issue.description}\n`;
+      section += `   Disputed Amount: ${issue.impact}\n`;
+      section += `   \n`;
+      section += `   Reason for Dispute:\n`;
+      section += `   ${issue.details}\n`;
+      section += `   \n`;
+      
+      if (issue.severity === "Critical") {
+        section += `   Required Action: This charge must be removed or corrected immediately as it violates billing standards and regulations.\n`;
+      } else {
+        section += `   Required Action: This charge should be reviewed and adjusted to reflect fair market rates and standard billing practices.\n`;
+      }
+      section += `\n`;
+    });
     
     return section;
   };
@@ -462,64 +453,41 @@ CC: [Insurance Company Name] - Member Services
                       <>
                         <div className="border-t border-gray-300 my-4"></div>
                         
-                        {billingIssues.filter(i => i.severity === "Critical").length > 0 && (
-                          <div>
-                            <div className="font-bold text-base mb-3">CRITICAL BILLING ERRORS</div>
-                            {billingIssues.filter(i => i.severity === "Critical").map((issue, index) => (
-                              <div key={index} className="mb-4 pl-4 border-l-4 border-destructive">
+                        <div>
+                          <div className="font-bold text-base mb-3 uppercase">Disputed Charges - Itemized Findings</div>
+                          <div className="text-justify mb-3">
+                            Based on my thorough analysis of the itemized bill, I am disputing the following charges:
+                          </div>
+                          
+                          <div className="space-y-4">
+                            {billingIssues.map((issue, index) => (
+                              <div key={index} className="pl-4">
                                 <div className="font-semibold mb-1">
-                                  Issue {index + 1}: {issue.category} - {issue.finding}
+                                  {index + 1}. {issue.category} - {issue.finding}
                                 </div>
-                                <div className="mb-1">
+                                <div className="mb-1 ml-3">
                                   <span className="font-semibold">CPT Code:</span> {issue.cptCode} - {issue.description}
                                 </div>
-                                <div className="mb-1">
+                                <div className="mb-1 ml-3">
                                   <span className="font-semibold">Disputed Amount:</span> {issue.impact}
                                 </div>
-                                <div className="mb-2 text-justify">
-                                  <span className="font-semibold">Details:</span> {issue.details}
+                                <div className="mb-2 ml-3 text-justify">
+                                  <span className="font-semibold">Reason for Dispute:</span>
+                                  <br />
+                                  {issue.details}
                                 </div>
-                                <div className="mb-2 italic">
-                                  <span className="font-semibold">REQUESTED ACTION:</span> Review and correct this billing error. This charge should be adjusted or removed from my account.
+                                <div className="mb-2 ml-3 italic">
+                                  <span className="font-semibold">Required Action:</span> {issue.severity === "Critical" 
+                                    ? "This charge must be removed or corrected immediately as it violates billing standards and regulations."
+                                    : "This charge should be reviewed and adjusted to reflect fair market rates and standard billing practices."}
                                 </div>
-                                {index < billingIssues.filter(i => i.severity === "Critical").length - 1 && (
-                                  <div className="border-t border-gray-200 mt-3"></div>
+                                {index < billingIssues.length - 1 && (
+                                  <div className="border-t border-gray-200 mt-3 mb-3"></div>
                                 )}
                               </div>
                             ))}
                           </div>
-                        )}
-
-                        {billingIssues.filter(i => i.severity === "Moderate").length > 0 && (
-                          <div>
-                            <div className="font-bold text-base mb-3 mt-6">ADDITIONAL BILLING CONCERNS</div>
-                            {billingIssues.filter(i => i.severity === "Moderate").map((issue, index) => {
-                              const issueNumber = billingIssues.filter(i => i.severity === "Critical").length + index + 1;
-                              return (
-                                <div key={index} className="mb-4 pl-4 border-l-4 border-warning">
-                                  <div className="font-semibold mb-1">
-                                    Issue {issueNumber}: {issue.category} - {issue.finding}
-                                  </div>
-                                  <div className="mb-1">
-                                    <span className="font-semibold">CPT Code:</span> {issue.cptCode} - {issue.description}
-                                  </div>
-                                  <div className="mb-1">
-                                    <span className="font-semibold">Disputed Amount:</span> {issue.impact}
-                                  </div>
-                                  <div className="mb-2 text-justify">
-                                    <span className="font-semibold">Details:</span> {issue.details}
-                                  </div>
-                                  <div className="mb-2 italic">
-                                    <span className="font-semibold">REQUESTED ACTION:</span> Provide justification for this charge or adjust to fair market rates.
-                                  </div>
-                                  {index < billingIssues.filter(i => i.severity === "Moderate").length - 1 && (
-                                    <div className="border-t border-gray-200 mt-3"></div>
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
+                        </div>
 
                         <div className="border-t border-gray-300 my-4"></div>
 
