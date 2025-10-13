@@ -38,46 +38,46 @@ const Header = () => {
           <NavigationMenu className="hidden lg:flex">
             <NavigationMenuList className="gap-6">
               <NavigationMenuItem>
-                <Link to="/" className="text-sm font-medium text-foreground hover:text-primary transition-colors">
+                <Link to="/" className="text-sm font-medium text-foreground hover:text-primary transition-colors min-h-[48px] min-w-[48px] flex items-center justify-center px-2">
                   Home
                 </Link>
               </NavigationMenuItem>
               
               <NavigationMenuItem>
-                <Link to="/upload" className="text-sm font-medium text-foreground hover:text-primary transition-colors">
+                <Link to="/upload" className="text-sm font-medium text-foreground hover:text-primary transition-colors min-h-[48px] min-w-[48px] flex items-center justify-center px-2">
                   Upload Bill
                 </Link>
               </NavigationMenuItem>
               
               <NavigationMenuItem>
-                <Link to="/blog" className="text-sm font-medium text-foreground hover:text-primary transition-colors">
+                <Link to="/blog" className="text-sm font-medium text-foreground hover:text-primary transition-colors min-h-[48px] min-w-[48px] flex items-center justify-center px-2">
                   Blog
                 </Link>
               </NavigationMenuItem>
               
               <NavigationMenuItem>
-                <Link to="/faq" className="text-sm font-medium text-foreground hover:text-primary transition-colors">
+                <Link to="/faq" className="text-sm font-medium text-foreground hover:text-primary transition-colors min-h-[48px] min-w-[48px] flex items-center justify-center px-2">
                   FAQ
                 </Link>
               </NavigationMenuItem>
               
               <NavigationMenuItem>
-                <Link to="/contact" className="text-sm font-medium text-foreground hover:text-primary transition-colors">
+                <Link to="/contact" className="text-sm font-medium text-foreground hover:text-primary transition-colors min-h-[48px] min-w-[48px] flex items-center justify-center px-2">
                   Contact
                 </Link>
               </NavigationMenuItem>
               
               <NavigationMenuItem>
-                <NavigationMenuTrigger className="text-sm font-medium bg-transparent hover:bg-transparent">
+                <NavigationMenuTrigger className="text-sm font-medium bg-transparent hover:bg-transparent min-h-[48px]">
                   Useful Links
                 </NavigationMenuTrigger>
                 <NavigationMenuContent>
-                  <ul className="grid w-[280px] gap-1 p-4 bg-card">
+                  <ul className="grid w-[280px] gap-1 p-4 bg-card z-50">
                     {usefulLinks.map((link) => (
                       <li key={link.path}>
                         <Link
                           to={link.path}
-                          className="block select-none rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+                          className="block select-none rounded-md p-4 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground min-h-[48px] flex items-center"
                         >
                           <div className="text-sm font-medium leading-none flex items-center gap-2">
                             {link.label}

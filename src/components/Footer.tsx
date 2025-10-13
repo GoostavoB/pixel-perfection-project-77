@@ -8,7 +8,7 @@ const Footer = () => {
         <div className="grid md:grid-cols-4 gap-8">
           {/* Company Info */}
           <div>
-            <h3 className="font-bold text-foreground mb-4">Hospital Bill Checker</h3>
+            <h2 className="font-bold text-foreground mb-4">Hospital Bill Checker</h2>
             <p className="text-sm text-muted-foreground mb-4">
               Free AI-powered medical bill analysis helping patients identify errors and save money.
             </p>
@@ -23,30 +23,30 @@ const Footer = () => {
 
           {/* Quick Links */}
           <div>
-            <h3 className="font-bold text-foreground mb-4">Quick Links</h3>
+            <h2 className="font-bold text-foreground mb-4">Quick Links</h2>
             <ul className="space-y-2 text-sm">
               <li>
-                <Link to="/upload" className="text-muted-foreground hover:text-primary transition-colors">
+                <Link to="/upload" className="text-muted-foreground hover:text-primary transition-colors min-h-[48px] flex items-center">
                   Upload Bill
                 </Link>
               </li>
               <li>
-                <Link to="/blog" className="text-muted-foreground hover:text-primary transition-colors">
+                <Link to="/blog" className="text-muted-foreground hover:text-primary transition-colors min-h-[48px] flex items-center">
                   Blog
                 </Link>
               </li>
               <li>
-                <Link to="/faq" className="text-muted-foreground hover:text-primary transition-colors">
+                <Link to="/faq" className="text-muted-foreground hover:text-primary transition-colors min-h-[48px] flex items-center">
                   FAQ
                 </Link>
               </li>
               <li>
-                <Link to="/no-surprises-act" className="text-muted-foreground hover:text-primary transition-colors">
+                <Link to="/no-surprises-act" className="text-muted-foreground hover:text-primary transition-colors min-h-[48px] flex items-center">
                   No Surprises Act
                 </Link>
               </li>
               <li>
-                <Link to="/contact" className="text-muted-foreground hover:text-primary transition-colors">
+                <Link to="/contact" className="text-muted-foreground hover:text-primary transition-colors min-h-[48px] flex items-center">
                   Contact Us
                 </Link>
               </li>
@@ -55,25 +55,25 @@ const Footer = () => {
 
           {/* Resources */}
           <div>
-            <h3 className="font-bold text-foreground mb-4">Resources</h3>
+            <h2 className="font-bold text-foreground mb-4">Resources</h2>
             <ul className="space-y-2 text-sm">
               <li>
-                <Link to="/dispute-letter" className="text-muted-foreground hover:text-primary transition-colors">
+                <Link to="/dispute-letter" className="text-muted-foreground hover:text-primary transition-colors min-h-[48px] flex items-center">
                   Dispute Letters
                 </Link>
               </li>
               <li>
-                <Link to="/disputed-codes" className="text-muted-foreground hover:text-primary transition-colors">
+                <Link to="/disputed-codes" className="text-muted-foreground hover:text-primary transition-colors min-h-[48px] flex items-center">
                   Disputed Codes
                 </Link>
               </li>
               <li>
-                <Link to="/credit-report" className="text-muted-foreground hover:text-primary transition-colors">
+                <Link to="/credit-report" className="text-muted-foreground hover:text-primary transition-colors min-h-[48px] flex items-center">
                   Credit Report Impact
                 </Link>
               </li>
               <li>
-                <Link to="/emergency-room-charges" className="text-muted-foreground hover:text-primary transition-colors">
+                <Link to="/emergency-room-charges" className="text-muted-foreground hover:text-primary transition-colors min-h-[48px] flex items-center">
                   ER Charges Guide
                 </Link>
               </li>
@@ -82,13 +82,13 @@ const Footer = () => {
 
           {/* Social Media */}
           <div>
-            <h3 className="font-bold text-foreground mb-4">Follow Us</h3>
+            <h2 className="font-bold text-foreground mb-4">Follow Us</h2>
             <div className="flex gap-4 mb-6">
               <a 
                 href="https://twitter.com/hospitalbillchk" 
                 target="_blank" 
                 rel="noopener noreferrer"
-                className="w-10 h-10 rounded-full bg-muted hover:bg-primary hover:text-primary-foreground transition-colors flex items-center justify-center"
+                className="w-12 h-12 rounded-full bg-muted hover:bg-primary hover:text-primary-foreground transition-colors flex items-center justify-center"
                 aria-label="Follow us on X (Twitter)"
               >
                 <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
@@ -99,7 +99,7 @@ const Footer = () => {
                 href="https://www.instagram.com/hospitalbillchecker" 
                 target="_blank" 
                 rel="noopener noreferrer"
-                className="w-10 h-10 rounded-full bg-muted hover:bg-primary hover:text-primary-foreground transition-colors flex items-center justify-center"
+                className="w-12 h-12 rounded-full bg-muted hover:bg-primary hover:text-primary-foreground transition-colors flex items-center justify-center"
                 aria-label="Follow us on Instagram"
               >
                 <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
@@ -110,7 +110,7 @@ const Footer = () => {
                 href="https://www.tiktok.com/@hospitalbillchecker" 
                 target="_blank" 
                 rel="noopener noreferrer"
-                className="w-10 h-10 rounded-full bg-muted hover:bg-primary hover:text-primary-foreground transition-colors flex items-center justify-center"
+                className="w-12 h-12 rounded-full bg-muted hover:bg-primary hover:text-primary-foreground transition-colors flex items-center justify-center"
                 aria-label="Follow us on TikTok"
               >
                 <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
@@ -127,10 +127,10 @@ const Footer = () => {
             © {new Date().getFullYear()} Hospital Bill Checker. All rights reserved.
           </p>
           <div className="flex gap-6">
-            <Link to="/terms" className="hover:text-primary transition-colors">
+            <Link to="/terms" className="hover:text-primary transition-colors min-h-[48px] flex items-center">
               Terms & Conditions
             </Link>
-            <Link to="/privacy" className="hover:text-primary transition-colors">
+            <Link to="/privacy" className="hover:text-primary transition-colors min-h-[48px] flex items-center">
               Privacy Policy
             </Link>
           </div>
