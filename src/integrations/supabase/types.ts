@@ -77,6 +77,94 @@ export type Database = {
         }
         Relationships: []
       }
+      dispute_letters: {
+        Row: {
+          created_at: string
+          id: string
+          pdf_url: string | null
+          session_id: string
+          template_text: string
+          updated_at: string
+          user_address: string | null
+          user_name: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          pdf_url?: string | null
+          session_id: string
+          template_text: string
+          updated_at?: string
+          user_address?: string | null
+          user_name?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          pdf_url?: string | null
+          session_id?: string
+          template_text?: string
+          updated_at?: string
+          user_address?: string | null
+          user_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dispute_letters_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "bill_analyses"
+            referencedColumns: ["session_id"]
+          },
+        ]
+      }
+      user_form_data: {
+        Row: {
+          birth_year: number | null
+          created_at: string
+          email: string
+          hospital_city: string | null
+          hospital_state: string | null
+          id: string
+          name: string | null
+          session_id: string
+          terms_accepted: boolean | null
+          updated_at: string
+        }
+        Insert: {
+          birth_year?: number | null
+          created_at?: string
+          email: string
+          hospital_city?: string | null
+          hospital_state?: string | null
+          id?: string
+          name?: string | null
+          session_id: string
+          terms_accepted?: boolean | null
+          updated_at?: string
+        }
+        Update: {
+          birth_year?: number | null
+          created_at?: string
+          email?: string
+          hospital_city?: string | null
+          hospital_state?: string | null
+          id?: string
+          name?: string | null
+          session_id?: string
+          terms_accepted?: boolean | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_form_data_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "bill_analyses"
+            referencedColumns: ["session_id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

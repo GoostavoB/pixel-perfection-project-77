@@ -8,3 +8,12 @@ verify_jwt = false
 
 [functions.get-analysis]
 verify_jwt = false
+
+[functions.check-status]
+verify_jwt = false
+
+[functions.get-full-result]
+verify_jwt = false
+
+[functions.save-dispute-letter]
+verify_jwt = false
