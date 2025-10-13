@@ -350,7 +350,7 @@ const MedicalBillingCollections = () => {
               </Link>
               <Link to="/how-long-medical-bills" className="block">
                 <Card className="p-5 hover:shadow-lg transition-all h-full">
-                  <h4 className="font-bold text-foreground mb-2">How Long on Report</h4>
+                  <h4 className="font-bold text-foreground mb-2">How Long on Credit Report</h4>
                   <p className="text-sm text-muted-foreground">Timeline for medical debt removal →</p>
                 </Card>
               </Link>

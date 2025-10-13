@@ -17,7 +17,7 @@ const Header = () => {
     { label: "Voice Call Script", path: "/call-script" },
     { label: "Disputed Codes", path: "/disputed-codes" },
     { label: "Credit Report Impact", path: "/credit-report" },
-    { label: "How Long on Report", path: "/how-long-medical-bills" },
+    { label: "How Long on Credit Report", path: "/how-long-medical-bills" },
     { label: "Emergency Room Charges", path: "/emergency-room-charges" },
     { label: "Medical Collections", path: "/medical-billing-collections" },
     { label: "Hospital Billing Scoreboard", path: "/scoreboard", comingSoon: true },
