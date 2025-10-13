@@ -97,42 +97,53 @@ serve(async (req) => {
 
 async function analyzeBill(supabase: any, analysisId: string, file: File, sessionId: string) {
   try {
-    console.log('Starting analysis for:', analysisId);
+    console.log('Starting n8n analysis for:', analysisId);
     
-    // Extract text based on file type
-    let extractedText = '';
-    if (file.type === 'application/pdf') {
-      extractedText = await extractPdfText(file);
-    } else if (file.type.startsWith('image/')) {
-      extractedText = await extractImageText(file);
-    } else {
-      throw new Error('Unsupported file type');
+    // Send to n8n webhook for analysis
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('session_id', sessionId);
+
+    console.log('Sending to n8n webhook...');
+    const n8nResponse = await fetch('https://learnlearnlearn.app.n8n.cloud/webhook/upload-bill', {
+      method: 'POST',
+      body: formData
+    });
+
+    if (!n8nResponse.ok) {
+      const errorText = await n8nResponse.text();
+      console.error('n8n webhook error:', n8nResponse.status, errorText);
+      throw new Error(`n8n webhook failed: ${n8nResponse.status}`);
     }
 
-    console.log('Text extracted, length:', extractedText.length);
+    const n8nResult = await n8nResponse.json();
+    console.log('n8n analysis complete:', JSON.stringify(n8nResult));
 
-    // Update with extracted text
-    await supabase
-      .from('bill_analyses')
-      .update({ extracted_text: extractedText })
-      .eq('id', analysisId);
-
-    // Analyze with AI
-    const analysisResult = await analyzeBillWithAI(extractedText);
-    
-    console.log('AI analysis complete');
+    // Map n8n results to our database schema
+    const mappedAnalysis = {
+      summary: {
+        critical_issues: n8nResult.high_priority_count || 0,
+        moderate_issues: n8nResult.potential_issues_count || 0,
+        estimated_savings: n8nResult.estimated_savings || 0,
+        total_overcharges: n8nResult.estimated_savings || 0,
+      },
+      issues: [],
+      hospital_name: n8nResult.hospital_name || '',
+      data_sources: n8nResult.ui_summary?.data_sources_used || [],
+      created_at: n8nResult.created_at
+    };
 
     // Update with final results
     await supabase
       .from('bill_analyses')
       .update({
         status: 'completed',
-        analysis_result: analysisResult,
-        critical_issues: analysisResult.critical_issues || 0,
-        moderate_issues: analysisResult.moderate_issues || 0,
-        estimated_savings: analysisResult.estimated_savings || 0,
-        total_overcharges: analysisResult.total_overcharges || 0,
-        issues: analysisResult.issues || []
+        analysis_result: mappedAnalysis,
+        critical_issues: mappedAnalysis.summary.critical_issues,
+        moderate_issues: mappedAnalysis.summary.moderate_issues,
+        estimated_savings: mappedAnalysis.summary.estimated_savings,
+        total_overcharges: mappedAnalysis.summary.total_overcharges,
+        issues: mappedAnalysis.issues
       })
       .eq('id', analysisId);
 
