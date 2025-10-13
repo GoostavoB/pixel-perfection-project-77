@@ -25,7 +25,55 @@ const FAQ = () => {
           name="keywords"
           content="medical bills FAQ, credit report, medical debt, collections, billing errors, hospital charges, medical coding"
         />
-        <link rel="canonical" href="https://billfixers.com/faq" />
+        <link rel="canonical" href="https://hospitalbillchecker.com/faq" />
+        <script type="application/ld+json">
+          {JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "How can I remove medical bills from my credit report?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Check all three credit reports (Equifax, Experian, TransUnion). Dispute any errors directly with the bureau and the collection agency. Paid medical debts should be deleted automatically. Debts under $500 or less than one year old should not appear."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Do medical collections hurt my credit score?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Yes, unpaid collections can lower your score by up to 100 points. However, under newer models like FICO 9 and VantageScore 4.0, paid medical debts are excluded."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "How long do medical bills stay on my credit report?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Unpaid medical debts can stay for up to seven years from the date of delinquency. Paid or small debts under $500 should be removed early under the latest credit bureau policies."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "What is the No Surprises Act?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "It's a federal law protecting patients from unexpected out-of-network bills for emergency and in-network hospital care. It limits charges to your in-network cost share."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "How can I dispute an incorrect hospital bill?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Request itemization, compare codes to your insurer's EOB, and submit a written dispute. Hospitals must respond before sending it to collections."
+                }
+              }
+            ]
+          })}
+        </script>
       </Helmet>
 
       <Header />
