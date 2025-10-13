@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { CheckCircle, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -9,13 +9,64 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Link, useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+
+interface City {
+  id: number;
+  name: string;
+  state: string;
+  stateCode: string;
+  country: string;
+  countryCode: string;
+}
 
 const UserForm = () => {
   const [agreed, setAgreed] = useState(false);
   const [consent, setConsent] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [citySearch, setCitySearch] = useState("");
+  const [cities, setCities] = useState<City[]>([]);
+  const [selectedCity, setSelectedCity] = useState<City | null>(null);
+  const [selectedState, setSelectedState] = useState("");
+  const [searchingCities, setSearchingCities] = useState(false);
+  const [cityPopoverOpen, setCityPopoverOpen] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  // Debounced city search
+  useEffect(() => {
+    if (citySearch.length < 2) {
+      setCities([]);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setSearchingCities(true);
+      try {
+        const { data, error } = await supabase.functions.invoke('search-cities', {
+          body: { query: citySearch }
+        });
+
+        if (error) throw error;
+
+        if (data?.success && data?.cities) {
+          setCities(data.cities);
+        }
+      } catch (error) {
+        console.error('City search error:', error);
+        toast({
+          title: "Search failed",
+          description: "Could not search cities. Please type manually.",
+          variant: "destructive",
+        });
+      } finally {
+        setSearchingCities(false);
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [citySearch, toast]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -168,10 +219,60 @@ const UserForm = () => {
             <Label htmlFor="hospitalCity" className="text-foreground font-medium">
               Hospital City <span className="text-destructive">*</span>
             </Label>
+            <Popover open={cityPopoverOpen} onOpenChange={setCityPopoverOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={cityPopoverOpen}
+                  className="w-full justify-between mt-2 font-normal"
+                >
+                  {selectedCity ? `${selectedCity.name}, ${selectedCity.stateCode}` : "Start typing city name..."}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-full p-0 bg-card z-50" align="start">
+                <Command>
+                  <CommandInput 
+                    placeholder="Search city..." 
+                    value={citySearch}
+                    onValueChange={setCitySearch}
+                  />
+                  <CommandList>
+                    <CommandEmpty>
+                      {searchingCities ? "Searching..." : citySearch.length < 2 ? "Type at least 2 characters" : "No cities found"}
+                    </CommandEmpty>
+                    <CommandGroup>
+                      {cities.map((city) => (
+                        <CommandItem
+                          key={city.id}
+                          value={`${city.name}-${city.stateCode}`}
+                          onSelect={() => {
+                            setSelectedCity(city);
+                            setSelectedState(city.stateCode);
+                            setCitySearch(city.name);
+                            setCityPopoverOpen(false);
+                            toast({
+                              title: "City selected",
+                              description: `${city.name}, ${city.stateCode} - State auto-filled!`,
+                            });
+                          }}
+                        >
+                          <div className="flex flex-col">
+                            <span className="font-medium">{city.name}</span>
+                            <span className="text-sm text-muted-foreground">{city.state}, {city.countryCode}</span>
+                          </div>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
             <Input
               id="hospitalCity"
-              placeholder="Start typing city name..."
-              className="mt-2"
+              name="hospitalCity"
+              type="hidden"
+              value={selectedCity?.name || ""}
             />
           </div>
 
@@ -179,9 +280,9 @@ const UserForm = () => {
             <Label htmlFor="hospitalState" className="text-foreground font-medium">
               Hospital State <span className="text-destructive">*</span>
             </Label>
-            <Select defaultValue="">
+            <Select value={selectedState} onValueChange={setSelectedState}>
               <SelectTrigger className="mt-2">
-                <SelectValue placeholder="Select state..." />
+                <SelectValue placeholder="Select state or search city above..." />
               </SelectTrigger>
               <SelectContent className="bg-card max-h-[300px] overflow-y-auto z-50">
                 <SelectItem value="AL">Alabama</SelectItem>
@@ -237,6 +338,12 @@ const UserForm = () => {
                 <SelectItem value="DC">District of Columbia</SelectItem>
               </SelectContent>
             </Select>
+            <Input
+              id="hospitalState"
+              name="hospitalState"
+              type="hidden"
+              value={selectedState}
+            />
           </div>
 
           <div className="space-y-4 pt-2">

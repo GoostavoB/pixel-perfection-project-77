@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.save-dispute-letter]
 verify_jwt = false
+
+[functions.search-cities]
+verify_jwt = false
