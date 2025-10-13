@@ -56,6 +56,12 @@ const Header = () => {
               </NavigationMenuItem>
               
               <NavigationMenuItem>
+                <Link to="/faq" className="text-sm font-medium text-foreground hover:text-primary transition-colors">
+                  FAQ
+                </Link>
+              </NavigationMenuItem>
+              
+              <NavigationMenuItem>
                 <Link to="/contact" className="text-sm font-medium text-foreground hover:text-primary transition-colors">
                   Contact
                 </Link>

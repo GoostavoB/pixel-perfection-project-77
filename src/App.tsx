@@ -28,6 +28,7 @@ import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
 import Scoreboard from "./pages/Scoreboard";
 import GenerateLetter from "./pages/GenerateLetter";
+import FAQ from "./pages/FAQ";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -66,6 +67,7 @@ const App = () => (
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/scoreboard" element={<Scoreboard />} />
           <Route path="/generate-letter" element={<GenerateLetter />} />
+          <Route path="/faq" element={<FAQ />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
