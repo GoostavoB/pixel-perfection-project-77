@@ -26,42 +26,16 @@ export const generatePDFFromHTML = async (
     orientation = 'portrait'
   } = options;
 
-  // Create offscreen container isolated from app styles
+  // Create simple offscreen container
   const container = document.createElement('div');
-  const widthPx = format === 'a4' ? 794 : 816;
   container.style.position = 'absolute';
-  container.style.top = '0';
-  container.style.left = '-10000px';
-  container.style.width = `${widthPx}px`;
-  container.style.backgroundColor = '#ffffff';
-  // Reset inherited styles to avoid white-on-white issues
-  (container.style as any).all = 'initial';
-  container.style.color = '#111111';
-  container.style.fontFamily = "Arial, sans-serif";
-  container.style.lineHeight = '1.6';
-  container.innerHTML = `<div id="pdf-root">${html}</div>`;
+  container.style.left = '-9999px';
+  container.style.width = format === 'a4' ? '210mm' : '8.5in';
+  container.innerHTML = html;
   document.body.appendChild(container);
 
-  // Wait for DOM, web fonts, and images to be ready
-  await new Promise(resolve => setTimeout(resolve, 1000));
-  try {
-    // @ts-ignore - not all browsers expose document.fonts types
-    if ((document as any).fonts?.ready) {
-      // @ts-ignore
-      await (document as any).fonts.ready;
-    }
-  } catch {}
-  const imgs = Array.from(container.querySelectorAll('img')) as HTMLImageElement[];
-  if (imgs.length) {
-    await Promise.all(
-      imgs.map(img =>
-        img.complete ? Promise.resolve() : new Promise<void>(res => {
-          img.onload = () => res();
-          img.onerror = () => res();
-        })
-      )
-    );
-  }
+  // Brief wait for DOM rendering
+  await new Promise(resolve => setTimeout(resolve, 200));
 
   try {
     const opt = {
@@ -71,12 +45,7 @@ export const generatePDFFromHTML = async (
       html2canvas: { 
         scale: 2,
         useCORS: true,
-        allowTaint: true,
-        logging: false,
-        backgroundColor: '#ffffff',
-        windowWidth: widthPx,
-        windowHeight: 1123,
-        scrollY: 0
+        logging: false
       },
       jsPDF: { 
         unit: 'mm', 
