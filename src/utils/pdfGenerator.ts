@@ -26,16 +26,19 @@ export const generatePDFFromHTML = async (
     orientation = 'portrait'
   } = options;
 
-  // Create temporary container
+  // Create temporary container with better visibility for rendering
   const container = document.createElement('div');
-  container.style.position = 'absolute';
-  container.style.left = '-9999px';
+  container.style.position = 'fixed';
+  container.style.top = '0';
+  container.style.left = '0';
   container.style.width = format === 'a4' ? '210mm' : '8.5in';
+  container.style.backgroundColor = '#ffffff';
+  container.style.zIndex = '-9999';
   container.innerHTML = html;
   document.body.appendChild(container);
 
-  // Aguardar renderização do DOM
-  await new Promise(resolve => setTimeout(resolve, 500));
+  // Wait longer for full DOM rendering
+  await new Promise(resolve => setTimeout(resolve, 1000));
 
   try {
     const opt = {
@@ -45,7 +48,10 @@ export const generatePDFFromHTML = async (
       html2canvas: { 
         scale: 2, 
         useCORS: true,
-        logging: true
+        logging: true,
+        backgroundColor: '#ffffff',
+        windowWidth: format === 'a4' ? 794 : 816, // A4 width in pixels at 96dpi
+        windowHeight: 1123 // A4 height
       },
       jsPDF: { 
         unit: 'mm', 
@@ -55,7 +61,12 @@ export const generatePDFFromHTML = async (
       pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
     };
 
+    console.log('📄 Starting PDF generation with options:', opt);
     await html2pdf().set(opt).from(container).save();
+    console.log('✅ PDF generated successfully');
+  } catch (error) {
+    console.error('❌ PDF generation error:', error);
+    throw error;
   } finally {
     document.body.removeChild(container);
   }
