@@ -1,10 +1,15 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+const uploadSchema = z.object({
+  sessionId: z.string().min(1).max(100),
+});
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -12,13 +17,41 @@ serve(async (req) => {
   }
 
   try {
+    // Get authenticated user
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Missing authorization header' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabaseKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseKey, {
+      global: { headers: { Authorization: authHeader } }
+    });
+
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     const formData = await req.formData();
     const file = formData.get('file') as File;
     const sessionId = formData.get('sessionId') as string;
+
+    // Validate input
+    const validation = uploadSchema.safeParse({ sessionId });
+    if (!validation.success) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid input', details: validation.error.issues }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     if (!file || !sessionId) {
       return new Response(
@@ -29,13 +62,13 @@ serve(async (req) => {
 
     console.log('Processing upload:', { fileName: file.name, fileType: file.type, sessionId });
 
-    // Upload file to storage
-    const fileName = `${sessionId}/${file.name}`;
+    // Upload file to Supabase Storage with user folder
+    const fileName = `${user.id}/${sessionId}/${file.name}`;
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from('medical-bills')
       .upload(fileName, file, {
         contentType: file.type,
-        upsert: false
+        upsert: true
       });
 
     if (uploadError) {
@@ -55,6 +88,7 @@ serve(async (req) => {
     const { data: analysisData, error: dbError } = await supabase
       .from('bill_analyses')
       .insert({
+        user_id: user.id,
         session_id: sessionId,
         file_name: file.name,
         file_url: urlData.publicUrl,

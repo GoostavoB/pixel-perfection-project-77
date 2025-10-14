@@ -35,8 +35,36 @@ serve(async (req) => {
   }
 
   try {
+    // Get authenticated user
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Missing authorization header' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      {
+        global: { headers: { Authorization: authHeader } },
+        auth: {
+          persistSession: false,
+        },
+      }
+    );
+
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+    if (userError || !user) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const body = await req.json();
-    
+
     // Validate input data
     const validationResult = disputeLetterSchema.safeParse(body);
     
@@ -59,19 +87,17 @@ serve(async (req) => {
     
     console.log('Saving dispute letter for session:', sessionId);
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    const { data: existing } = await supabase
+    // Check if dispute letter already exists for this session
+    const { data: existing } = await supabaseClient
       .from('dispute_letters')
       .select('id')
       .eq('session_id', sessionId)
+      .eq('user_id', user.id)
       .maybeSingle();
 
     let result;
     if (existing) {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseClient
         .from('dispute_letters')
         .update({
           template_text: letterText,
@@ -80,15 +106,17 @@ serve(async (req) => {
           updated_at: new Date().toISOString()
         })
         .eq('session_id', sessionId)
+        .eq('user_id', user.id)
         .select()
         .single();
 
       if (error) throw error;
       result = data;
     } else {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseClient
         .from('dispute_letters')
         .insert({
+          user_id: user.id,
           session_id: sessionId,
           template_text: letterText,
           user_name: userName || null,
@@ -117,10 +145,11 @@ serve(async (req) => {
       if (n8nResponse.ok) {
         const n8nData = await n8nResponse.json();
         if (n8nData.pdf_url) {
-          await supabase
+          await supabaseClient
             .from('dispute_letters')
             .update({ pdf_url: n8nData.pdf_url })
-            .eq('session_id', sessionId);
+            .eq('session_id', sessionId)
+            .eq('user_id', user.id);
           result.pdf_url = n8nData.pdf_url;
         }
       }

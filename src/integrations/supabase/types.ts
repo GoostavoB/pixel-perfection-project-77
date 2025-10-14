@@ -20,6 +20,7 @@ export type Database = {
           created_at: string
           critical_issues: number | null
           estimated_savings: number | null
+          expires_at: string | null
           extracted_text: string | null
           file_name: string
           file_type: string
@@ -32,6 +33,7 @@ export type Database = {
           total_overcharges: number | null
           updated_at: string
           user_email: string | null
+          user_id: string | null
           user_name: string | null
           user_phone: string | null
         }
@@ -40,6 +42,7 @@ export type Database = {
           created_at?: string
           critical_issues?: number | null
           estimated_savings?: number | null
+          expires_at?: string | null
           extracted_text?: string | null
           file_name: string
           file_type: string
@@ -52,6 +55,7 @@ export type Database = {
           total_overcharges?: number | null
           updated_at?: string
           user_email?: string | null
+          user_id?: string | null
           user_name?: string | null
           user_phone?: string | null
         }
@@ -60,6 +64,7 @@ export type Database = {
           created_at?: string
           critical_issues?: number | null
           estimated_savings?: number | null
+          expires_at?: string | null
           extracted_text?: string | null
           file_name?: string
           file_type?: string
@@ -72,6 +77,7 @@ export type Database = {
           total_overcharges?: number | null
           updated_at?: string
           user_email?: string | null
+          user_id?: string | null
           user_name?: string | null
           user_phone?: string | null
         }
@@ -80,32 +86,38 @@ export type Database = {
       dispute_letters: {
         Row: {
           created_at: string
+          expires_at: string | null
           id: string
           pdf_url: string | null
           session_id: string
           template_text: string
           updated_at: string
           user_address: string | null
+          user_id: string | null
           user_name: string | null
         }
         Insert: {
           created_at?: string
+          expires_at?: string | null
           id?: string
           pdf_url?: string | null
           session_id: string
           template_text: string
           updated_at?: string
           user_address?: string | null
+          user_id?: string | null
           user_name?: string | null
         }
         Update: {
           created_at?: string
+          expires_at?: string | null
           id?: string
           pdf_url?: string | null
           session_id?: string
           template_text?: string
           updated_at?: string
           user_address?: string | null
+          user_id?: string | null
           user_name?: string | null
         }
         Relationships: [
@@ -123,6 +135,7 @@ export type Database = {
           birth_year: number | null
           created_at: string
           email: string
+          expires_at: string | null
           hospital_city: string | null
           hospital_state: string | null
           id: string
@@ -130,11 +143,13 @@ export type Database = {
           session_id: string
           terms_accepted: boolean | null
           updated_at: string
+          user_id: string | null
         }
         Insert: {
           birth_year?: number | null
           created_at?: string
           email: string
+          expires_at?: string | null
           hospital_city?: string | null
           hospital_state?: string | null
           id?: string
@@ -142,11 +157,13 @@ export type Database = {
           session_id: string
           terms_accepted?: boolean | null
           updated_at?: string
+          user_id?: string | null
         }
         Update: {
           birth_year?: number | null
           created_at?: string
           email?: string
+          expires_at?: string | null
           hospital_city?: string | null
           hospital_state?: string | null
           id?: string
@@ -154,6 +171,7 @@ export type Database = {
           session_id?: string
           terms_accepted?: boolean | null
           updated_at?: string
+          user_id?: string | null
         }
         Relationships: [
           {
@@ -170,7 +188,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      cleanup_expired_sessions: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

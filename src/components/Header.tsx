@@ -1,5 +1,9 @@
 import { Link } from "react-router-dom";
-import { ChevronDown } from "lucide-react";
+import { useState, useEffect } from "react";
+import { ChevronDown, LogOut } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { Session } from "@supabase/supabase-js";
+import { Button } from "@/components/ui/button";
 import {
   NavigationMenu,
   NavigationMenuContent,
@@ -11,6 +15,28 @@ import {
 import logo from "@/assets/logo.png";
 
 const Header = () => {
+  const [session, setSession] = useState<Session | null>(null);
+
+  useEffect(() => {
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+    });
+
+    // Listen for auth changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+  };
+
   const usefulLinks = [
     { label: "No Surprises Act", path: "/no-surprises-act" },
     { label: "Dispute Letter", path: "/dispute-letter" },
@@ -95,6 +121,23 @@ const Header = () => {
               </NavigationMenuItem>
             </NavigationMenuList>
           </NavigationMenu>
+
+          {session ? (
+            <Button
+              onClick={handleSignOut}
+              variant="outline"
+              className="hidden lg:flex items-center gap-2"
+            >
+              <LogOut className="h-4 w-4" />
+              Sign Out
+            </Button>
+          ) : (
+            <Link to="/auth">
+              <Button variant="outline" className="hidden lg:flex">
+                Sign In
+              </Button>
+            </Link>
+          )}
         </div>
       </div>
     </header>

@@ -30,6 +30,8 @@ import Scoreboard from "./pages/Scoreboard";
 import GenerateLetter from "./pages/GenerateLetter";
 import FAQ from "./pages/FAQ";
 import NotFound from "./pages/NotFound";
+import Auth from "./pages/Auth";
+import AuthGuard from "./components/AuthGuard";
 
 const queryClient = new QueryClient();
 
@@ -43,10 +45,13 @@ const App = () => (
         <FloatingCTA />
         <Routes>
           <Route path="/" element={<Index />} />
-          <Route path="/upload" element={<Upload />} />
-          <Route path="/processing" element={<Processing />} />
-          <Route path="/form" element={<UserForm />} />
-          <Route path="/results" element={<Results />} />
+          <Route path="/auth" element={<Auth />} />
+          <Route path="/upload" element={<AuthGuard><Upload /></AuthGuard>} />
+          <Route path="/processing" element={<AuthGuard><Processing /></AuthGuard>} />
+          <Route path="/form" element={<AuthGuard><UserForm /></AuthGuard>} />
+          <Route path="/results" element={<AuthGuard><Results /></AuthGuard>} />
+          <Route path="/dispute-letter" element={<AuthGuard><DisputeLetter /></AuthGuard>} />
+          <Route path="/generate-letter" element={<AuthGuard><GenerateLetter /></AuthGuard>} />
           <Route path="/blog" element={<Blog />} />
           <Route path="/blog/medical-debt-credit-report" element={<MedicalDebtCreditReport />} />
           <Route path="/blog/remove-medical-bills-credit" element={<RemoveMedicalBills />} />
@@ -55,7 +60,6 @@ const App = () => (
           <Route path="/blog/medical-billing-collections" element={<MedicalBillingCollections />} />
           <Route path="/blog/emergency-room-charges" element={<EmergencyRoomCharges />} />
           <Route path="/no-surprises-act" element={<NoSurprisesAct />} />
-          <Route path="/dispute-letter" element={<DisputeLetter />} />
           <Route path="/call-script" element={<CallScript />} />
           <Route path="/disputed-codes" element={<DisputedCodes />} />
           <Route path="/credit-report" element={<CreditReport />} />
@@ -65,8 +69,7 @@ const App = () => (
           <Route path="/contact" element={<Contact />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/privacy" element={<Privacy />} />
-          <Route path="/scoreboard" element={<Scoreboard />} />
-          <Route path="/generate-letter" element={<GenerateLetter />} />
+          <Route path="/scoreboard" element={<AuthGuard><Scoreboard /></AuthGuard>} />
           <Route path="/faq" element={<FAQ />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
