@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import Header from "@/components/Header";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
 
 const Upload = () => {
   const [file, setFile] = useState<File | null>(null);
@@ -46,36 +45,27 @@ const Upload = () => {
       return;
     }
 
-    // Generate session ID
-    const sessionId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    
-    // Store session ID for later use
-    localStorage.setItem('billAnalysisSessionId', sessionId);
-    
-    // Navigate to processing immediately
-    navigate("/processing", { state: { sessionId, file: file.name } });
-    
-    // Upload in background
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('sessionId', sessionId);
-
-    try {
-      const { data, error } = await supabase.functions.invoke('upload-bill', {
-        body: formData
-      });
-
-      if (error) throw error;
-      
-      console.log('Upload initiated:', data);
-    } catch (error) {
-      console.error('Upload error:', error);
+    // Validate file (PDF only, max 10MB)
+    if (!file.type.includes('pdf')) {
       toast({
-        title: "Upload failed",
-        description: "Please try again",
+        title: "Invalid file type",
+        description: "Only PDF files are accepted",
         variant: "destructive",
       });
+      return;
     }
+
+    if (file.size > 10 * 1024 * 1024) {
+      toast({
+        title: "File too large",
+        description: "Maximum file size is 10MB",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Navigate to processing page immediately
+    navigate("/processing", { state: { file, fileName: file.name } });
   };
 
   return (

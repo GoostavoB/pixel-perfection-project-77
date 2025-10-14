@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import Upload from "./pages/Upload";
 import Processing from "./pages/Processing";
 import Results from "./pages/Results";
+import NewResults from "./pages/NewResults";
 import UserForm from "./pages/UserForm";
 import Blog from "./pages/Blog";
 import MedicalDebtCreditReport from "./pages/blog/MedicalDebtCreditReport";
@@ -50,7 +51,8 @@ const App = () => (
           <Route path="/upload" element={<AuthGuard><Upload /></AuthGuard>} />
           <Route path="/processing" element={<AuthGuard><Processing /></AuthGuard>} />
           <Route path="/form" element={<AuthGuard><UserForm /></AuthGuard>} />
-          <Route path="/results" element={<AuthGuard><Results /></AuthGuard>} />
+          <Route path="/results" element={<AuthGuard><NewResults /></AuthGuard>} />
+          <Route path="/results-old" element={<AuthGuard><Results /></AuthGuard>} />
           <Route path="/dispute-letter" element={<AuthGuard><DisputeLetter /></AuthGuard>} />
           <Route path="/generate-letter" element={<AuthGuard><GenerateLetter /></AuthGuard>} />
           <Route path="/blog" element={<Blog />} />

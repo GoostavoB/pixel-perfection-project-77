@@ -14,6 +14,91 @@ export type Database = {
   }
   public: {
     Tables: {
+      analysis_results: {
+        Row: {
+          cpt_codes: Json | null
+          cpt_count: number | null
+          created_at: string
+          dispute_letter_html: string | null
+          findings: Json | null
+          full_analysis: Json
+          hospital_name: string | null
+          id: string
+          job_id: string | null
+          pdf_report_html: string | null
+          raw_text: string | null
+          ui_summary: Json
+        }
+        Insert: {
+          cpt_codes?: Json | null
+          cpt_count?: number | null
+          created_at?: string
+          dispute_letter_html?: string | null
+          findings?: Json | null
+          full_analysis: Json
+          hospital_name?: string | null
+          id?: string
+          job_id?: string | null
+          pdf_report_html?: string | null
+          raw_text?: string | null
+          ui_summary: Json
+        }
+        Update: {
+          cpt_codes?: Json | null
+          cpt_count?: number | null
+          created_at?: string
+          dispute_letter_html?: string | null
+          findings?: Json | null
+          full_analysis?: Json
+          hospital_name?: string | null
+          id?: string
+          job_id?: string | null
+          pdf_report_html?: string | null
+          raw_text?: string | null
+          ui_summary?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analysis_results_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["job_id"]
+          },
+        ]
+      }
+      audit_log: {
+        Row: {
+          created_at: string
+          event_data: Json | null
+          event_type: string
+          id: string
+          job_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          event_data?: Json | null
+          event_type: string
+          id?: string
+          job_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          event_data?: Json | null
+          event_type?: string
+          id?: string
+          job_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_log_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["job_id"]
+          },
+        ]
+      }
       bill_analyses: {
         Row: {
           analysis_result: Json | null
@@ -141,6 +226,75 @@ export type Database = {
             referencedColumns: ["session_id"]
           },
         ]
+      }
+      jobs: {
+        Row: {
+          analysis_id: string
+          completed_at: string | null
+          created_at: string
+          error_message: string | null
+          file_name: string
+          file_size: number
+          file_type: string
+          job_id: string
+          progress: number
+          session_id: string
+          started_at: string
+          status: string
+        }
+        Insert: {
+          analysis_id: string
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          file_name: string
+          file_size: number
+          file_type: string
+          job_id?: string
+          progress?: number
+          session_id: string
+          started_at?: string
+          status?: string
+        }
+        Update: {
+          analysis_id?: string
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          file_name?: string
+          file_size?: number
+          file_type?: string
+          job_id?: string
+          progress?: number
+          session_id?: string
+          started_at?: string
+          status?: string
+        }
+        Relationships: []
+      }
+      medicare_prices: {
+        Row: {
+          cpt_code: string
+          created_at: string
+          description: string | null
+          id: string
+          medicare_facility_rate: number | null
+        }
+        Insert: {
+          cpt_code: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          medicare_facility_rate?: number | null
+        }
+        Update: {
+          cpt_code?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          medicare_facility_rate?: number | null
+        }
+        Relationships: []
       }
       user_form_data: {
         Row: {
