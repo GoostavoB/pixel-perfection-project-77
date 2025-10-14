@@ -109,12 +109,8 @@ const Processing = () => {
           setTimeout(() => {
             navigate('/results', {
               state: {
-                uploadResponse: {
-                  job_id: currentJobId,
-                  ui_summary: analysisDetails.ui_summary,
-                  status: 'ready'
-                },
-                analysisDetails
+                analysis: analysisDetails,
+                sessionId: currentJobId
               }
             });
           }, 500);
