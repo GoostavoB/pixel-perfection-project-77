@@ -26,19 +26,42 @@ export const generatePDFFromHTML = async (
     orientation = 'portrait'
   } = options;
 
-  // Create temporary container with better visibility for rendering
+  // Create offscreen container isolated from app styles
   const container = document.createElement('div');
-  container.style.position = 'fixed';
+  const widthPx = format === 'a4' ? 794 : 816;
+  container.style.position = 'absolute';
   container.style.top = '0';
-  container.style.left = '0';
-  container.style.width = format === 'a4' ? '210mm' : '8.5in';
+  container.style.left = '-10000px';
+  container.style.width = `${widthPx}px`;
   container.style.backgroundColor = '#ffffff';
-  container.style.zIndex = '-9999';
-  container.innerHTML = html;
+  // Reset inherited styles to avoid white-on-white issues
+  (container.style as any).all = 'initial';
+  container.style.color = '#111111';
+  container.style.fontFamily = "Arial, sans-serif";
+  container.style.lineHeight = '1.6';
+  container.innerHTML = `<div id="pdf-root">${html}</div>`;
   document.body.appendChild(container);
 
-  // Wait longer for full DOM rendering
+  // Wait for DOM, web fonts, and images to be ready
   await new Promise(resolve => setTimeout(resolve, 1000));
+  try {
+    // @ts-ignore - not all browsers expose document.fonts types
+    if ((document as any).fonts?.ready) {
+      // @ts-ignore
+      await (document as any).fonts.ready;
+    }
+  } catch {}
+  const imgs = Array.from(container.querySelectorAll('img')) as HTMLImageElement[];
+  if (imgs.length) {
+    await Promise.all(
+      imgs.map(img =>
+        img.complete ? Promise.resolve() : new Promise<void>(res => {
+          img.onload = () => res();
+          img.onerror = () => res();
+        })
+      )
+    );
+  }
 
   try {
     const opt = {
@@ -46,12 +69,14 @@ export const generatePDFFromHTML = async (
       filename,
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: { 
-        scale: 2, 
+        scale: 2,
         useCORS: true,
-        logging: true,
+        allowTaint: true,
+        logging: false,
         backgroundColor: '#ffffff',
-        windowWidth: format === 'a4' ? 794 : 816, // A4 width in pixels at 96dpi
-        windowHeight: 1123 // A4 height
+        windowWidth: widthPx,
+        windowHeight: 1123,
+        scrollY: 0
       },
       jsPDF: { 
         unit: 'mm', 
