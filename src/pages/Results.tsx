@@ -1,4 +1,4 @@
-import { CheckCircle, AlertCircle, AlertTriangle, DollarSign, Database, Mail, FileText, ArrowRight, Calendar, FileBarChart, TrendingDown } from "lucide-react";
+import { CheckCircle, AlertCircle, AlertTriangle, DollarSign, Database, Mail, FileText, ArrowRight, Calendar, FileBarChart, TrendingDown, Loader2 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -8,6 +8,7 @@ import Header from "@/components/Header";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { generateReportPDF, generateTextReport } from "@/utils/pdfGenerator";
 
 const Results = () => {
   const location = useLocation();
@@ -16,6 +17,7 @@ const Results = () => {
   const { analysis: passedAnalysis, sessionId } = (location.state as { analysis?: any; sessionId?: string }) || {};
   
   const [analysis, setAnalysis] = useState(passedAnalysis);
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   
   useEffect(() => {
     if (!analysis || !sessionId) {
@@ -47,6 +49,38 @@ const Results = () => {
   const dataSources = uiSummary.data_sources_used || fullAnalysis.data_sources || [];
   const tags = uiSummary.tags || fullAnalysis.tags || [];
   const emailSent = analysis.email_sent || false;
+
+  const handleDownloadPDF = async () => {
+    const jobId = sessionId || 'unknown';
+    setIsGeneratingPDF(true);
+
+    try {
+      // Use HTML directly from analysis if available
+      if (analysis.pdf_report_html) {
+        await generateReportPDF(analysis.pdf_report_html, jobId);
+        toast({
+          title: "Success!",
+          description: "Report downloaded successfully"
+        });
+      } else {
+        // Fallback to text report
+        generateTextReport(analysis, jobId);
+        toast({
+          title: "Downloaded",
+          description: "Text report downloaded"
+        });
+      }
+    } catch (error) {
+      console.error('Download error:', error);
+      toast({
+        variant: "destructive",
+        title: "Download Failed",
+        description: error instanceof Error ? error.message : "Unknown error"
+      });
+    } finally {
+      setIsGeneratingPDF(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -231,30 +265,20 @@ const Results = () => {
               size="lg"
               variant="outline"
               className="border-secondary text-secondary hover:bg-secondary hover:text-secondary-foreground font-semibold group"
-              onClick={async () => {
-                try {
-                  const { data, error } = await supabase.functions.invoke('generate-pdf-report', {
-                    body: { sessionId }
-                  });
-
-                  if (error) throw error;
-
-                  toast({
-                    title: "PDF Report Generation Started",
-                    description: "Your detailed report is being generated. You will receive it via email shortly.",
-                  });
-                } catch (error) {
-                  console.error('PDF generation error:', error);
-                  toast({
-                    title: "Generation Failed",
-                    description: "Failed to generate PDF report. Please try again.",
-                    variant: "destructive",
-                  });
-                }
-              }}
+              onClick={handleDownloadPDF}
+              disabled={isGeneratingPDF}
             >
-              <FileBarChart className="mr-2 w-5 h-5" />
-              Download Detailed Report
+              {isGeneratingPDF ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Generating PDF...
+                </>
+              ) : (
+                <>
+                  <FileBarChart className="mr-2 w-5 h-5" />
+                  Download Detailed Report
+                </>
+              )}
             </Button>
           </Card>
 
