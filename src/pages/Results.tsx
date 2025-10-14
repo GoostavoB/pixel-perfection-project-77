@@ -31,13 +31,22 @@ const Results = () => {
     day: 'numeric' 
   });
 
-  const criticalIssues = analysis.analysis_result?.summary?.critical_issues || analysis.critical_issues || 0;
-  const moderateIssues = analysis.analysis_result?.summary?.moderate_issues || analysis.moderate_issues || 0;
-  const estimatedSavings = analysis.analysis_result?.summary?.estimated_savings || analysis.estimated_savings || 0;
-  const hospitalName = analysis.analysis_result?.hospital_name || '';
-  const dataSources = analysis.analysis_result?.data_sources || [];
-  const tags = analysis.analysis_result?.tags || [];
-  const emailSent = analysis.analysis_result?.email_sent || false;
+  // Parse ui_summary se vier como string
+  const uiSummary = typeof analysis.ui_summary === 'string' 
+    ? JSON.parse(analysis.ui_summary) 
+    : analysis.ui_summary || {};
+  
+  const fullAnalysis = typeof analysis.full_analysis === 'string'
+    ? JSON.parse(analysis.full_analysis)
+    : analysis.full_analysis || {};
+
+  const criticalIssues = uiSummary.high_priority_count || fullAnalysis.high_priority_issues?.length || 0;
+  const moderateIssues = uiSummary.potential_issues_count || fullAnalysis.potential_issues?.length || 0;
+  const estimatedSavings = uiSummary.estimated_savings_if_corrected || fullAnalysis.estimated_savings || 0;
+  const hospitalName = analysis.hospital_name || '';
+  const dataSources = uiSummary.data_sources_used || fullAnalysis.data_sources || [];
+  const tags = uiSummary.tags || fullAnalysis.tags || [];
+  const emailSent = analysis.email_sent || false;
 
   return (
     <div className="min-h-screen bg-background">
