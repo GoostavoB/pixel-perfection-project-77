@@ -49,59 +49,46 @@ const NewResults = () => {
   const emailSent = analysis.email_sent || false;
 
   const handleDownloadPDF = async () => {
-    const jobId = sessionId || 'unknown';
+    if (!analysis) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Analysis data not available"
+      });
+      return;
+    }
+
     setIsGeneratingPDF(true);
 
     try {
-      // DEBUG: Verificar dados
-      console.log('=== DEBUG PDF ===');
-      console.log('Analysis completo:', analysis);
-      console.log('HTML existe?', !!analysis.pdf_report_html);
-      console.log('Tamanho do HTML:', analysis.pdf_report_html?.length);
-      console.log('Primeiros 200 chars:', analysis.pdf_report_html?.substring(0, 200));
-      console.log('=================');
+      // Import the HTML generator
+      const { generateReportHTML } = await import('@/utils/pdfGenerator');
+      
+      // Prepare data for HTML generation
+      const reportData = {
+        job_id: sessionId,
+        hospital_name: hospitalName,
+        ui_summary: uiSummary,
+        full_analysis: fullAnalysis
+      };
 
-      // TESTE COM HTML SIMPLES
-      const testHTML = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <title>Test Report</title>
-  <style>
-    body { font-family: Arial; padding: 40px; }
-    h1 { color: #2B8FB8; }
-    .info { background: #f0f0f0; padding: 20px; margin: 20px 0; }
-  </style>
-</head>
-<body>
-  <h1>Medical Bill Analysis Report - TEST</h1>
-  <div class="info">
-    <p><strong>Job ID:</strong> ${jobId}</p>
-    <p><strong>Hospital:</strong> ${analysis.hospital_name || 'Test Hospital'}</p>
-    <p><strong>Critical Issues:</strong> ${criticalIssues}</p>
-    <p><strong>Estimated Savings:</strong> $${estimatedSavings.toLocaleString()}</p>
-  </div>
-  <h2>Summary</h2>
-  <p>This is a test PDF to verify generation works.</p>
-  <p>If you see this, the PDF library is working correctly.</p>
-</body>
-</html>
-`;
-
-      // Usar HTML de teste primeiro para verificar se funciona
-      await generateReportPDF(testHTML, jobId);
+      // Generate HTML from analysis data
+      const html = generateReportHTML(reportData);
+      
+      console.log('📄 Generating PDF with HTML length:', html.length);
+      
+      await generateReportPDF(html, sessionId || 'report');
       
       toast({
-        title: "Test PDF Generated",
-        description: "Check console for debug info"
+        title: "Success!",
+        description: "Report downloaded successfully"
       });
     } catch (error) {
-      console.error('Download error:', error);
+      console.error('PDF Generation Error:', error);
       toast({
         variant: "destructive",
         title: "Download Failed",
-        description: error instanceof Error ? error.message : "Unknown error"
+        description: error instanceof Error ? error.message : "Failed to generate PDF"
       });
     } finally {
       setIsGeneratingPDF(false);

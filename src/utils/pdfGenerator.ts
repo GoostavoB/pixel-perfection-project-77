@@ -92,6 +92,114 @@ export const generateDisputeLetterPDF = async (
 };
 
 /**
+ * Generate complete HTML report from analysis data
+ */
+export const generateReportHTML = (data: any): string => {
+  const analysis = data.full_analysis || {};
+  const ui = data.ui_summary || {};
+  const issues = analysis.high_priority_issues || [];
+  const potential = analysis.potential_issues || [];
+
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; padding: 30px; color: #2C3E50; line-height: 1.6; }
+        h1 { color: #2B8FB8; font-size: 28px; margin-bottom: 10px; }
+        h2 { color: #1F6B8A; font-size: 20px; margin-top: 25px; margin-bottom: 12px; }
+        .header { text-align: center; margin-bottom: 30px; border-bottom: 3px solid #2B8FB8; padding-bottom: 20px; }
+        .stats { background: #F5F7FA; padding: 20px; border-radius: 8px; margin: 25px 0; }
+        .stat-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #E0E7ED; }
+        .stat-row:last-child { border-bottom: none; }
+        .stat-label { font-weight: 600; color: #546E7A; }
+        .stat-value { font-weight: 700; color: #2C3E50; }
+        .issue { background: #FFF9E6; padding: 15px; margin: 12px 0; border-left: 4px solid #F59E0B; border-radius: 4px; }
+        .high-priority { border-left-color: #DC2626; background: #FEF2F2; }
+        .issue-title { font-weight: 700; font-size: 16px; margin-bottom: 8px; color: #1F2937; }
+        .issue-desc { margin: 8px 0; color: #374151; }
+        .issue-amount { font-weight: 600; color: #DC2626; margin: 8px 0; }
+        .issue-action { font-style: italic; color: #546E7A; margin: 8px 0; }
+        .recommendations { background: #EFF6FF; padding: 20px; border-radius: 8px; margin: 25px 0; }
+        .recommendations ul { margin-left: 25px; margin-top: 10px; }
+        .recommendations li { margin: 8px 0; color: #1E40AF; }
+        .footer { margin-top: 40px; padding-top: 20px; border-top: 2px solid #E0E7ED; font-size: 12px; color: #546E7A; text-align: center; }
+        .footer p { margin: 5px 0; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Hospital Bill Analysis Report</h1>
+        <p style="font-size: 16px; margin-top: 10px;"><strong>Hospital:</strong> ${data.hospital_name || 'Unknown'}</p>
+        <p style="font-size: 14px; color: #546E7A;"><strong>Report Date:</strong> ${new Date().toLocaleDateString()}</p>
+        <p style="font-size: 12px; color: #9CA3AF;"><strong>Job ID:</strong> ${data.job_id || 'N/A'}</p>
+    </div>
+
+    <div class="stats">
+        <h2 style="margin-top: 0;">Summary Statistics</h2>
+        <div class="stat-row">
+            <span class="stat-label">High Priority Issues:</span>
+            <span class="stat-value">${ui.high_priority_count || 0}</span>
+        </div>
+        <div class="stat-row">
+            <span class="stat-label">Potential Issues:</span>
+            <span class="stat-value">${ui.potential_issues_count || 0}</span>
+        </div>
+        <div class="stat-row">
+            <span class="stat-label">Estimated Savings:</span>
+            <span class="stat-value">$${(ui.estimated_savings_if_corrected || 0).toLocaleString()}</span>
+        </div>
+        <div class="stat-row">
+            <span class="stat-label">Data Sources:</span>
+            <span class="stat-value">${(ui.data_sources_used || ['Medicare']).join(', ')}</span>
+        </div>
+    </div>
+
+    ${issues.length > 0 ? `
+    <h2>High Priority Issues</h2>
+    ${issues.map((issue: any, i: number) => `
+    <div class="issue high-priority">
+        <div class="issue-title">${i + 1}. ${issue.type || 'Issue'}</div>
+        <div class="issue-desc">${issue.description || 'No description available'}</div>
+        ${issue.amount ? `<div class="issue-amount">Amount: $${issue.amount.toLocaleString()}</div>` : ''}
+        ${issue.recommendation ? `<div class="issue-action">Action: ${issue.recommendation}</div>` : ''}
+    </div>
+    `).join('')}
+    ` : '<p>No high priority issues found.</p>'}
+
+    ${potential.length > 0 ? `
+    <h2>Potential Issues</h2>
+    ${potential.map((issue: any, i: number) => `
+    <div class="issue">
+        <div class="issue-title">${i + 1}. ${issue.type || 'Issue'}</div>
+        <div class="issue-desc">${issue.description || 'No description available'}</div>
+    </div>
+    `).join('')}
+    ` : ''}
+
+    <div class="recommendations">
+        <h2 style="margin-top: 0;">Recommendations</h2>
+        <ul>
+            <li>Review all flagged issues with your hospital billing department</li>
+            <li>Request an itemized bill if you haven't received one</li>
+            <li>Contact your insurance provider to verify coverage</li>
+            <li>Consider filing a formal dispute for identified overcharges</li>
+            <li>Request payment plans if needed</li>
+        </ul>
+    </div>
+
+    <div class="footer">
+        <p><strong>Hospital Bill Checker</strong></p>
+        <p>This report is for informational purposes only. Consult with qualified professionals for specific guidance.</p>
+        <p>Generated: ${new Date().toLocaleString()}</p>
+    </div>
+</body>
+</html>`;
+};
+
+/**
  * Generate fallback text report if HTML not available
  */
 export const generateTextReport = (
