@@ -34,6 +34,9 @@ export const generatePDFFromHTML = async (
   container.innerHTML = html;
   document.body.appendChild(container);
 
+  // Aguardar renderização do DOM
+  await new Promise(resolve => setTimeout(resolve, 500));
+
   try {
     const opt = {
       margin,
@@ -42,7 +45,7 @@ export const generatePDFFromHTML = async (
       html2canvas: { 
         scale: 2, 
         useCORS: true,
-        logging: false 
+        logging: true
       },
       jsPDF: { 
         unit: 'mm', 
