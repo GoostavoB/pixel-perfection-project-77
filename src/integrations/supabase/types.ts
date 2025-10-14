@@ -19,6 +19,8 @@ export type Database = {
           analysis_result: Json | null
           created_at: string
           critical_issues: number | null
+          dispute_letter_generated_at: string | null
+          dispute_letter_url: string | null
           estimated_savings: number | null
           expires_at: string | null
           extracted_text: string | null
@@ -28,6 +30,8 @@ export type Database = {
           id: string
           issues: Json | null
           moderate_issues: number | null
+          pdf_generated_at: string | null
+          pdf_report_url: string | null
           session_id: string
           status: string
           total_overcharges: number | null
@@ -41,6 +45,8 @@ export type Database = {
           analysis_result?: Json | null
           created_at?: string
           critical_issues?: number | null
+          dispute_letter_generated_at?: string | null
+          dispute_letter_url?: string | null
           estimated_savings?: number | null
           expires_at?: string | null
           extracted_text?: string | null
@@ -50,6 +56,8 @@ export type Database = {
           id?: string
           issues?: Json | null
           moderate_issues?: number | null
+          pdf_generated_at?: string | null
+          pdf_report_url?: string | null
           session_id: string
           status?: string
           total_overcharges?: number | null
@@ -63,6 +71,8 @@ export type Database = {
           analysis_result?: Json | null
           created_at?: string
           critical_issues?: number | null
+          dispute_letter_generated_at?: string | null
+          dispute_letter_url?: string | null
           estimated_savings?: number | null
           expires_at?: string | null
           extracted_text?: string | null
@@ -72,6 +82,8 @@ export type Database = {
           id?: string
           issues?: Json | null
           moderate_issues?: number | null
+          pdf_generated_at?: string | null
+          pdf_report_url?: string | null
           session_id?: string
           status?: string
           total_overcharges?: number | null
