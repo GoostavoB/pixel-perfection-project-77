@@ -8,7 +8,7 @@ import Header from "@/components/Header";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { generateReportPDF, generateTextReport } from "@/utils/pdfGenerator";
+import { pdfGenerator } from '@/utils/pdfGenerator';
 
 const NewResults = () => {
   const location = useLocation();
@@ -61,10 +61,7 @@ const NewResults = () => {
     setIsGeneratingPDF(true);
 
     try {
-      // Import the HTML generator
-      const { generateReportHTML } = await import('@/utils/pdfGenerator');
-      
-      // Prepare data for HTML generation
+      // Prepare data for PDF generation
       const reportData = {
         job_id: sessionId,
         hospital_name: hospitalName,
@@ -72,16 +69,14 @@ const NewResults = () => {
         full_analysis: fullAnalysis
       };
 
-      // Generate HTML from analysis data
-      const html = generateReportHTML(reportData);
-      
-      console.log('📄 Generating PDF with HTML length:', html.length);
-      
-      await generateReportPDF(html, sessionId || 'report');
+      await pdfGenerator.generatePDF(
+        reportData,
+        `hospital-bill-analysis-${sessionId?.substring(0, 8)}.pdf`
+      );
       
       toast({
         title: "Success!",
-        description: "Report downloaded successfully"
+        description: "PDF downloaded successfully"
       });
     } catch (error) {
       console.error('PDF Generation Error:', error);
