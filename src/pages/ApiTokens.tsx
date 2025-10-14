@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Copy, Trash2, Plus, Eye, EyeOff } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { Key, Copy, Trash2, Plus, Eye, EyeOff } from "lucide-react";
 import Header from "@/components/Header";
 
 interface ApiToken {
@@ -21,153 +21,172 @@ interface ApiToken {
 
 const ApiTokens = () => {
   const [tokens, setTokens] = useState<ApiToken[]>([]);
-  const [isCreating, setIsCreating] = useState(false);
-  const [newTokenName, setNewTokenName] = useState("");
-  const [newTokenDescription, setNewTokenDescription] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
   const [revealedTokens, setRevealedTokens] = useState<Set<string>>(new Set());
   const { toast } = useToast();
 
   useEffect(() => {
-    fetchTokens();
+    loadTokens();
   }, []);
 
-  const fetchTokens = async () => {
-    const { data, error } = await supabase
-      .from("api_tokens")
-      .select("*")
-      .order("created_at", { ascending: false });
+  const loadTokens = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("api_tokens")
+        .select("*")
+        .order("created_at", { ascending: false });
 
-    if (error) {
+      if (error) throw error;
+      setTokens(data || []);
+    } catch (error: any) {
       toast({
-        title: "Erro",
-        description: "Não foi possível carregar os tokens",
+        title: "Erro ao carregar tokens",
+        description: error.message,
         variant: "destructive",
       });
-      return;
+    } finally {
+      setLoading(false);
     }
-
-    setTokens(data || []);
   };
 
   const generateToken = () => {
-    return `hbc_${Array.from({ length: 32 }, () => 
-      Math.random().toString(36)[2] || '0'
-    ).join('')}`;
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let token = 'hbc_';
+    for (let i = 0; i < 48; i++) {
+      token += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return token;
   };
 
   const createToken = async () => {
-    if (!newTokenName.trim()) {
+    if (!name.trim()) {
       toast({
-        title: "Erro",
-        description: "O nome do token é obrigatório",
+        title: "Nome obrigatório",
+        description: "Por favor, forneça um nome para o token",
         variant: "destructive",
       });
       return;
     }
 
-    const token = generateToken();
-    const { error } = await supabase
-      .from("api_tokens")
-      .insert([{
+    try {
+      const token = generateToken();
+      const { data: { user } } = await supabase.auth.getUser();
+
+      const { error } = await supabase.from("api_tokens").insert({
         token,
-        name: newTokenName,
-        description: newTokenDescription || null,
-      }]);
+        name,
+        description,
+        created_by: user?.id,
+      });
 
-    if (error) {
+      if (error) throw error;
+
       toast({
-        title: "Erro",
-        description: "Não foi possível criar o token",
+        title: "Token criado",
+        description: "Copie o token agora - ele não será mostrado novamente!",
+      });
+
+      setName("");
+      setDescription("");
+      setShowForm(false);
+      loadTokens();
+    } catch (error: any) {
+      toast({
+        title: "Erro ao criar token",
+        description: error.message,
         variant: "destructive",
       });
-      return;
     }
-
-    toast({
-      title: "Token criado!",
-      description: "Copie o token agora. Ele não será exibido novamente.",
-    });
-
-    setNewTokenName("");
-    setNewTokenDescription("");
-    setIsCreating(false);
-    fetchTokens();
   };
 
   const deleteToken = async (id: string) => {
-    const { error } = await supabase
-      .from("api_tokens")
-      .delete()
-      .eq("id", id);
+    if (!confirm("Tem certeza que deseja deletar este token?")) return;
 
-    if (error) {
+    try {
+      const { error } = await supabase.from("api_tokens").delete().eq("id", id);
+      if (error) throw error;
+
       toast({
-        title: "Erro",
-        description: "Não foi possível deletar o token",
+        title: "Token deletado",
+        description: "O token foi removido com sucesso",
+      });
+      loadTokens();
+    } catch (error: any) {
+      toast({
+        title: "Erro ao deletar token",
+        description: error.message,
         variant: "destructive",
       });
-      return;
     }
+  };
 
-    toast({
-      title: "Token deletado",
-      description: "O token foi removido com sucesso",
+  const toggleReveal = (tokenId: string) => {
+    setRevealedTokens(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(tokenId)) {
+        newSet.delete(tokenId);
+      } else {
+        newSet.add(tokenId);
+      }
+      return newSet;
     });
-
-    fetchTokens();
   };
 
   const copyToken = (token: string) => {
     navigator.clipboard.writeText(token);
     toast({
-      title: "Copiado!",
-      description: "Token copiado para a área de transferência",
+      title: "Token copiado",
+      description: "O token foi copiado para a área de transferência",
     });
   };
 
-  const toggleReveal = (id: string) => {
-    const newRevealed = new Set(revealedTokens);
-    if (newRevealed.has(id)) {
-      newRevealed.delete(id);
-    } else {
-      newRevealed.add(id);
-    }
-    setRevealedTokens(newRevealed);
+  const maskToken = (token: string) => {
+    const prefix = token.substring(0, 8);
+    return `${prefix}${'•'.repeat(40)}`;
   };
 
-  const maskToken = (token: string) => {
-    return token.substring(0, 8) + '•'.repeat(token.length - 8);
-  };
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <div className="container mx-auto px-4 py-16 text-center">
+          <p>Carregando...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
       <Header />
       
       <div className="container mx-auto px-4 py-16 max-w-4xl">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-foreground mb-4">
-            API Tokens para n8n
-          </h1>
-          <p className="text-muted-foreground">
-            Crie e gerencie tokens de API para integrar com n8n e outras ferramentas externas
-          </p>
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground mb-2">API Tokens</h1>
+            <p className="text-muted-foreground">
+              Gerencie tokens de API para integração com n8n e outras ferramentas
+            </p>
+          </div>
+          <Button onClick={() => setShowForm(!showForm)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Novo Token
+          </Button>
         </div>
 
-        {!isCreating ? (
-          <Button onClick={() => setIsCreating(true)} className="mb-6">
-            <Plus className="mr-2 h-4 w-4" />
-            Criar Novo Token
-          </Button>
-        ) : (
+        {showForm && (
           <Card className="p-6 mb-6">
-            <h3 className="text-xl font-bold mb-4">Criar Novo Token</h3>
+            <h3 className="text-lg font-semibold mb-4">Criar Novo Token</h3>
             <div className="space-y-4">
               <div>
-                <Label htmlFor="name">Nome do Token *</Label>
+                <Label htmlFor="name">Nome do Token</Label>
                 <Input
                   id="name"
-                  value={newTokenName}
-                  onChange={(e) => setNewTokenName(e.target.value)}
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
                   placeholder="Ex: n8n Production"
                 />
               </div>
@@ -175,15 +194,14 @@ const ApiTokens = () => {
                 <Label htmlFor="description">Descrição (opcional)</Label>
                 <Textarea
                   id="description"
-                  value={newTokenDescription}
-                  onChange={(e) => setNewTokenDescription(e.target.value)}
-                  placeholder="Descreva o uso deste token"
-                  rows={3}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Para que este token será usado?"
                 />
               </div>
               <div className="flex gap-2">
                 <Button onClick={createToken}>Criar Token</Button>
-                <Button variant="outline" onClick={() => setIsCreating(false)}>
+                <Button variant="outline" onClick={() => setShowForm(false)}>
                   Cancelar
                 </Button>
               </div>
@@ -192,23 +210,63 @@ const ApiTokens = () => {
         )}
 
         <div className="space-y-4">
-          <h3 className="text-xl font-bold">Tokens Ativos</h3>
           {tokens.length === 0 ? (
-            <Card className="p-8 text-center">
-              <p className="text-muted-foreground">Nenhum token criado ainda</p>
+            <Card className="p-12 text-center">
+              <Key className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+              <h3 className="text-lg font-semibold mb-2">Nenhum token criado</h3>
+              <p className="text-muted-foreground mb-4">
+                Crie seu primeiro token de API para integração com n8n
+              </p>
+              <Button onClick={() => setShowForm(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Criar Primeiro Token
+              </Button>
             </Card>
           ) : (
             tokens.map((token) => (
               <Card key={token.id} className="p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <h4 className="font-bold text-lg">{token.name}</h4>
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-foreground mb-1">{token.name}</h3>
                     {token.description && (
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {token.description}
-                      </p>
+                      <p className="text-sm text-muted-foreground mb-3">{token.description}</p>
                     )}
+                    
+                    <div className="bg-muted p-3 rounded font-mono text-sm mb-3 flex items-center gap-2">
+                      <code className="flex-1">
+                        {revealedTokens.has(token.id) ? token.token : maskToken(token.token)}
+                      </code>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => toggleReveal(token.id)}
+                      >
+                        {revealedTokens.has(token.id) ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => copyToken(token.token)}
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    </div>
+
+                    <div className="flex gap-4 text-xs text-muted-foreground">
+                      <span>Criado: {new Date(token.created_at).toLocaleDateString()}</span>
+                      {token.last_used_at && (
+                        <span>Último uso: {new Date(token.last_used_at).toLocaleDateString()}</span>
+                      )}
+                      <span className={token.is_active ? "text-green-600" : "text-red-600"}>
+                        {token.is_active ? "Ativo" : "Inativo"}
+                      </span>
+                    </div>
                   </div>
+
                   <Button
                     variant="ghost"
                     size="sm"
@@ -217,63 +275,52 @@ const ApiTokens = () => {
                     <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
                 </div>
-
-                <div className="flex items-center gap-2 bg-muted p-3 rounded-md">
-                  <code className="flex-1 text-sm font-mono">
-                    {revealedTokens.has(token.id) ? token.token : maskToken(token.token)}
-                  </code>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => toggleReveal(token.id)}
-                  >
-                    {revealedTokens.has(token.id) ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
-                      <Eye className="h-4 w-4" />
-                    )}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => copyToken(token.token)}
-                  >
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                </div>
-
-                <div className="flex gap-4 mt-4 text-sm text-muted-foreground">
-                  <span>Criado: {new Date(token.created_at).toLocaleDateString()}</span>
-                  {token.last_used_at && (
-                    <span>
-                      Último uso: {new Date(token.last_used_at).toLocaleDateString()}
-                    </span>
-                  )}
-                </div>
               </Card>
             ))
           )}
         </div>
 
-        <Card className="mt-8 p-6 bg-primary/5">
-          <h3 className="font-bold mb-4">Como usar no n8n:</h3>
-          <ol className="space-y-2 text-sm">
-            <li>1. Copie o token acima</li>
-            <li>2. No n8n, adicione um nó HTTP Request</li>
-            <li>3. Configure:</li>
-            <ul className="ml-6 space-y-1 text-muted-foreground">
-              <li>• URL: <code className="bg-muted px-2 py-1 rounded">https://jafaukblhxbycjzrbkeq.supabase.co/functions/v1/n8n-api/bill-analyses</code></li>
-              <li>• Headers: <code className="bg-muted px-2 py-1 rounded">x-api-token: SEU_TOKEN_AQUI</code></li>
-            </ul>
-            <li className="mt-4">4. Rotas disponíveis:</li>
-            <ul className="ml-6 space-y-1 text-muted-foreground">
-              <li>• GET /bill-analyses - Listar análises</li>
-              <li>• GET /bill-analyses/:id - Obter análise específica</li>
-              <li>• POST /bill-analyses - Criar nova análise</li>
-              <li>• PATCH /bill-analyses/:id - Atualizar análise</li>
-              <li>• DELETE /bill-analyses/:id - Deletar análise</li>
-            </ul>
-          </ol>
+        <Card className="p-6 mt-8 bg-muted/50">
+          <h3 className="font-semibold mb-3">Como usar no n8n</h3>
+          <div className="space-y-3 text-sm">
+            <div>
+              <p className="font-medium mb-1">URL da API:</p>
+              <code className="bg-background p-2 rounded block">
+                https://jafaukblhxbycjzrbkeq.supabase.co/functions/v1/n8n-api
+              </code>
+            </div>
+            
+            <div>
+              <p className="font-medium mb-1">Headers obrigatórios:</p>
+              <code className="bg-background p-2 rounded block">
+                X-API-Token: seu_token_aqui<br/>
+                Content-Type: application/json
+              </code>
+            </div>
+
+            <div>
+              <p className="font-medium mb-1">Exemplo (SELECT):</p>
+              <pre className="bg-background p-2 rounded block overflow-x-auto">
+{`{
+  "action": "select",
+  "table": "bill_analyses",
+  "filters": {
+    "status": "completed"
+  }
+}`}
+              </pre>
+            </div>
+
+            <div>
+              <p className="font-medium mb-1">Ações:</p>
+              <code className="text-xs">select, insert, update, delete</code>
+            </div>
+
+            <div>
+              <p className="font-medium mb-1">Tabelas:</p>
+              <code className="text-xs">bill_analyses, analysis_results, jobs, user_form_data, dispute_letters</code>
+            </div>
+          </div>
         </Card>
       </div>
     </div>

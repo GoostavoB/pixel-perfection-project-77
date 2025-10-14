@@ -1,203 +1,155 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-api-token',
-};
+}
 
-interface BillAnalysis {
-  file_name?: string;
-  file_type?: string;
-  status?: string;
-  extracted_text?: string;
-  critical_issues?: number;
-  moderate_issues?: number;
-  estimated_savings?: number;
+// Valida o token de API
+async function validateToken(supabase: any, token: string): Promise<boolean> {
+  const { data } = await supabase.rpc('validate_api_token', { token_value: token })
+  return data !== null
 }
 
 Deno.serve(async (req) => {
   // Handle CORS
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: corsHeaders })
   }
 
   try {
-    // Validar token de API
-    const apiToken = req.headers.get('x-api-token');
-    
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+    )
+
+    // Valida token de API
+    const apiToken = req.headers.get('x-api-token')
     if (!apiToken) {
-      console.error('Missing API token');
       return new Response(
-        JSON.stringify({ error: 'Missing API token' }),
+        JSON.stringify({ error: 'Missing API token. Include X-API-Token header.' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      )
     }
 
-    // Criar cliente Supabase com service role
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    // Validar token
-    const tokenId = await supabase.rpc('validate_api_token', { 
-      token_value: apiToken 
-    });
-
-    if (!tokenId.data) {
-      console.error('Invalid API token');
+    const isValid = await validateToken(supabaseClient, apiToken)
+    if (!isValid) {
       return new Response(
         JSON.stringify({ error: 'Invalid or inactive API token' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Parse request body
+    const { action, table, data, filters } = await req.json()
+
+    console.log('N8N API Request:', { action, table, filters })
+
+    // Valida inputs
+    if (!action || !table) {
+      return new Response(
+        JSON.stringify({ error: 'Missing required fields: action and table' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Tabelas permitidas
+    const allowedTables = ['bill_analyses', 'analysis_results', 'jobs', 'user_form_data', 'dispute_letters']
+    if (!allowedTables.includes(table)) {
+      return new Response(
+        JSON.stringify({ error: `Table not allowed. Allowed tables: ${allowedTables.join(', ')}` }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      )
     }
 
-    const url = new URL(req.url);
-    const path = url.pathname.replace('/n8n-api/', '');
+    let result
 
-    // GET /bill-analyses - Listar análises
-    if (req.method === 'GET' && path === 'bill-analyses') {
-      const limit = url.searchParams.get('limit') || '10';
-      const offset = url.searchParams.get('offset') || '0';
-
-      const { data, error } = await supabase
-        .from('bill_analyses')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(parseInt(limit))
-        .range(parseInt(offset), parseInt(offset) + parseInt(limit) - 1);
-
-      if (error) {
-        console.error('Error fetching bill analyses:', error);
-        return new Response(
-          JSON.stringify({ error: error.message }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+    // Executa ação
+    switch (action) {
+      case 'select': {
+        let query = supabaseClient.from(table).select('*')
+        
+        // Aplica filtros se fornecidos
+        if (filters) {
+          Object.entries(filters).forEach(([key, value]) => {
+            query = query.eq(key, value)
+          })
+        }
+        
+        const { data: rows, error } = await query
+        if (error) throw error
+        result = { data: rows, count: rows.length }
+        break
       }
 
-      return new Response(
-        JSON.stringify({ data, count: data.length }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // GET /bill-analyses/:id - Obter análise específica
-    if (req.method === 'GET' && path.startsWith('bill-analyses/')) {
-      const id = path.replace('bill-analyses/', '');
-
-      const { data, error } = await supabase
-        .from('bill_analyses')
-        .select('*')
-        .eq('id', id)
-        .single();
-
-      if (error) {
-        console.error('Error fetching bill analysis:', error);
-        return new Response(
-          JSON.stringify({ error: error.message }),
-          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+      case 'insert': {
+        if (!data) {
+          return new Response(
+            JSON.stringify({ error: 'Missing data for insert' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+        const { data: inserted, error } = await supabaseClient
+          .from(table)
+          .insert(data)
+          .select()
+        if (error) throw error
+        result = { data: inserted }
+        break
       }
 
-      return new Response(
-        JSON.stringify({ data }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // POST /bill-analyses - Criar nova análise
-    if (req.method === 'POST' && path === 'bill-analyses') {
-      const body = await req.json();
-      const analysis: BillAnalysis = {
-        file_name: body.file_name,
-        file_type: body.file_type || 'pdf',
-        status: body.status || 'processing',
-        extracted_text: body.extracted_text,
-        critical_issues: body.critical_issues || 0,
-        moderate_issues: body.moderate_issues || 0,
-        estimated_savings: body.estimated_savings || 0,
-      };
-
-      const { data, error } = await supabase
-        .from('bill_analyses')
-        .insert([analysis])
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Error creating bill analysis:', error);
-        return new Response(
-          JSON.stringify({ error: error.message }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+      case 'update': {
+        if (!data || !filters) {
+          return new Response(
+            JSON.stringify({ error: 'Missing data or filters for update' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+        let query = supabaseClient.from(table).update(data)
+        Object.entries(filters).forEach(([key, value]) => {
+          query = query.eq(key, value)
+        })
+        const { data: updated, error } = await query.select()
+        if (error) throw error
+        result = { data: updated }
+        break
       }
 
-      return new Response(
-        JSON.stringify({ data }),
-        { status: 201, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // PATCH /bill-analyses/:id - Atualizar análise
-    if (req.method === 'PATCH' && path.startsWith('bill-analyses/')) {
-      const id = path.replace('bill-analyses/', '');
-      const body = await req.json();
-
-      const { data, error } = await supabase
-        .from('bill_analyses')
-        .update(body)
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Error updating bill analysis:', error);
-        return new Response(
-          JSON.stringify({ error: error.message }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+      case 'delete': {
+        if (!filters) {
+          return new Response(
+            JSON.stringify({ error: 'Missing filters for delete' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+        let query = supabaseClient.from(table).delete()
+        Object.entries(filters).forEach(([key, value]) => {
+          query = query.eq(key, value)
+        })
+        const { data: deleted, error } = await query.select()
+        if (error) throw error
+        result = { data: deleted }
+        break
       }
 
-      return new Response(
-        JSON.stringify({ data }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // DELETE /bill-analyses/:id - Deletar análise
-    if (req.method === 'DELETE' && path.startsWith('bill-analyses/')) {
-      const id = path.replace('bill-analyses/', '');
-
-      const { error } = await supabase
-        .from('bill_analyses')
-        .delete()
-        .eq('id', id);
-
-      if (error) {
-        console.error('Error deleting bill analysis:', error);
+      default:
         return new Response(
-          JSON.stringify({ error: error.message }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      return new Response(
-        JSON.stringify({ success: true }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+          JSON.stringify({ error: `Invalid action. Allowed: select, insert, update, delete` }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
     }
 
-    // Rota não encontrada
     return new Response(
-      JSON.stringify({ error: 'Route not found' }),
-      { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+      JSON.stringify({ success: true, ...result }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    )
 
   } catch (error) {
-    console.error('Error in n8n-api function:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Error in n8n-api function:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     return new Response(
       JSON.stringify({ error: errorMessage }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    )
   }
-});
+})
