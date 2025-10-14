@@ -1,28 +1,27 @@
-import { CheckCircle, AlertCircle, AlertTriangle, Database, FileText, ArrowRight, Calendar, FileBarChart, TrendingDown } from "lucide-react";
+import { CheckCircle, AlertCircle, AlertTriangle, Database, FileText, ArrowRight, Calendar, FileBarChart, TrendingDown, DollarSign } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import Header from "@/components/Header";
-import { useEffect, useState } from "react";
-import { downloadHTML } from "@/lib/billAnalysisApi";
+import { useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 const NewResults = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { uploadResponse, analysisDetails } = (location.state as { 
-    uploadResponse?: any; 
-    analysisDetails?: any;
-  }) || {};
+  const { toast } = useToast();
+  const { analysis, sessionId } = (location.state as { analysis?: any; sessionId?: string }) || {};
   
   useEffect(() => {
-    if (!uploadResponse || !analysisDetails) {
+    if (!analysis || !sessionId) {
       navigate('/upload');
     }
-  }, [uploadResponse, analysisDetails, navigate]);
+  }, [analysis, sessionId, navigate]);
 
-  if (!uploadResponse || !analysisDetails) return null;
+  if (!analysis) return null;
 
   const analysisDate = new Date().toLocaleDateString('en-US', { 
     year: 'numeric', 
@@ -30,18 +29,22 @@ const NewResults = () => {
     day: 'numeric' 
   });
 
-  // Extract data from new structure
-  const uiSummary = uploadResponse.ui_summary || {};
-  const highPriorityCount = uiSummary.high_priority_count || 0;
-  const potentialIssuesCount = uiSummary.potential_issues_count || 0;
-  const estimatedSavings = uiSummary.estimated_savings_if_corrected || 0;
-  const dataSources = uiSummary.data_sources_used || [];
-  const tags = uiSummary.tags || [];
+  // Parse ui_summary if it comes as string
+  const uiSummary = typeof analysis.ui_summary === 'string' 
+    ? JSON.parse(analysis.ui_summary) 
+    : analysis.ui_summary || {};
   
-  const hospitalName = analysisDetails.hospital_name || '';
-  const fullAnalysis = analysisDetails.full_analysis || {};
-  const hasPdfReport = !!analysisDetails.pdf_report_html;
-  const hasDisputeLetter = !!analysisDetails.dispute_letter_html;
+  const fullAnalysis = typeof analysis.full_analysis === 'string'
+    ? JSON.parse(analysis.full_analysis)
+    : analysis.full_analysis || {};
+
+  const criticalIssues = uiSummary.high_priority_count || fullAnalysis.high_priority_issues?.length || 0;
+  const moderateIssues = uiSummary.potential_issues_count || fullAnalysis.potential_issues?.length || 0;
+  const estimatedSavings = uiSummary.estimated_savings_if_corrected || fullAnalysis.estimated_savings || 0;
+  const hospitalName = analysis.hospital_name || '';
+  const dataSources = uiSummary.data_sources_used || fullAnalysis.data_sources || [];
+  const tags = uiSummary.tags || fullAnalysis.tags || [];
+  const emailSent = analysis.email_sent || false;
 
   return (
     <div className="min-h-screen bg-background">
@@ -62,7 +65,7 @@ const NewResults = () => {
                 </div>
                 <div className="flex items-center gap-2">
                   <FileBarChart className="w-4 h-4" />
-                  <span>Job ID: {uploadResponse.job_id.substring(0, 8)}</span>
+                  <span>Session ID: {sessionId?.substring(0, 8)}</span>
                 </div>
               </div>
             </div>
@@ -74,6 +77,24 @@ const NewResults = () => {
           <Separator className="my-4" />
         </div>
 
+        {/* Email Sent Confirmation */}
+        {emailSent && (
+          <Card className="mb-6 p-6 border-l-4 border-l-success shadow-card bg-success/5">
+            <div className="flex items-start gap-4 mb-4">
+              <div className="p-2 bg-success/10 rounded">
+                <CheckCircle className="w-5 h-5 text-success" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-foreground mb-1">Report Delivered Successfully</h2>
+                <p className="text-sm text-muted-foreground">
+                  Your comprehensive PDF analysis report has been sent to <span className="font-semibold text-success">your registered email address</span>. 
+                  Please check your inbox for the complete report with detailed CPT code explanations, pricing breakdowns, and actionable recommendations.
+                </p>
+              </div>
+            </div>
+          </Card>
+        )}
+
         {/* Key Metrics Grid */}
         <div className="mb-6">
           <h2 className="text-xl font-bold text-foreground mb-4">Summary of Findings</h2>
@@ -84,9 +105,9 @@ const NewResults = () => {
                 <div className="p-2 bg-destructive/10 rounded">
                   <AlertCircle className="w-5 h-5 text-destructive" />
                 </div>
-                <span className="text-3xl font-bold text-destructive">{highPriorityCount}</span>
+                <span className="text-3xl font-bold text-destructive">{criticalIssues}</span>
               </div>
-              <h3 className="text-sm font-semibold text-foreground mb-1">High Priority</h3>
+              <h3 className="text-sm font-semibold text-foreground mb-1">Critical Issues</h3>
               <p className="text-xs text-muted-foreground">Require immediate attention</p>
             </Card>
 
@@ -96,9 +117,9 @@ const NewResults = () => {
                 <div className="p-2 bg-warning/10 rounded">
                   <AlertTriangle className="w-5 h-5 text-warning" />
                 </div>
-                <span className="text-3xl font-bold text-warning">{potentialIssuesCount}</span>
+                <span className="text-3xl font-bold text-warning">{moderateIssues}</span>
               </div>
-              <h3 className="text-sm font-semibold text-foreground mb-1">Potential Issues</h3>
+              <h3 className="text-sm font-semibold text-foreground mb-1">Moderate Concerns</h3>
               <p className="text-xs text-muted-foreground">For further review</p>
             </Card>
 
@@ -123,7 +144,7 @@ const NewResults = () => {
                 <span className="text-3xl font-bold text-secondary">{dataSources.length}</span>
               </div>
               <h3 className="text-sm font-semibold text-foreground mb-1">Data Sources</h3>
-              <p className="text-xs text-muted-foreground">Referenced databases</p>
+              <p className="text-xs text-muted-foreground">{dataSources.join(', ') || 'Referenced databases'}</p>
             </Card>
           </div>
         </div>
@@ -154,83 +175,122 @@ const NewResults = () => {
           </Card>
         )}
 
-        {/* Data Sources Card */}
-        {dataSources.length > 0 && (
-          <Card className="mb-6 p-6 shadow-card">
-            <h2 className="text-xl font-bold text-foreground mb-4">Data Sources Used</h2>
-            <div className="flex flex-wrap gap-2">
-              {dataSources.map((source: string, index: number) => (
-                <Badge key={index} className="bg-secondary/10 text-secondary border-secondary/20">
-                  <Database className="w-3 h-3 mr-1" />
-                  {source}
-                </Badge>
-              ))}
+        {/* Included in Report */}
+        <Card className="mb-6 p-6 border-secondary/20 shadow-card">
+          <h2 className="text-xl font-bold text-foreground mb-4">Your Detailed Report Includes</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="flex gap-3">
+              <div className="w-1.5 bg-secondary rounded-full flex-shrink-0" />
+              <div>
+                <h3 className="text-sm font-semibold text-foreground mb-1">Complete Itemized Analysis</h3>
+                <p className="text-sm text-muted-foreground">Line-by-line breakdown of every charge with justification</p>
+              </div>
             </div>
-          </Card>
-        )}
+            <div className="flex gap-3">
+              <div className="w-1.5 bg-secondary rounded-full flex-shrink-0" />
+              <div>
+                <h3 className="text-sm font-semibold text-foreground mb-1">Medicare Benchmark Comparison</h3>
+                <p className="text-sm text-muted-foreground">How your charges compare to standard allowable rates</p>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <div className="w-1.5 bg-secondary rounded-full flex-shrink-0" />
+              <div>
+                <h3 className="text-sm font-semibold text-foreground mb-1">Specific Action Items</h3>
+                <p className="text-sm text-muted-foreground">Prioritized recommendations for each finding</p>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <div className="w-1.5 bg-secondary rounded-full flex-shrink-0" />
+              <div>
+                <h3 className="text-sm font-semibold text-foreground mb-1">Dispute Letter Templates</h3>
+                <p className="text-sm text-muted-foreground">Pre-filled forms ready for submission</p>
+              </div>
+            </div>
+          </div>
+        </Card>
 
         {/* Action Buttons */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-          {/* Download Full Report */}
-          {hasPdfReport && (
-            <Card className="p-6 text-center border-secondary/20 bg-gradient-to-br from-secondary/5 to-secondary/10 shadow-card">
-              <div className="flex justify-center mb-3">
-                <div className="p-3 bg-secondary/10 rounded-lg">
-                  <FileBarChart className="w-7 h-7 text-secondary" />
-                </div>
+          {/* Download Comprehensive Report */}
+          <Card className="p-6 text-center border-secondary/20 bg-gradient-to-br from-secondary/5 to-secondary/10 shadow-card">
+            <div className="flex justify-center mb-3">
+              <div className="p-3 bg-secondary/10 rounded-lg">
+                <FileBarChart className="w-7 h-7 text-secondary" />
               </div>
-              <h3 className="text-lg font-bold text-foreground mb-2">
-                Download Full Report
-              </h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                Get your complete comprehensive analysis report with detailed CPT code explanations and pricing breakdowns
-              </p>
-              <Button 
-                size="lg"
-                variant="outline"
-                className="border-secondary text-secondary hover:bg-secondary hover:text-secondary-foreground font-semibold group"
-                onClick={() => downloadHTML(analysisDetails.pdf_report_html, 'medical-bill-report.html')}
-              >
-                <FileBarChart className="mr-2 w-5 h-5" />
-                Download Report
-              </Button>
-            </Card>
-          )}
+            </div>
+            <h3 className="text-lg font-bold text-foreground mb-2">
+              Download Full Report
+            </h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Get your complete comprehensive analysis report with detailed CPT code explanations, pricing breakdowns, and actionable recommendations
+            </p>
+            <Button 
+              size="lg"
+              variant="outline"
+              className="border-secondary text-secondary hover:bg-secondary hover:text-secondary-foreground font-semibold group"
+              onClick={async () => {
+                try {
+                  const { data, error } = await supabase.functions.invoke('generate-pdf-report', {
+                    body: { sessionId }
+                  });
 
-          {/* Download Dispute Letter */}
-          {hasDisputeLetter && (
-            <Card className="p-6 text-center border-accent/20 bg-gradient-to-br from-accent/5 to-accent/10 shadow-card">
-              <div className="flex justify-center mb-3">
-                <div className="p-3 bg-accent/10 rounded-lg">
-                  <FileText className="w-7 h-7 text-accent" />
-                </div>
+                  if (error) throw error;
+
+                  toast({
+                    title: "PDF Report Generation Started",
+                    description: "Your detailed report is being generated. You will receive it via email shortly.",
+                  });
+                } catch (error) {
+                  console.error('PDF generation error:', error);
+                  toast({
+                    title: "Generation Failed",
+                    description: "Failed to generate PDF report. Please try again.",
+                    variant: "destructive",
+                  });
+                }
+              }}
+            >
+              <FileBarChart className="mr-2 w-5 h-5" />
+              Download Detailed Report
+            </Button>
+          </Card>
+
+          {/* Generate Dispute Letter */}
+          <Card className="p-6 text-center border-accent/20 bg-gradient-to-br from-accent/5 to-accent/10 shadow-card">
+            <div className="flex justify-center mb-3">
+              <div className="p-3 bg-accent/10 rounded-lg">
+                <FileText className="w-7 h-7 text-accent" />
               </div>
-              <h3 className="text-lg font-bold text-foreground mb-2">
-                Download Dispute Letter
-              </h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                Professional dispute letter based on your analysis findings, ready to send
-              </p>
+            </div>
+            <h3 className="text-lg font-bold text-foreground mb-2">
+              Generate Dispute Letter
+            </h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Create a professional dispute letter based on your analysis findings
+            </p>
+            <Link 
+              to="/generate-letter"
+              state={{
+                issues: tags.map((tag: string) => ({
+                  category: "Billing Issue",
+                  finding: tag,
+                  severity: "Review Required",
+                  impact: `Part of $${estimatedSavings.toLocaleString()} total savings`
+                })),
+                totalSavings: `$${estimatedSavings.toLocaleString()}`,
+                sessionId
+              }}
+            >
               <Button 
                 size="lg"
                 className="bg-accent hover:bg-accent/90 text-accent-foreground font-semibold group"
-                onClick={() => downloadHTML(analysisDetails.dispute_letter_html, 'dispute-letter.html')}
               >
-                Download Letter
+                Generate Letter
                 <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </Button>
-            </Card>
-          )}
-        </div>
-
-        {/* Back to Upload */}
-        <div className="text-center">
-          <Button 
-            variant="outline"
-            onClick={() => navigate('/upload')}
-          >
-            Analyze Another Bill
-          </Button>
+            </Link>
+          </Card>
         </div>
       </main>
     </div>
