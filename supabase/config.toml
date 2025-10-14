@@ -20,3 +20,9 @@ verify_jwt = false
 
 [functions.search-cities]
 verify_jwt = false
+
+[functions.generate-pdf-report]
+verify_jwt = false
+
+[functions.generate-dispute-letter]
+verify_jwt = false

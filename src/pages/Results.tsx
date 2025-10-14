@@ -6,10 +6,13 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import Header from "@/components/Header";
 import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 const Results = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const { analysis: passedAnalysis, sessionId } = (location.state as { analysis?: any; sessionId?: string }) || {};
   
   const [analysis, setAnalysis] = useState(passedAnalysis);
@@ -219,27 +222,24 @@ const Results = () => {
               size="lg"
               variant="outline"
               className="border-secondary text-secondary hover:bg-secondary hover:text-secondary-foreground font-semibold group"
-              onClick={() => {
-                const webhookUrl = prompt("Please enter your N8n webhook URL to generate the detailed PDF report:");
-                if (webhookUrl) {
-                  fetch(webhookUrl, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    mode: "no-cors",
-                    body: JSON.stringify({
-                      session_id: sessionId,
-                      hospital_name: hospitalName,
-                      high_priority_count: criticalIssues,
-                      potential_issues_count: moderateIssues,
-                      estimated_savings: estimatedSavings,
-                      data_sources: dataSources,
-                      tags: tags,
-                      requestType: "detailed_pdf_report"
-                    })
-                  }).then(() => {
-                    alert("PDF report generation started! You will receive the detailed report with CPT code explanations and full analysis.");
-                  }).catch(() => {
-                    alert("Request sent to your webhook. Please check your N8n workflow.");
+              onClick={async () => {
+                try {
+                  const { data, error } = await supabase.functions.invoke('generate-pdf-report', {
+                    body: { sessionId }
+                  });
+
+                  if (error) throw error;
+
+                  toast({
+                    title: "PDF Report Generation Started",
+                    description: "Your detailed report is being generated. You will receive it via email shortly.",
+                  });
+                } catch (error) {
+                  console.error('PDF generation error:', error);
+                  toast({
+                    title: "Generation Failed",
+                    description: "Failed to generate PDF report. Please try again.",
+                    variant: "destructive",
                   });
                 }
               }}

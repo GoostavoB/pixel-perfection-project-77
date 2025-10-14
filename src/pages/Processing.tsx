@@ -50,7 +50,7 @@ const Processing = () => {
             setProgress(100);
             setStatus('Analysis complete!');
             clearInterval(pollInterval);
-            setTimeout(() => navigate('/form'), 500);
+            setTimeout(() => navigate('/results', { state: { analysis: data.analysis, sessionId } }), 500);
           } else if (analysisStatus === 'error') {
             setStatus('Analysis failed. Please try again.');
             clearInterval(pollInterval);
