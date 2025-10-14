@@ -33,6 +33,7 @@ import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
 import AuthGuard from "./components/AuthGuard";
 
+// Query client for React Query
 const queryClient = new QueryClient();
 
 const App = () => (
