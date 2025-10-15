@@ -87,16 +87,22 @@ const Results = () => {
   const a = fullAnalysis ?? analysis.analysis_result ?? analysis ?? {};
 
   // Safe extraction with hard guards
-  const totalCharged = 
-    num(a.total_bill_amount) ||
-    num(a.total_charged) ||
-    num(uiSummary?.total_bill_amount) ||
-    NaN;
+  const totalChargedRaw = 
+    num(a.total_bill_amount);
+  const totalCharged = Number.isFinite(totalChargedRaw) && totalChargedRaw > 0
+    ? totalChargedRaw
+    : (Number.isFinite(num(a.total_charged)) && num(a.total_charged) > 0
+      ? num(a.total_charged)
+      : (Number.isFinite(num(uiSummary?.total_bill_amount)) && num(uiSummary?.total_bill_amount) > 0
+        ? num(uiSummary?.total_bill_amount)
+        : NaN));
 
-  const savings =
-    num(a.total_potential_savings) ||
-    num(uiSummary?.estimated_savings_if_corrected) ||
-    NaN;
+  const savingsRaw = num(a.total_potential_savings);
+  const savings = Number.isFinite(savingsRaw)
+    ? savingsRaw
+    : (Number.isFinite(num(uiSummary?.estimated_savings_if_corrected))
+      ? num(uiSummary?.estimated_savings_if_corrected)
+      : NaN);
 
   const hi = Array.isArray(a.high_priority_issues) ? a.high_priority_issues : [];
   const pi = Array.isArray(a.potential_issues) ? a.potential_issues : [];
