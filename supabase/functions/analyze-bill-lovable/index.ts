@@ -158,12 +158,52 @@ async function analyzeBillWithAI(textContent: string, apiKey: string, supabase: 
     .select('*')
     .limit(50);
 
+  // Extract and validate NPIs from bill text
+  const npiPattern = /\b\d{10}\b/g;
+  const foundNPIs = textContent.match(npiPattern) || [];
+  
+  let providerContext = '';
+  if (foundNPIs.length > 0) {
+    console.log(`Found ${foundNPIs.length} potential NPIs in bill`);
+    
+    // Validate first NPI found (usually the main provider)
+    try {
+      const validateResponse = await supabase.functions.invoke('validate-provider', {
+        body: { npi: foundNPIs[0] }
+      });
+      
+      if (validateResponse.data?.found && validateResponse.data?.provider) {
+        const provider = validateResponse.data.provider;
+        providerContext = `
+PROVIDER VALIDATION (NPI ${provider.npi}):
+- Name: ${provider.name}
+- Type: ${provider.type}
+- Status: ${provider.status === 'A' ? 'Active' : 'Inactive'}
+- Specialty: ${provider.specialty || 'Not specified'}
+- Location: ${provider.practice_address?.city}, ${provider.practice_address?.state}
+- All Specialties: ${provider.all_specialties?.join(', ') || 'None listed'}
+`;
+        console.log('Provider validated successfully:', provider.name);
+      } else {
+        console.log('Provider NPI not found in NPPES registry');
+        providerContext = `
+PROVIDER VALIDATION:
+- NPI ${foundNPIs[0]} was NOT FOUND in NPPES registry (possible red flag)
+`;
+      }
+    } catch (error) {
+      console.error('Error validating provider:', error);
+    }
+  }
+
   const pricingContext = `
 MEDICARE BENCHMARK RATES:
 ${medicarePrices?.map((p: any) => `${p.cpt_code}: $${p.medicare_facility_rate} - ${p.description}`).join('\n')}
 
 REGIONAL ADJUSTMENTS:
 ${regionalData?.map((r: any) => `${r.state_code} (${r.region_name}): ${r.adjustment_factor}x`).join('\n')}
+
+${providerContext}
 `;
   
   const systemPrompt = `You are an expert medical billing auditor with access to Medicare benchmark pricing data. Analyze the medical bill and identify billing errors, overcharges, and issues.
@@ -175,6 +215,8 @@ IMPORTANT INSTRUCTIONS:
 - Flag charges >3x Medicare rate as HIGH PRIORITY overcharges
 - Calculate exact overcharge amounts: (Billed Amount - Reasonable Rate)
 - Use regional adjustments when available
+- If provider validation shows inactive/invalid NPI, flag as HIGH PRIORITY issue
+- If procedures don't match provider specialty, flag as potential fraud
 
 Return your analysis in this EXACT JSON structure:
 {

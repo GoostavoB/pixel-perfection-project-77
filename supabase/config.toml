@@ -42,6 +42,9 @@ verify_jwt = false
 [functions.process-cms-zip]
 verify_jwt = false
 
+[functions.validate-provider]
+verify_jwt = false
+
 [functions.fetch-cms-pricing]
 verify_jwt = false
 
