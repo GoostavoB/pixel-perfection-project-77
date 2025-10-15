@@ -308,14 +308,21 @@ const Results = () => {
             <Link 
               to="/generate-letter"
               state={{
-                issues: tags.map((tag: string) => ({
-                  category: "Billing Issue",
-                  finding: tag,
-                  severity: "Review Required",
-                  impact: `Part of $${estimatedSavings.toLocaleString()} total savings`
-                })),
+                issues: (analysis.issues || []).length > 0 
+                  ? analysis.issues 
+                  : tags.map((tag: string) => ({
+                      category: "Billing Issue",
+                      finding: tag,
+                      severity: "Review Required",
+                      impact: `Part of $${estimatedSavings.toLocaleString()} total savings`,
+                      cpt_code: "N/A",
+                      description: tag,
+                      details: "Please review this charge for accuracy and compliance with billing standards."
+                    })),
                 totalSavings: `$${estimatedSavings.toLocaleString()}`,
-                sessionId
+                sessionId,
+                hospitalName: hospitalName || "Hospital",
+                analysisDate: analysisDate
               }}
             >
               <Button 

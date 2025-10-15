@@ -45,11 +45,26 @@ const Upload = () => {
       return;
     }
 
-    // Validate file (PDF only, max 10MB)
-    if (!file.type.includes('pdf')) {
+    // Validate file (PDF, Images, Excel - max 10MB)
+    const validTypes = [
+      'application/pdf',
+      'image/jpeg',
+      'image/jpg', 
+      'image/png',
+      'image/heic',
+      'image/heif',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.ms-excel'
+    ];
+    
+    const isValidType = validTypes.some(type => file.type.includes(type)) || 
+                       file.name.toLowerCase().endsWith('.heic') ||
+                       file.name.toLowerCase().endsWith('.heif');
+    
+    if (!isValidType) {
       toast({
         title: "Invalid file type",
-        description: "Only PDF files are accepted",
+        description: "Only PDF, JPG, PNG, HEIC images, or Excel files are accepted",
         variant: "destructive",
       });
       return;
@@ -122,7 +137,7 @@ const Upload = () => {
 
             <input
               type="file"
-              accept=".pdf,.jpg,.jpeg,.png,.xlsx,.xls"
+              accept=".pdf,.jpg,.jpeg,.png,.heic,.heif,.xlsx,.xls,image/*"
               onChange={handleFileChange}
               className="hidden"
               id="file-upload"
@@ -139,7 +154,7 @@ const Upload = () => {
           </div>
 
           <div className="mt-6 text-center text-sm text-muted-foreground">
-            <p>Accepted formats: PDF, JPG, PNG, Excel</p>
+            <p>Accepted formats: PDF, JPG, PNG, HEIC (iPhone screenshots), Excel</p>
             <p className="mt-2">Maximum file size: 10MB</p>
           </div>
 

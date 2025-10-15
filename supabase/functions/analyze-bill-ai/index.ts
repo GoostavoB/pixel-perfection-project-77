@@ -215,16 +215,44 @@ ${JSON.stringify(RANKED_TOP10, null, 2)}
       hasDisputeLetter: !!analysisResult.dispute_letter_doc
     });
 
-    // Update database with results
+    // Extract the structured data
+    const analysisJson = analysisResult.analysis_json || {};
+    const uiSummary = analysisResult.ui_summary || {};
+    const charges = analysisJson.charges || [];
+
+    // Build issues array with proper structure for dispute letter
+    const issues = charges
+      .filter((charge: any) => charge.issue_flag?.top10_category !== "None")
+      .map((charge: any) => ({
+        category: charge.issue_flag?.top10_category || "Billing Issue",
+        finding: charge.description || "Charge review needed",
+        severity: charge.classification === "High Priority" ? "critical" : "moderate",
+        impact: `$${charge.billed_amount?.toFixed(2) || "0.00"}`,
+        cpt_code: charge.cpt_code || "N/A",
+        description: charge.description || "",
+        details: charge.issue_flag?.explanation_for_user || "",
+        suggested_action: charge.issue_flag?.suggested_action || "",
+        confidence_score: charge.confidence_score || 0,
+        accuracy_label: charge.accuracy_label || "Needs Review"
+      }));
+
+    // Update database with complete structured results
     const { error: updateError } = await supabase
       .from('bill_analyses')
       .update({
         status: 'completed',
-        analysis_result: analysisResult.analysis_json,
-        critical_issues: analysisResult.analysis_json?.summary?.high_priority_count || 0,
-        moderate_issues: analysisResult.analysis_json?.summary?.potential_issues_count || 0,
-        estimated_savings: analysisResult.analysis_json?.summary?.estimated_savings || 0,
-        extracted_text: billText
+        analysis_result: {
+          ...analysisJson,
+          ui_summary: uiSummary,
+          pdf_report_html: analysisResult.pdf_report_html,
+          dispute_letter_doc: analysisResult.dispute_letter_doc,
+          storage_payload: analysisResult.storage_payload
+        },
+        critical_issues: analysisJson.summary?.high_priority_count || 0,
+        moderate_issues: analysisJson.summary?.potential_issues_count || 0,
+        estimated_savings: analysisJson.summary?.estimated_savings || 0,
+        extracted_text: billText,
+        issues: issues
       })
       .eq('id', analysisId);
 

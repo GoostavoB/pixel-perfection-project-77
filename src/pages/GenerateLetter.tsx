@@ -18,6 +18,9 @@ interface BillingIssue {
   cptCode: string;
   description: string;
   details: string;
+  suggested_action?: string;
+  confidence_score?: number;
+  accuracy_label?: string;
 }
 
 const GenerateLetter = () => {
@@ -62,18 +65,30 @@ const GenerateLetter = () => {
     section += "Based on my thorough analysis of the itemized bill, I am disputing the following charges:\n\n";
     
     billingIssues.forEach((issue, index) => {
+      const cptDisplay = issue.cptCode && issue.cptCode !== "N/A" ? issue.cptCode : "Various codes";
+      const impactDisplay = issue.impact || "$0.00";
+      
       section += `${index + 1}. ${issue.category} - ${issue.finding}\n`;
-      section += `   CPT Code: ${issue.cptCode} - ${issue.description}\n`;
-      section += `   Disputed Amount: ${issue.impact}\n`;
+      section += `   CPT Code: ${cptDisplay}\n`;
+      if (issue.description && issue.description !== issue.finding) {
+        section += `   Service Description: ${issue.description}\n`;
+      }
+      section += `   Disputed Amount: ${impactDisplay}\n`;
       section += `   \n`;
       section += `   Reason for Dispute:\n`;
-      section += `   ${issue.details}\n`;
+      section += `   ${issue.details || "This charge requires review for compliance with standard billing practices and regulations."}\n`;
       section += `   \n`;
       
-      if (issue.severity === "Critical") {
-        section += `   Required Action: This charge must be removed or corrected immediately as it violates billing standards and regulations.\n`;
+      if (issue.suggested_action) {
+        section += `   Recommended Action:\n`;
+        section += `   ${issue.suggested_action}\n`;
+        section += `   \n`;
+      }
+      
+      if (issue.severity === "critical" || issue.severity === "Critical") {
+        section += `   Priority: HIGH - This charge must be removed or corrected immediately as it violates billing standards and regulations.\n`;
       } else {
-        section += `   Required Action: This charge should be reviewed and adjusted to reflect fair market rates and standard billing practices.\n`;
+        section += `   Priority: MEDIUM - This charge should be reviewed and adjusted to reflect fair market rates and standard billing practices.\n`;
       }
       section += `\n`;
     });
@@ -462,32 +477,65 @@ CC: [Insurance Company Name] - Member Services
                           </div>
                           
                           <div className="space-y-4">
-                            {billingIssues.map((issue, index) => (
-                              <div key={index} className="pl-4">
-                                <div className="font-semibold mb-1">
-                                  {index + 1}. {issue.category} - {issue.finding}
+                            {billingIssues.map((issue, index) => {
+                              const cptDisplay = issue.cptCode && issue.cptCode !== "N/A" ? issue.cptCode : "Various codes";
+                              const impactDisplay = issue.impact || "$0.00";
+                              
+                              return (
+                                <div key={index} className="pl-4 bg-gray-50 p-4 rounded border-l-4 border-gray-400">
+                                  <div className="font-semibold mb-2 text-base">
+                                    {index + 1}. {issue.category}
+                                  </div>
+                                  {issue.finding && (
+                                    <div className="mb-2 ml-3 text-sm">
+                                      <span className="font-semibold">Finding:</span> {issue.finding}
+                                    </div>
+                                  )}
+                                  <div className="mb-2 ml-3 text-sm">
+                                    <span className="font-semibold">CPT Code:</span> {cptDisplay}
+                                  </div>
+                                  {issue.description && issue.description !== issue.finding && (
+                                    <div className="mb-2 ml-3 text-sm">
+                                      <span className="font-semibold">Service:</span> {issue.description}
+                                    </div>
+                                  )}
+                                  <div className="mb-3 ml-3 text-sm">
+                                    <span className="font-semibold">Disputed Amount:</span> {impactDisplay}
+                                  </div>
+                                  
+                                  <div className="mb-2 ml-3">
+                                    <div className="font-semibold text-sm mb-1">Reason for Dispute:</div>
+                                    <div className="text-sm text-justify leading-relaxed pl-2">
+                                      {issue.details || "This charge requires review for compliance with standard billing practices and regulations."}
+                                    </div>
+                                  </div>
+                                  
+                                  {issue.suggested_action && (
+                                    <div className="mb-2 ml-3">
+                                      <div className="font-semibold text-sm mb-1">Recommended Action:</div>
+                                      <div className="text-sm text-justify leading-relaxed pl-2">
+                                        {issue.suggested_action}
+                                      </div>
+                                    </div>
+                                  )}
+                                  
+                                  <div className="ml-3 mt-3 pt-2 border-t border-gray-300">
+                                    <div className="text-sm">
+                                      <span className="font-semibold">
+                                        {issue.severity === "critical" || issue.severity === "Critical" 
+                                          ? "Priority: HIGH" 
+                                          : "Priority: MEDIUM"}
+                                      </span>
+                                      <span className="ml-2">
+                                        {issue.severity === "critical" || issue.severity === "Critical"
+                                          ? "This charge must be removed or corrected immediately as it violates billing standards and regulations."
+                                          : "This charge should be reviewed and adjusted to reflect fair market rates and standard billing practices."}
+                                      </span>
+                                    </div>
+                                  </div>
                                 </div>
-                                <div className="mb-1 ml-3">
-                                  <span className="font-semibold">CPT Code:</span> {issue.cptCode} - {issue.description}
-                                </div>
-                                <div className="mb-1 ml-3">
-                                  <span className="font-semibold">Disputed Amount:</span> {issue.impact}
-                                </div>
-                                <div className="mb-2 ml-3 text-justify">
-                                  <span className="font-semibold">Reason for Dispute:</span>
-                                  <br />
-                                  {issue.details}
-                                </div>
-                                <div className="mb-2 ml-3 italic">
-                                  <span className="font-semibold">Required Action:</span> {issue.severity === "Critical" 
-                                    ? "This charge must be removed or corrected immediately as it violates billing standards and regulations."
-                                    : "This charge should be reviewed and adjusted to reflect fair market rates and standard billing practices."}
-                                </div>
-                                {index < billingIssues.length - 1 && (
-                                  <div className="border-t border-gray-200 mt-3 mb-3"></div>
-                                )}
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         </div>
 
