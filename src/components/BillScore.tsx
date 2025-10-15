@@ -38,6 +38,9 @@ export const BillScore = ({
       <div className="space-y-6">
         {/* Score principal */}
         <div className="text-center">
+          <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+            Bill Accuracy Score
+          </p>
           <div className="flex items-center justify-center gap-2 mb-2">
             <div className={`text-6xl font-bold ${getScoreColor(score)}`}>
               {score}
