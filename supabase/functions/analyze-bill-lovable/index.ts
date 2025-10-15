@@ -62,7 +62,7 @@ serve(async (req) => {
     // Analyze with Lovable AI
     const lovableApiKey = Deno.env.get('LOVABLE_API_KEY')!;
     
-    const analysisResult = await analyzeBillWithAI(textContent, lovableApiKey);
+    const analysisResult = await analyzeBillWithAI(textContent, lovableApiKey, supabase);
     console.log('AI analysis complete');
 
     // Store in database
@@ -143,37 +143,59 @@ async function extractTextFromFile(buffer: ArrayBuffer, mimeType: string): Promi
   return `Medical bill image received. File size: ${buffer.byteLength} bytes. MIME type: ${mimeType}`;
 }
 
-async function analyzeBillWithAI(textContent: string, apiKey: string) {
-  console.log('Calling Lovable AI...');
+async function analyzeBillWithAI(textContent: string, apiKey: string, supabase: any) {
+  console.log('Calling Lovable AI with pricing data...');
   
-  const systemPrompt = `You are an expert medical billing auditor. Analyze the medical bill and identify billing errors, overcharges, and issues.
+  // Fetch Medicare pricing data
+  const { data: medicarePrices } = await supabase
+    .from('medicare_prices')
+    .select('cpt_code, description, medicare_facility_rate')
+    .limit(100);
+
+  // Fetch regional adjustments
+  const { data: regionalData } = await supabase
+    .from('regional_pricing')
+    .select('*')
+    .limit(50);
+
+  const pricingContext = `
+MEDICARE BENCHMARK RATES:
+${medicarePrices?.map((p: any) => `${p.cpt_code}: $${p.medicare_facility_rate} - ${p.description}`).join('\n')}
+
+REGIONAL ADJUSTMENTS:
+${regionalData?.map((r: any) => `${r.state_code} (${r.region_name}): ${r.adjustment_factor}x`).join('\n')}
+`;
+  
+  const systemPrompt = `You are an expert medical billing auditor with access to Medicare benchmark pricing data. Analyze the medical bill and identify billing errors, overcharges, and issues.
+
+${pricingContext}
+
+IMPORTANT INSTRUCTIONS:
+- Compare each charge to Medicare rates (typical hospital markup is 2-3x Medicare)
+- Flag charges >3x Medicare rate as HIGH PRIORITY overcharges
+- Calculate exact overcharge amounts: (Billed Amount - Reasonable Rate)
+- Use regional adjustments when available
 
 Return your analysis in this EXACT JSON structure:
 {
   "high_priority_issues": [
     {
-      "type": "Duplicate Billing",
-      "cpt_code": "PROC-010",
-      "line_description": "IV hydration",
-      "billed_amount": 400,
-      "explanation_for_user": "This service appears more than once",
-      "suggested_action": "Ask the billing office to confirm if both charges are valid",
+      "type": "Excessive Markup",
+      "cpt_code": "99283",
+      "line_description": "ER visit level 3",
+      "billed_amount": 1200,
+      "medicare_benchmark": 285,
+      "reasonable_rate": 855,
+      "overcharge_amount": 345,
+      "markup_percentage": 321,
+      "explanation_for_user": "Charged 4.2x Medicare rate. Typical is 2-3x.",
+      "suggested_action": "Request reduction to reasonable rate of $855 (3x Medicare)",
       "confidence_score": 0.95
     }
   ],
-  "potential_issues": [
-    {
-      "type": "Unbundling",
-      "cpt_code": "TECH-IMG",
-      "line_description": "Technical fee",
-      "billed_amount": 150,
-      "explanation_for_user": "Services normally bundled were billed separately",
-      "suggested_action": "Ask if this should be bundled",
-      "confidence_score": 0.7
-    }
-  ],
-  "data_sources": ["Medical Billing Standards", "Medicare Guidelines"],
-  "tags": ["duplicate_billing", "unbundling"]
+  "potential_issues": [...],
+  "data_sources": ["Medicare Fee Schedule", "Regional Pricing Data"],
+  "tags": ["overcharging", "excessive_markup"]
 }`;
 
   const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
@@ -222,6 +244,10 @@ Return your analysis in this EXACT JSON structure:
                     cpt_code: { type: 'string' },
                     line_description: { type: 'string' },
                     billed_amount: { type: 'number' },
+                    medicare_benchmark: { type: 'number' },
+                    reasonable_rate: { type: 'number' },
+                    overcharge_amount: { type: 'number' },
+                    markup_percentage: { type: 'number' },
                     explanation_for_user: { type: 'string' },
                     suggested_action: { type: 'string' },
                     confidence_score: { type: 'number' }

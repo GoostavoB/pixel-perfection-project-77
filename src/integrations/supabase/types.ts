@@ -213,6 +213,36 @@ export type Database = {
         }
         Relationships: []
       }
+      custom_pricing_data: {
+        Row: {
+          cpt_code: string
+          created_at: string | null
+          custom_rate: number | null
+          description: string | null
+          id: string
+          region: string | null
+          source: string | null
+        }
+        Insert: {
+          cpt_code: string
+          created_at?: string | null
+          custom_rate?: number | null
+          description?: string | null
+          id?: string
+          region?: string | null
+          source?: string | null
+        }
+        Update: {
+          cpt_code?: string
+          created_at?: string | null
+          custom_rate?: number | null
+          description?: string | null
+          id?: string
+          region?: string | null
+          source?: string | null
+        }
+        Relationships: []
+      }
       dispute_letters: {
         Row: {
           created_at: string
@@ -326,6 +356,60 @@ export type Database = {
           description?: string | null
           id?: string
           medicare_facility_rate?: number | null
+        }
+        Relationships: []
+      }
+      pricing_api_configs: {
+        Row: {
+          api_endpoint: string
+          api_name: string
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          rate_limit: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          api_endpoint: string
+          api_name: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          rate_limit?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          api_endpoint?: string
+          api_name?: string
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          rate_limit?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      regional_pricing: {
+        Row: {
+          adjustment_factor: number
+          created_at: string | null
+          id: string
+          region_name: string
+          state_code: string
+        }
+        Insert: {
+          adjustment_factor?: number
+          created_at?: string | null
+          id?: string
+          region_name: string
+          state_code: string
+        }
+        Update: {
+          adjustment_factor?: number
+          created_at?: string | null
+          id?: string
+          region_name?: string
+          state_code?: string
         }
         Relationships: []
       }
