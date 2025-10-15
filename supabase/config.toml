@@ -39,6 +39,9 @@ verify_jwt = false
 [functions.import-pricing-csv]
 verify_jwt = false
 
+[functions.process-cms-zip]
+verify_jwt = false
+
 [functions.fetch-cms-pricing]
 verify_jwt = false
 
