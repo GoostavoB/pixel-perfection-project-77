@@ -8,6 +8,8 @@ const corsHeaders = {
 
 // CMS Data API Configuration
 const CMS_CATALOG_URL = "https://data.cms.gov/data.json";
+const CMS_DATASET_ID = "92396110-2aed-4d63-a6a2-5d6207d46a29"; // Medicare Physician & Other Practitioners
+const CMS_API_BASE = "https://data.cms.gov/data-api/v1/dataset";
 
 // Common CPT codes for bulk import
 const COMMON_CPT_CODES = [
@@ -79,6 +81,64 @@ const COMMON_CPT_CODES = [
 ];
 
 /**
+ * Fetch pricing data from specific CMS dataset by CPT code
+ */
+async function fetchCMSPricingByCPT(cptCode: string) {
+  try {
+    console.log(`Fetching pricing from CMS dataset for CPT ${cptCode}...`);
+    
+    // Query CMS API for specific HCPCS/CPT code
+    const url = `${CMS_API_BASE}/${CMS_DATASET_ID}/data?filter[Hcpcs_Cd]=${cptCode}&size=100`;
+    
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      console.error(`CMS API returned ${response.status} for CPT ${cptCode}`);
+      return null;
+    }
+    
+    const data = await response.json();
+    
+    if (data && data.length > 0) {
+      // Aggregate pricing data from multiple providers
+      const records = data;
+      let totalCharge = 0;
+      let totalAllowed = 0;
+      let count = 0;
+      
+      for (const record of records) {
+        const charge = parseFloat(record.Avg_Sbmtd_Chrg || 0);
+        const allowed = parseFloat(record.Avg_Mdcr_Alowd_Amt || 0);
+        
+        if (charge > 0 && allowed > 0) {
+          totalCharge += charge;
+          totalAllowed += allowed;
+          count++;
+        }
+      }
+      
+      if (count > 0) {
+        return {
+          cpt_code: cptCode,
+          description: records[0].Hcpcs_Desc || 'Medicare procedure',
+          avg_submitted_charge: totalCharge / count,
+          avg_medicare_allowed: totalAllowed / count,
+          provider_count: count,
+          source: 'CMS Medicare Physician Data'
+        };
+      }
+    }
+    
+    console.log(`No pricing data found in CMS dataset for CPT ${cptCode}`);
+    return null;
+    
+  } catch (error) {
+    console.error(`Error fetching CMS pricing for ${cptCode}:`, error);
+    return null;
+  }
+}
+
+/**
  * Fetch CMS API catalog to discover available datasets
  */
 async function fetchCMSCatalog() {
@@ -121,7 +181,7 @@ serve(async (req) => {
   }
 
   try {
-    const { bulkUpdate, exploreCatalog, cptCodes } = await req.json();
+    const { bulkUpdate, exploreCatalog, cptCodes, fetchFromAPI } = await req.json();
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -203,6 +263,9 @@ serve(async (req) => {
       const results = [];
       
       for (const code of cptCodes) {
+        let result = null;
+        
+        // First check database
         const { data: existing } = await supabase
           .from('medicare_prices')
           .select('*')
@@ -210,7 +273,39 @@ serve(async (req) => {
           .maybeSingle();
 
         if (existing) {
-          results.push(existing);
+          result = existing;
+        } else if (fetchFromAPI) {
+          // If not in DB and fetchFromAPI flag is true, query CMS API
+          console.log(`CPT ${code} not in database, fetching from CMS API...`);
+          const apiData = await fetchCMSPricingByCPT(code);
+          
+          if (apiData) {
+            // Save to database for future use
+            const { data: inserted, error } = await supabase
+              .from('medicare_prices')
+              .upsert({
+                cpt_code: apiData.cpt_code,
+                description: apiData.description,
+                medicare_facility_rate: apiData.avg_medicare_allowed
+              }, {
+                onConflict: 'cpt_code'
+              })
+              .select()
+              .single();
+            
+            if (!error && inserted) {
+              result = inserted;
+              result.fetched_from_api = true;
+              result.api_metadata = {
+                avg_submitted_charge: apiData.avg_submitted_charge,
+                provider_count: apiData.provider_count
+              };
+            }
+          }
+        }
+        
+        if (result) {
+          results.push(result);
         } else {
           results.push({ cpt_code: code, not_found: true });
         }
