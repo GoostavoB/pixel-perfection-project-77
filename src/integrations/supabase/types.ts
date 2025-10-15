@@ -135,6 +135,7 @@ export type Database = {
       bill_analyses: {
         Row: {
           analysis_result: Json | null
+          cache_key: string | null
           created_at: string
           critical_issues: number | null
           dispute_letter_generated_at: string | null
@@ -162,6 +163,7 @@ export type Database = {
         }
         Insert: {
           analysis_result?: Json | null
+          cache_key?: string | null
           created_at?: string
           critical_issues?: number | null
           dispute_letter_generated_at?: string | null
@@ -189,6 +191,7 @@ export type Database = {
         }
         Update: {
           analysis_result?: Json | null
+          cache_key?: string | null
           created_at?: string
           critical_issues?: number | null
           dispute_letter_generated_at?: string | null
