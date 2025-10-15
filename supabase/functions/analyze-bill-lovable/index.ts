@@ -187,31 +187,45 @@ serve(async (req) => {
     // Integrate duplicate findings into main analysis
     analysisResult.duplicate_findings = duplicateFindings;
     
-    // Update computed fields with duplicate data
-    const duplicateCount = (duplicateFindings.flags || []).filter((f: any) => f.category === 'P1' || f.category === 'P2').length;
-    analysisResult.total_issues_count = (analysisResult.total_issues_count || 0) + duplicateCount;
+    // ✅ FIX: Calculate duplicate savings properly
+    let totalDuplicateSavings = 0;
+    let duplicateLineCount = 0;
     
-    // Add duplicates to what_if_calculator_items
+    // Add duplicates to what_if_calculator_items and track savings
     (duplicateFindings.flags || [])
       .filter((f: any) => f.category === 'P1' || f.category === 'P2')
       .forEach((flag: any, idx: number) => {
         const amount = (flag.evidence?.prices || []).reduce((sum: number, p: number) => sum + p, 0);
+        const estimatedSavings = Math.round(amount * 0.8 * 100) / 100; // Conservative 80%
+        
+        duplicateLineCount++;
+        totalDuplicateSavings += estimatedSavings;
+        
         analysisResult.what_if_calculator_items.push({
           id: `duplicate-${idx}`,
           description: flag.reason || 'Potential duplicate charge',
           amount: amount,
-          estimated_reduction: Math.round(amount * 0.8 * 100) / 100,
+          estimated_reduction: estimatedSavings,
           reason: flag.dispute_text || 'Potential duplicate - same service billed multiple times'
         });
       });
     
-    // Recalculate estimated_total_savings including duplicates
-    analysisResult.estimated_total_savings = calculateSavings(analysisResult);
+    // ✅ FIX: Update total_issues_count to include duplicates
+    const originalIssueCount = analysisResult.total_issues_count || 0;
+    analysisResult.total_issues_count = originalIssueCount + duplicateLineCount;
+    
+    // ✅ FIX: Recalculate estimated_total_savings INCLUDING duplicates
+    const originalSavings = calculateSavings(analysisResult);
+    analysisResult.estimated_total_savings = originalSavings + totalDuplicateSavings;
     
     console.log('[INTEGRATION] Updated analysis with duplicates:', {
+      original_issues: originalIssueCount,
+      duplicate_issues: duplicateLineCount,
       total_issues: analysisResult.total_issues_count,
-      what_if_items: analysisResult.what_if_calculator_items?.length,
-      estimated_savings: analysisResult.estimated_total_savings
+      original_savings: originalSavings,
+      duplicate_savings: totalDuplicateSavings,
+      total_savings: analysisResult.estimated_total_savings,
+      what_if_items: analysisResult.what_if_calculator_items?.length
     });
 
     // Get user ID from auth header
