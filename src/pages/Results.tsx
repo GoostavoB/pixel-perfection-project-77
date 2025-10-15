@@ -235,6 +235,33 @@ const Results = () => {
           issuesCount={issues.length}
         />
 
+        {/* 🔧 FIX 7: UI Safety Net - Warning if savings exceed bill */}
+        {calculatedSavings > totalCharged && totalCharged > 0 && (
+          <div className="bg-destructive/10 border-2 border-destructive/50 p-6 rounded-lg mb-8">
+            <div className="flex items-start gap-3">
+              <div className="p-2 bg-destructive/20 rounded-lg">
+                <AlertTriangle className="h-6 w-6 text-destructive" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-bold text-destructive mb-2">Data Validation Issue Detected</h3>
+                <p className="text-sm text-muted-foreground mb-3">
+                  The calculated potential savings (${calculatedSavings.toLocaleString()}) exceed the total bill amount (${totalCharged.toLocaleString()}). 
+                  This indicates a calculation anomaly that needs to be recalculated.
+                </p>
+                <Button
+                  onClick={() => {
+                    navigate('/upload');
+                  }}
+                  variant="destructive"
+                  size="sm"
+                >
+                  Re-run Analysis (Fresh)
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Friendly Savings Highlight - NEW */}
         {estimatedSavings > 0 && (
           <div className="mb-8">

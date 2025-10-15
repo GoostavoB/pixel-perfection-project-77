@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-bypass-cache',
 };
 
 // ✅ DETERMINISTIC: Calculate SHA-256 hash for caching
@@ -48,36 +48,44 @@ serve(async (req) => {
     const pdfHash = await calculateHash(fileBuffer);
     console.log('PDF Hash:', pdfHash.slice(0, 16) + '...');
     
-    // ✅ CACHE CHECK: Look for existing analysis
-    const { data: cachedAnalysis } = await supabase
-      .from('bill_analyses')
-      .select('*')
-      .eq('pdf_hash', pdfHash)
-      .maybeSingle();
+    // 🔧 FIX 1: Check for cache bypass header
+    const bypassCache = req.headers.get('x-bypass-cache') === 'true';
+    if (bypassCache) {
+      console.log('[CACHE BYPASS] x-bypass-cache header detected - forcing fresh analysis');
+    }
     
-    if (cachedAnalysis) {
-      console.log('[CACHE HIT] Returning cached analysis from', cachedAnalysis.created_at);
-      return new Response(
-        JSON.stringify({
-          success: true,
-          session_id: cachedAnalysis.session_id,
-          job_id: cachedAnalysis.id,
-          ui_summary: {
-            high_priority_count: cachedAnalysis.critical_issues || 0,
-            potential_issues_count: cachedAnalysis.moderate_issues || 0,
-            estimated_savings_if_corrected: cachedAnalysis.estimated_savings || 0,
-            data_sources_used: cachedAnalysis.analysis_result?.data_sources || ['Cached Analysis'],
-            tags: cachedAnalysis.analysis_result?.tags || ['cached']
-          },
-          status: 'ready',
-          message: 'Analysis complete (from cache)',
-          cached: true
-        }),
-        { 
-          status: 200, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
+    // ✅ CACHE CHECK: Look for existing analysis (unless bypassed)
+    if (!bypassCache) {
+      const { data: cachedAnalysis } = await supabase
+        .from('bill_analyses')
+        .select('*')
+        .eq('pdf_hash', pdfHash)
+        .maybeSingle();
+      
+      if (cachedAnalysis) {
+        console.log('[CACHE HIT] Returning cached analysis from', cachedAnalysis.created_at);
+        return new Response(
+          JSON.stringify({
+            success: true,
+            session_id: cachedAnalysis.session_id,
+            job_id: cachedAnalysis.id,
+            ui_summary: {
+              high_priority_count: cachedAnalysis.critical_issues || 0,
+              potential_issues_count: cachedAnalysis.moderate_issues || 0,
+              estimated_savings_if_corrected: cachedAnalysis.estimated_savings || 0,
+              data_sources_used: cachedAnalysis.analysis_result?.data_sources || ['Cached Analysis'],
+              tags: cachedAnalysis.analysis_result?.tags || ['cached']
+            },
+            status: 'ready',
+            message: 'Analysis complete (from cache)',
+            cached: true
+          }),
+          { 
+            status: 200, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
+      }
     }
     
     console.log('[CACHE MISS] Proceeding with new analysis');
@@ -110,7 +118,7 @@ serve(async (req) => {
     const lovableApiKey = Deno.env.get('LOVABLE_API_KEY')!;
     
     const analysisResult = await analyzeBillWithAI(extractedContent, lovableApiKey, supabase);
-    console.log('AI analysis complete');
+    console.log('AI analysis complete - validated and ready for storage');
 
     // Get user ID from auth header
     const authHeader = req.headers.get('Authorization');
@@ -122,6 +130,18 @@ serve(async (req) => {
     }
     console.log('User ID:', userId);
 
+    // 🔧 FIX 6: Log final analysis summary before storage
+    const finalSavings = calculateSavings(analysisResult);
+    console.log('[FINAL] === Analysis Summary ===');
+    console.log('[FINAL] Bill Total:', analysisResult.total_bill_amount);
+    console.log('[FINAL] High Priority Issues:', analysisResult.high_priority_issues?.length || 0);
+    console.log('[FINAL] Potential Issues:', analysisResult.potential_issues?.length || 0);
+    console.log('[FINAL] Total Savings:', finalSavings);
+    console.log('[FINAL] Savings Ratio:', ((finalSavings / analysisResult.total_bill_amount) * 100).toFixed(1) + '%');
+    console.log('[FINAL] Validation Applied:', analysisResult.validation_applied || false);
+    console.log('[FINAL] Reduction Factor:', analysisResult.reduction_factor || 'none');
+    console.log('[FINAL] Tags:', analysisResult.tags || []);
+    
     // Store in database
     const { data: dbData, error: dbError } = await supabase
       .from('bill_analyses')
@@ -137,7 +157,7 @@ serve(async (req) => {
         analysis_result: analysisResult,
         critical_issues: analysisResult.high_priority_issues?.length || 0,
         moderate_issues: analysisResult.potential_issues?.length || 0,
-        estimated_savings: calculateSavings(analysisResult),
+        estimated_savings: finalSavings,
         issues: [...(analysisResult.high_priority_issues || []), ...(analysisResult.potential_issues || [])],
         // Add flag if scanned PDF detected
         ...(extractedContent.isScanned && { 
@@ -152,7 +172,7 @@ serve(async (req) => {
       throw new Error(`Failed to store analysis: ${dbError.message}`);
     }
 
-    console.log('Analysis stored in database');
+    console.log('[FINAL] ✅ Analysis stored in database with validated savings');
 
     // Return response matching n8n format
     return new Response(
@@ -338,6 +358,7 @@ async function analyzeBillWithAI(
   supabase: any
 ) {
   console.log('Calling Lovable AI with pricing data...');
+  const extractedText = extractedContent.text; // Store for validation
   
   // Fetch Medicare pricing data
   const { data: medicarePrices } = await supabase
@@ -652,8 +673,8 @@ Return your analysis in this EXACT JSON structure:
       tags: analysis.tags?.length || 0
     });
     
-    // ✅ VALIDATE: Ensure savings don't exceed bill total
-    analysis = validateAnalysis(analysis);
+    // 🔧 FIX 5: UNCONDITIONAL validation with text extraction fallback
+    analysis = validateAnalysis(analysis, extractedText);
     
     // If extraction failed and we got no issues, add a note
     if (extractedContent.isScanned && 
@@ -678,6 +699,67 @@ Return your analysis in this EXACT JSON structure:
   throw new Error('No structured analysis returned from AI');
 }
 
+// 🔧 FIX 2: Extract bill total from raw text (fallback if AI fails)
+function extractBillTotal(text: string): number {
+  const patterns = [
+    /CURRENT\s+BALANCE\s+DUE[\s:$]*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)/i,
+    /TOTAL\s+ADEUDADO[\s:$]*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)/i,
+    /BALANCE\s+DUE[\s:$]*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)/i,
+    /TOTAL\s+CHARGES[\s:$]*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)/i,
+    /AMOUNT\s+DUE[\s:$]*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)/i,
+  ];
+  
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (match) {
+      const amount = parseFloat(match[1].replace(/,/g, ''));
+      console.log(`[EXTRACT] Bill total found: $${amount.toLocaleString()} (pattern: ${pattern.source.slice(0, 30)}...)`);
+      return amount;
+    }
+  }
+  
+  console.error('[EXTRACT] ⚠️ Failed to find bill total in text!');
+  return 0;
+}
+
+// 🔧 FIX 3: Deduplicate aggregate vs subcategory line items
+function deduplicateLineItems(issues: any[]): any[] {
+  const seen = new Map<string, boolean>();
+  const deduplicated = [];
+  
+  console.log(`[DEDUP] Starting with ${issues.length} issues`);
+  
+  for (const issue of issues) {
+    if (!issue.line_description) continue;
+    
+    // Normalize description - remove "General Classification" and extra whitespace
+    const key = issue.line_description
+      .toLowerCase()
+      .replace(/\s*-?\s*general\s+classification/gi, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+    
+    // Check if we've seen this or a parent aggregate
+    if (seen.has(key)) {
+      console.log(`[DEDUP] ⏭️ Skipping duplicate: "${issue.line_description}"`);
+      continue;
+    }
+    
+    // If this is an aggregate (contains "General Classification"), mark base as seen
+    if (issue.line_description.toLowerCase().includes('general classification')) {
+      const baseKey = key.split('-')[0].trim();
+      seen.set(baseKey, true);
+      console.log(`[DEDUP] 📋 Marking aggregate as seen: "${baseKey}"`);
+    }
+    
+    seen.set(key, true);
+    deduplicated.push(issue);
+  }
+  
+  console.log(`[DEDUP] ✅ Reduced from ${issues.length} to ${deduplicated.length} unique items`);
+  return deduplicated;
+}
+
 function calculateSavings(analysis: any): number {
   // ✅ FIXED: Sum overcharge_amount (savings), NOT billed_amount (charges)
   const highPriorityTotal = (analysis.high_priority_issues || [])
@@ -686,39 +768,94 @@ function calculateSavings(analysis: any): number {
   const potentialTotal = (analysis.potential_issues || [])
     .reduce((sum: number, issue: any) => sum + (issue.overcharge_amount || 0), 0);
   
-  return highPriorityTotal + potentialTotal;
+  const total = highPriorityTotal + potentialTotal;
+  console.log(`[CALC] Savings - High: $${highPriorityTotal.toLocaleString()}, Potential: $${potentialTotal.toLocaleString()}, Total: $${total.toLocaleString()}`);
+  return total;
 }
 
-// ✅ NEW: Validate that savings don't exceed bill total
-function validateAnalysis(analysis: any): any {
-  const totalBill = analysis.total_bill_amount || 0;
+// 🔧 FIX 4: Enhanced validation with robust total extraction and deduplication
+function validateAnalysis(analysis: any, extractedText: string): any {
+  console.log('[VALIDATE] === Starting Validation ===');
+  
+  // Guard: Ensure total_bill_amount exists (extract from text if missing)
+  if (!analysis.total_bill_amount || analysis.total_bill_amount < 1) {
+    console.warn('[VALIDATE] ⚠️ Missing total_bill_amount from AI - extracting from text...');
+    analysis.total_bill_amount = extractBillTotal(extractedText);
+  }
+  
+  const totalBill = analysis.total_bill_amount;
+  console.log(`[VALIDATE] Bill total: $${totalBill.toLocaleString()}`);
+  
+  // Deduplicate BEFORE calculating savings
+  const originalHighCount = analysis.high_priority_issues?.length || 0;
+  const originalPotentialCount = analysis.potential_issues?.length || 0;
+  
+  analysis.high_priority_issues = deduplicateLineItems(analysis.high_priority_issues || []);
+  analysis.potential_issues = deduplicateLineItems(analysis.potential_issues || []);
+  
+  if (originalHighCount !== analysis.high_priority_issues.length || 
+      originalPotentialCount !== analysis.potential_issues.length) {
+    console.log('[VALIDATE] 🔄 Deduplication applied');
+    if (!analysis.tags) analysis.tags = [];
+    analysis.tags.push('deduplicated');
+  }
+  
+  // Calculate actual savings from deduplicated issues
   const calculatedSavings = calculateSavings(analysis);
   
-  console.log('Validation check:', {
+  console.log('[VALIDATE] Validation check:', {
     totalBill,
     calculatedSavings,
     reported: analysis.total_potential_savings,
-    isValid: calculatedSavings <= totalBill
+    ratio: totalBill > 0 ? (calculatedSavings / totalBill * 100).toFixed(1) + '%' : 'N/A'
   });
   
+  // CRITICAL CHECK: Fail closed if no valid total
+  if (totalBill < 1) {
+    console.error('[VALIDATE] 🚨 CRITICAL: No valid bill total found!');
+    throw new Error('Unable to extract bill total - cannot validate savings');
+  }
+  
   // If savings exceed bill total, proportionally reduce all overcharges
-  if (calculatedSavings > totalBill) {
-    console.warn('⚠️ VALIDATION FAILED: Savings exceed bill total. Reducing proportionally...');
-    const reductionFactor = (totalBill * 0.9) / calculatedSavings; // Cap at 90% of bill
+  const maxAllowed = totalBill * 0.9; // Cap at 90% of bill
+  
+  if (calculatedSavings > maxAllowed) {
+    console.error(`[VALIDATE] ⚠️ FAILED: Savings ($${calculatedSavings.toLocaleString()}) exceed 90% of bill ($${maxAllowed.toLocaleString()})`);
+    const reductionFactor = maxAllowed / calculatedSavings;
+    console.log(`[VALIDATE] 📉 Applying reduction factor: ${(reductionFactor * 100).toFixed(1)}%`);
     
+    // Reduce ALL overcharge amounts proportionally
     analysis.high_priority_issues = (analysis.high_priority_issues || []).map((issue: any) => ({
       ...issue,
-      overcharge_amount: Math.round((issue.overcharge_amount || 0) * reductionFactor * 100) / 100
+      overcharge_amount: Math.round((issue.overcharge_amount || 0) * reductionFactor * 100) / 100,
+      validation_adjusted: true
     }));
     
     analysis.potential_issues = (analysis.potential_issues || []).map((issue: any) => ({
       ...issue,
-      overcharge_amount: Math.round((issue.overcharge_amount || 0) * reductionFactor * 100) / 100
+      overcharge_amount: Math.round((issue.overcharge_amount || 0) * reductionFactor * 100) / 100,
+      validation_adjusted: true
     }));
     
     analysis.total_potential_savings = calculateSavings(analysis);
-    analysis.tags = [...(analysis.tags || []), 'validation_adjusted'];
+    analysis.validation_applied = true;
+    analysis.reduction_factor = reductionFactor;
+    
+    if (!analysis.tags) analysis.tags = [];
+    analysis.tags.push('validation_adjusted');
+    
+    console.log(`[VALIDATE] ✅ Adjusted savings: $${analysis.total_potential_savings.toLocaleString()}`);
+  } else {
+    console.log('[VALIDATE] ✅ PASSED: Savings within acceptable limits');
+    analysis.total_potential_savings = calculatedSavings;
   }
   
+  // Final sanity check - fail if still invalid
+  if (analysis.total_potential_savings > totalBill) {
+    console.error('[VALIDATE] 🚨 CRITICAL ERROR: Savings still exceed bill after validation!');
+    throw new Error('Validation failed - savings exceed bill total');
+  }
+  
+  console.log('[VALIDATE] === Validation Complete ===');
   return analysis;
 }
