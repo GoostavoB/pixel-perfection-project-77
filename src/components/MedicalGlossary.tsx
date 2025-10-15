@@ -25,73 +25,73 @@ interface GlossaryTerm {
 const glossaryTerms: GlossaryTerm[] = [
   {
     term: "CPT Code",
-    definition: "Código de Procedimento Médico - identifica cada serviço ou procedimento realizado",
-    example: "CPT 99203 = Consulta de novo paciente (30-45 minutos)"
+    definition: "Current Procedural Terminology code — identifies each service or procedure performed",
+    example: "CPT 99203 = New patient office visit (30–45 minutes)"
   },
   {
     term: "Billed Amount",
-    definition: "Valor total cobrado pelo hospital antes de qualquer ajuste ou pagamento de seguro",
-    example: "Hospital cobra $1,000, mas o valor final pode ser menor"
+    definition: "Total amount charged by the hospital before any adjustments or insurance payments",
+    example: "Hospital bills $1,000, but the final amount may be lower"
   },
   {
     term: "Allowed Amount",
-    definition: "Valor máximo que seu seguro considera razoável para aquele serviço",
-    example: "Seguro permite $400 de um total cobrado de $1,000"
+    definition: "Maximum amount your insurer considers reasonable for the service",
+    example: "Insurer allows $400 out of a $1,000 billed amount"
   },
   {
     term: "Patient Responsibility",
-    definition: "Valor que você deve pagar do próprio bolso após o seguro processar",
-    example: "Copay + deductible + coinsurance = sua parte"
+    definition: "Amount you must pay out of pocket after insurance processes the claim",
+    example: "Copay + deductible + coinsurance = your share"
   },
   {
     term: "EOB",
-    definition: "Explanation of Benefits - documento do seguro mostrando o que foi cobrado, pago e quanto você deve",
-    example: "Sempre espere o EOB antes de pagar a conta do hospital"
+    definition: "Explanation of Benefits — insurance document showing what was billed, paid, and what you owe",
+    example: "Always wait for the EOB before paying a hospital bill"
   },
   {
     term: "Balance Billing",
-    definition: "Quando um provedor fora da rede cobra a diferença entre o que o seguro pagou e o total cobrado",
-    example: "Médico cobra $600, seguro paga $150, médico tenta cobrar $450 de você"
+    definition: "When an out-of-network provider bills the difference between what insurance paid and the total charge",
+    example: "Doctor bills $600, insurance pays $150, doctor tries to bill you $450"
   },
   {
     term: "No Surprises Act (NSA)",
-    definition: "Lei federal que protege contra cobranças surpresa em emergências e em certas situações com provedores fora da rede",
-    example: "Emergência ou provedor OON em hospital in-network = protegido"
+    definition: "Federal law that protects against surprise bills in emergencies and certain out-of-network situations",
+    example: "Emergency or OON provider at an in-network hospital = protected"
   },
   {
     term: "Facility Fee",
-    definition: "Taxa cobrada pelo hospital por usar suas instalações e equipamentos",
-    example: "Taxa pode ser $500+ mesmo para consulta ambulatorial simples"
+    definition: "Charge by a hospital for use of its facilities and equipment",
+    example: "Can be $500+ even for a simple outpatient visit"
   },
   {
     term: "Duplicate Billing",
-    definition: "Erro comum onde o mesmo serviço é cobrado mais de uma vez",
-    example: "Duas linhas idênticas: mesma data, mesmo código, mesmo valor"
+    definition: "Common error where the same service is billed more than once",
+    example: "Two identical lines: same date, same code, same amount"
   },
   {
     term: "Upcoding",
-    definition: "Cobrar por um serviço mais caro do que o que foi realmente fornecido",
-    example: "Cobrar consulta 'complexa' quando foi apenas 'básica'"
+    definition: "Billing for a more expensive service than what was actually provided",
+    example: "Charging a ‘complex’ visit when it was only ‘basic’"
   },
   {
     term: "Unbundling",
-    definition: "Separar cobranças que deveriam ser faturadas juntas como um pacote",
-    example: "Cobrar raio-X + taxa técnica separadamente quando deveriam ser um único código"
+    definition: "Separating charges that should be billed together as one bundled code",
+    example: "Charging X‑ray + technical fee separately when they should be a single code"
   },
   {
     term: "Deductible",
-    definition: "Valor que você paga antes do seguro começar a cobrir",
-    example: "Deductible de $1,000 = você paga os primeiros $1,000 do ano"
+    definition: "Amount you pay before insurance starts to cover costs",
+    example: "$1,000 deductible = you pay the first $1,000 of the year"
   },
   {
     term: "Coinsurance",
-    definition: "Percentual que você paga após atingir o deductible",
-    example: "20% coinsurance = você paga $200 de uma conta de $1,000"
+    definition: "Percentage you pay after meeting the deductible",
+    example: "20% coinsurance = you pay $200 of a $1,000 bill"
   },
   {
     term: "Out-of-Network (OON)",
-    definition: "Provedor que não tem contrato com seu seguro",
-    example: "Custos mais altos e menos proteções com provedores OON"
+    definition: "Provider that does not have a contract with your insurer",
+    example: "Higher costs and fewer protections with OON providers"
   }
 ];
 
@@ -101,14 +101,14 @@ export const MedicalGlossary = () => {
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" className="gap-2">
           <BookOpen className="h-4 w-4" />
-          Glossário Médico
+          Medical Glossary
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-2xl max-h-[80vh]">
         <DialogHeader>
-          <DialogTitle>Glossário de Termos Médicos e de Cobrança</DialogTitle>
+          <DialogTitle>Medical & Billing Terms Glossary</DialogTitle>
           <DialogDescription>
-            Entenda os termos mais importantes para revisar sua conta médica
+            Understand the most important terms to review your medical bill
           </DialogDescription>
         </DialogHeader>
         <ScrollArea className="h-[500px] pr-4">
@@ -124,7 +124,7 @@ export const MedicalGlossary = () => {
                 {item.example && (
                   <div className="bg-muted/50 rounded p-2 mt-2">
                     <p className="text-xs text-muted-foreground">
-                      <span className="font-medium">Exemplo:</span> {item.example}
+                      <span className="font-medium">Example:</span> {item.example}
                     </p>
                   </div>
                 )}
@@ -164,7 +164,7 @@ export const GlossaryTooltip = ({ term, children }: GlossaryTooltipProps) => {
             <p className="text-xs">{glossaryItem.definition}</p>
             {glossaryItem.example && (
               <p className="text-xs text-muted-foreground mt-2">
-                <span className="font-medium">Ex:</span> {glossaryItem.example}
+                <span className="font-medium">Example:</span> {glossaryItem.example}
               </p>
             )}
           </div>

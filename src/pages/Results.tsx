@@ -66,11 +66,12 @@ const Results = () => {
     }
   }
   
-  // Parse full_analysis from analysis (string or object)
+  // Parse full analysis from analysis (supports both legacy and new fields)
   const fullAnalysis = (() => {
     try {
-      if (typeof analysis.full_analysis === 'string') return JSON.parse(analysis.full_analysis);
-      return analysis.full_analysis || {};
+      const raw = analysis.full_analysis ?? analysis.analysis_result ?? {};
+      if (typeof raw === 'string') return JSON.parse(raw);
+      return raw || {};
     } catch {
       return {};
     }

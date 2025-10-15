@@ -36,9 +36,10 @@ const NewResults = () => {
     ? JSON.parse(analysis.ui_summary) 
     : analysis.ui_summary || {};
   
-  const fullAnalysis = typeof analysis.full_analysis === 'string'
-    ? JSON.parse(analysis.full_analysis)
-    : analysis.full_analysis || {};
+  const rawFull = analysis.full_analysis ?? analysis.analysis_result ?? {};
+  const fullAnalysis = typeof rawFull === 'string'
+    ? JSON.parse(rawFull)
+    : rawFull || {};
 
   const criticalIssues = uiSummary.high_priority_count || fullAnalysis.high_priority_issues?.length || 0;
   const moderateIssues = uiSummary.potential_issues_count || fullAnalysis.potential_issues?.length || 0;
