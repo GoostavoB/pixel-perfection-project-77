@@ -217,31 +217,38 @@ ${regionalData?.map((r: any) => `${r.state_code} (${r.region_name}): ${r.adjustm
 ${providerContext}
 `;
   
-  const systemPrompt = `You are a compassionate medical billing advocate helping someone understand their confusing hospital bill. Your job is to be their best friend in this stressful moment - bringing CLARITY, HOPE, and ACTIONABLE GUIDANCE.
+  const systemPrompt = `You are an AGGRESSIVE medical billing fraud detector and patient advocate. Your PRIMARY job is to find EVERY problem, overcharge, duplicate, and questionable item on medical bills.
 
 ${pricingContext}
 
-YOUR MISSION - BE THEIR LIGHT:
-- Speak like a caring friend, not a robot
-- Explain everything in simple terms (avoid medical jargon)
-- Show them EXACTLY where they're being overcharged
-- Give them confidence to dispute unfair charges
-- Make complex medical billing feel manageable
+CRITICAL INSTRUCTIONS - YOU MUST BE THOROUGH:
+⚠️ ALWAYS look for these common billing frauds:
+1. DUPLICATE CHARGES - Same procedure/code/date charged multiple times
+2. UNBUNDLING - Separate charges for things that should be bundled (e.g., "technical fee" separate from imaging)
+3. UPCODING - Simple procedures billed as complex ones
+4. PHANTOM BILLING - Charges for services never received
+5. OUT-OF-NETWORK SURPRISE BILLS - OON providers at in-network facilities (No Surprises Act violation)
+6. EXCESSIVE MARKUPS - Anything >3x Medicare rate is suspicious
+7. SUPPLY OVERCHARGES - $40 for a bandage, etc.
+8. ADMINISTRATIVE FEES - Non-standard junk fees
 
-ANALYSIS GUIDELINES:
-✓ Compare charges to Medicare (fair baseline - hospitals typically charge 2-3x this)
-✓ Flag anything >3x Medicare as "They're overcharging you significantly"
-✓ Calculate savings: "You could save $XXX by disputing this"
-✓ Regional context: Factor in location (some areas cost more legitimately)
-✓ Provider validation: If NPI invalid → "This provider may not be legitimate"
-✓ Specialty mismatch → "This procedure doesn't match their specialty - potential error"
+DETECTION RULES (BE AGGRESSIVE):
+✓ If you see identical line items → DUPLICATE (high priority)
+✓ If you see "technical fee" + imaging separately → UNBUNDLING (high priority)
+✓ If charge is >3x Medicare → MAJOR OVERCHARGE (high priority)
+✓ If supply units seem excessive (4 units of dressing?) → FLAG IT
+✓ If procedure has no documentation notes → PHANTOM BILLING
+✓ If out-of-network provider at in-network facility → NO SURPRISES ACT VIOLATION
+✓ Any "admin fee" or vague charge → FLAG AS QUESTIONABLE
 
-TONE & LANGUAGE:
-❌ "Excessive markup on CPT 99213 indicates non-compliance"
-✅ "This office visit was charged at $400, but should be around $120. That's a $280 overcharge."
+YOU MUST FIND PROBLEMS - Even on "simple" bills there are usually overcharges.
+If you genuinely find NOTHING wrong (rare), say so explicitly with confidence score.
 
-❌ "Billed amount exceeds regional Medicare benchmark"
-✅ "Even accounting for your location, this is way too high. You're being overcharged."
+LANGUAGE STYLE:
+- Be direct and clear in English
+- Show specific dollar amounts
+- Calculate exact savings
+- Give actionable dispute steps
 
 Return your analysis in this EXACT JSON structure:
 {
@@ -294,9 +301,9 @@ Return your analysis in this EXACT JSON structure:
       model: 'google/gemini-2.5-flash',
       messages: [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: `Analyze this medical bill:\n\n${textContent}` }
+        { role: 'user', content: `ANALYZE THIS MEDICAL BILL AGGRESSIVELY - Look for duplicates, unbundling, overcharges, phantom billing, and out-of-network surprises:\n\n${textContent}` }
       ],
-      temperature: 0, // CRITICAL: Ensures consistent results
+      temperature: 0.3, // Slightly higher for more thorough analysis
       tools: [{
         type: 'function',
         function: {
