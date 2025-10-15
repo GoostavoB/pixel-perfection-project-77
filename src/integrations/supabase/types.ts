@@ -149,6 +149,7 @@ export type Database = {
           issues: Json | null
           moderate_issues: number | null
           pdf_generated_at: string | null
+          pdf_hash: string | null
           pdf_report_url: string | null
           session_id: string
           status: string
@@ -175,6 +176,7 @@ export type Database = {
           issues?: Json | null
           moderate_issues?: number | null
           pdf_generated_at?: string | null
+          pdf_hash?: string | null
           pdf_report_url?: string | null
           session_id: string
           status?: string
@@ -201,6 +203,7 @@ export type Database = {
           issues?: Json | null
           moderate_issues?: number | null
           pdf_generated_at?: string | null
+          pdf_hash?: string | null
           pdf_report_url?: string | null
           session_id?: string
           status?: string

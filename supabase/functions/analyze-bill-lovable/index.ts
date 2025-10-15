@@ -1,9 +1,18 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// ✅ DETERMINISTIC: Calculate SHA-256 hash for caching
+async function calculateHash(data: ArrayBuffer): Promise<string> {
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  return hashHex;
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -34,6 +43,44 @@ serve(async (req) => {
     // Upload file to Supabase Storage
     const fileName = `${sessionId}/${file.name}`;
     const fileBuffer = await file.arrayBuffer();
+    
+    // ✅ DETERMINISTIC: Calculate PDF hash for caching
+    const pdfHash = await calculateHash(fileBuffer);
+    console.log('PDF Hash:', pdfHash.slice(0, 16) + '...');
+    
+    // ✅ CACHE CHECK: Look for existing analysis
+    const { data: cachedAnalysis } = await supabase
+      .from('bill_analyses')
+      .select('*')
+      .eq('pdf_hash', pdfHash)
+      .maybeSingle();
+    
+    if (cachedAnalysis) {
+      console.log('[CACHE HIT] Returning cached analysis from', cachedAnalysis.created_at);
+      return new Response(
+        JSON.stringify({
+          success: true,
+          session_id: cachedAnalysis.session_id,
+          job_id: cachedAnalysis.id,
+          ui_summary: {
+            high_priority_count: cachedAnalysis.critical_issues || 0,
+            potential_issues_count: cachedAnalysis.moderate_issues || 0,
+            estimated_savings_if_corrected: cachedAnalysis.estimated_savings || 0,
+            data_sources_used: cachedAnalysis.analysis_result?.data_sources || ['Cached Analysis'],
+            tags: cachedAnalysis.analysis_result?.tags || ['cached']
+          },
+          status: 'ready',
+          message: 'Analysis complete (from cache)',
+          cached: true
+        }),
+        { 
+          status: 200, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+    
+    console.log('[CACHE MISS] Proceeding with new analysis');
     
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from('medical-bills')
@@ -84,6 +131,7 @@ serve(async (req) => {
         file_name: file.name,
         file_type: file.type,
         file_url: publicUrl,
+        pdf_hash: pdfHash, // ✅ CACHE: Store hash for future lookups
         extracted_text: extractedContent.text,
         status: 'completed',
         analysis_result: analysisResult,
@@ -508,7 +556,7 @@ Return your analysis in this EXACT JSON structure:
         { role: 'system', content: systemPrompt },
         userMessage
       ],
-      temperature: 0.3, // Slightly higher for more thorough analysis
+      temperature: 0, // ✅ DETERMINISTIC: Always return same result for same input
       tools: [{
         type: 'function',
         function: {
