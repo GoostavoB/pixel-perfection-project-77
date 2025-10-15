@@ -1,6 +1,8 @@
 // Hospital Bill Checker - Lovable AI Integration
 // Direct Supabase edge function using Lovable AI for consistent analysis
 
+import { supabase } from "@/integrations/supabase/client";
+
 interface UISummary {
   high_priority_count: number;
   potential_issues_count: number;
@@ -58,10 +60,13 @@ export async function uploadMedicalBill(file: File): Promise<UploadResponse> {
   const formData = new FormData();
   formData.append('file', file);
 
+  const { data: { session } } = await supabase.auth.getSession();
+  const authToken = session?.access_token || CONFIG.SUPABASE_ANON_KEY;
+
   const response = await fetch(CONFIG.UPLOAD_ENDPOINT, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${CONFIG.SUPABASE_ANON_KEY}`,
+      'Authorization': `Bearer ${authToken}`,
     },
     body: formData,
   });
