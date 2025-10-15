@@ -33,8 +33,18 @@ const Results = () => {
   useEffect(() => {
     if (!analysis || !sessionId) {
       navigate('/upload');
+      return;
     }
-  }, [analysis, sessionId, navigate]);
+    
+    // Check if this was a scanned PDF and show helpful message
+    if (analysis.extracted_text?.includes('SCANNED PDF')) {
+      toast({
+        title: "Scanned PDF Detected",
+        description: "For better accuracy with scanned documents, consider uploading photos (JPG/PNG) of each page instead.",
+        duration: 8000,
+      });
+    }
+  }, [analysis, sessionId, navigate, toast]);
 
   if (!analysis) return null;
 

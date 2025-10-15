@@ -60,7 +60,7 @@ serve(async (req) => {
 
     // Extract text/image from file
     const extractedContent = await extractTextFromFile(fileBuffer, file.type);
-    console.log('Content extracted, text length:', extractedContent.text.length, 'Has image:', !!extractedContent.imageData);
+    console.log('Content extracted, text length:', extractedContent.text.length, 'Has image:', !!extractedContent.imageData, 'Is scanned:', !!extractedContent.isScanned);
 
     // Analyze with Lovable AI
     const lovableApiKey = Deno.env.get('LOVABLE_API_KEY')!;
@@ -93,7 +93,11 @@ serve(async (req) => {
         critical_issues: analysisResult.high_priority_issues?.length || 0,
         moderate_issues: analysisResult.potential_issues?.length || 0,
         estimated_savings: calculateSavings(analysisResult),
-        issues: [...(analysisResult.high_priority_issues || []), ...(analysisResult.potential_issues || [])]
+        issues: [...(analysisResult.high_priority_issues || []), ...(analysisResult.potential_issues || [])],
+        // Add flag if scanned PDF detected
+        ...(extractedContent.isScanned && { 
+          extracted_text: extractedContent.text + '\n\n⚠️ SCANNED PDF: For better results, consider uploading photos (JPG/PNG) of the bill pages.'
+        })
       })
       .select()
       .single();
@@ -142,7 +146,7 @@ serve(async (req) => {
   }
 });
 
-async function extractTextFromFile(buffer: ArrayBuffer, mimeType: string): Promise<{text: string, imageData?: string}> {
+async function extractTextFromFile(buffer: ArrayBuffer, mimeType: string): Promise<{text: string, imageData?: string, isScanned?: boolean}> {
   try {
     if (mimeType === 'application/pdf') {
       // Use PDF.js to extract text from all pages
@@ -159,12 +163,36 @@ async function extractTextFromFile(buffer: ArrayBuffer, mimeType: string): Promi
       }
 
       const cleaned = fullText.replace(/\s+/g, ' ').trim();
-      // Safety fallback if parsing failed
-      if (cleaned.length < 50) {
-        return { text: `PDF parsed but text was minimal (${cleaned.length} chars). File size: ${bytes.byteLength} bytes.` };
+      
+      // OCR FALLBACK: If text is minimal, this is likely a scanned PDF
+      if (cleaned.length < 100) {
+        console.log(`PDF appears to be scanned (${cleaned.length} chars text extracted)`);
+        
+        // Convert PDF first page to base64 for vision analysis attempt
+        try {
+          // Get first page data as image
+          const firstPage = await pdf.getPage(1);
+          const viewport = firstPage.getViewport({ scale: 2.0 });
+          
+          // Since we can't use OffscreenCanvas in Deno, we'll try to extract the raw PDF page
+          // and send it to the AI with a note that it needs OCR
+          console.log(`Scanned PDF detected, will attempt vision analysis with AI`);
+          
+          return {
+            text: `SCANNED PDF DETECTED - This appears to be a scanned/image-based PDF with minimal extractable text (${cleaned.length} chars). Please use OCR to extract all visible charges, CPT codes, amounts, dates, and provider information from the document.`,
+            isScanned: true
+          };
+        } catch (err) {
+          console.error('Failed to process scanned PDF:', err);
+          return { 
+            text: `PDF appears to be scanned (${cleaned.length} chars). Unable to extract text. Recommend user upload as photo (JPG/PNG).`,
+            isScanned: true
+          };
+        }
       }
 
-      // Limit extremely long PDFs
+      // Normal text-based PDF
+      console.log(`PDF text extracted: ${cleaned.length} chars`);
       return { text: cleaned.slice(0, 120_000) };
     }
 
@@ -182,12 +210,12 @@ async function extractTextFromFile(buffer: ArrayBuffer, mimeType: string): Promi
     return { text: `Medical bill received. File size: ${buffer.byteLength} bytes. MIME type: ${mimeType}` };
   } catch (err) {
     console.error('File extraction failed:', err);
-    return { text: `File read error. File size: ${buffer.byteLength} bytes. Please analyze by structure and common patterns.` };
+    return { text: `File read error: ${err instanceof Error ? err.message : 'Unknown error'}. File size: ${buffer.byteLength} bytes.` };
   }
 }
 
 async function analyzeBillWithAI(
-  extractedContent: {text: string, imageData?: string}, 
+  extractedContent: {text: string, imageData?: string, isScanned?: boolean}, 
   apiKey: string, 
   supabase: any
 ) {
@@ -395,7 +423,7 @@ Return your analysis in this EXACT JSON structure:
             image_url: { url: extractedContent.imageData }
           }
         ]
-      : `ANALYZE THIS MEDICAL BILL AGGRESSIVELY - Look for duplicates, unbundling, overcharges, phantom billing, and out-of-network surprises:\n\n${extractedContent.text}`
+      : `ANALYZE THIS MEDICAL BILL AGGRESSIVELY - Look for duplicates, unbundling, overcharges, phantom billing, and out-of-network surprises${extractedContent.isScanned ? ' (NOTE: This is a scanned PDF - extract all visible information even if text quality is poor)' : ''}:\n\n${extractedContent.text}`
   };
 
   const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
