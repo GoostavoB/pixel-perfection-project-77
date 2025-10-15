@@ -46,7 +46,7 @@ const Results = () => {
     totalCharged: analysis.total_charged
   });
 
-  const analysisDate = new Date().toLocaleDateString('pt-BR', {
+  const analysisDate = new Date().toLocaleDateString('en-US', {
     year: 'numeric', 
     month: 'long', 
     day: 'numeric' 
@@ -86,7 +86,7 @@ const Results = () => {
     suggested_action: it.suggested_action,
     confidence_score: it.confidence_score,
     accuracy_label: it.confidence_score != null
-      ? (it.confidence_score >= 0.95 ? 'Alta Confiança' : it.confidence_score >= 0.8 ? 'Confiança Moderada' : 'Requer Revisão')
+      ? (it.confidence_score >= 0.95 ? 'High Confidence' : it.confidence_score >= 0.8 ? 'Moderate Confidence' : 'Needs Review')
       : undefined,
   }));
   
@@ -132,30 +132,56 @@ const Results = () => {
     setIsGeneratingPDF(true);
 
     try {
-      // Prepare data for PDF generation
+      // Primary: Generate via backend (more reliable)
+      const { data, error } = await supabase.functions.invoke('generate-pdf-report', {
+        body: { sessionId },
+      });
+
+      if (error) throw new Error(error.message || 'Failed to request PDF generation');
+
+      const pdfUrl = data?.pdf_url || data?.result?.pdf_url;
+      if (pdfUrl) {
+        window.open(pdfUrl, '_blank');
+        toast({ title: 'Success', description: 'Your PDF report opened in a new tab.' });
+        return;
+      }
+
+      // Fallback: client-side generation if backend didn't return a URL
       const reportData = {
         job_id: sessionId,
         hospital_name: hospitalName,
         ui_summary: uiSummary,
-        full_analysis: fullAnalysis
+        full_analysis: fullAnalysis,
       };
 
       await pdfGenerator.generatePDF(
         reportData,
         `hospital-bill-analysis-${sessionId?.substring(0, 8)}.pdf`
       );
-      
-      toast({
-        title: "Success!",
-        description: "PDF downloaded successfully"
-      });
-    } catch (error) {
-      console.error('PDF Generation Error:', error);
-      toast({
-        variant: "destructive",
-        title: "Download Failed",
-        description: error instanceof Error ? error.message : "Failed to generate PDF"
-      });
+      toast({ title: 'Downloaded', description: 'PDF downloaded successfully.' });
+    } catch (err) {
+      console.error('PDF Generation Error:', err);
+      // Last resort: try client-side generation to avoid blank results
+      try {
+        const reportData = {
+          job_id: sessionId,
+          hospital_name: hospitalName,
+          ui_summary: uiSummary,
+          full_analysis: fullAnalysis,
+        };
+        await pdfGenerator.generatePDF(
+          reportData,
+          `hospital-bill-analysis-${sessionId?.substring(0, 8)}.pdf`
+        );
+        toast({ title: 'Downloaded', description: 'PDF downloaded successfully.' });
+      } catch (subErr) {
+        console.error('Client-side PDF fallback failed:', subErr);
+        toast({
+          variant: 'destructive',
+          title: 'PDF Failed',
+          description: subErr instanceof Error ? subErr.message : 'Unable to generate PDF',
+        });
+      }
     } finally {
       setIsGeneratingPDF(false);
     }
@@ -171,16 +197,16 @@ const Results = () => {
           <div className="flex items-start justify-between mb-4">
             <div>
               <h1 className="text-3xl font-bold text-foreground mb-2">
-                Análise da Sua Conta Médica
+                Your Medical Bill Analysis
               </h1>
               <div className="flex items-center gap-4 text-sm text-muted-foreground">
                 <div className="flex items-center gap-2">
                   <Calendar className="w-4 h-4" />
-                  <span>Data da Análise: {analysisDate}</span>
+                  <span>Analysis Date: {analysisDate}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <FileBarChart className="w-4 h-4" />
-                  <span>Sessão: {sessionId?.substring(0, 12)}</span>
+                  <span>Session: {sessionId?.substring(0, 12)}</span>
                 </div>
               </div>
             </div>
@@ -188,7 +214,7 @@ const Results = () => {
               <MedicalGlossary />
               <Badge className="bg-success/10 text-success border-success/20 px-4 py-2 text-sm font-semibold">
                 <CheckCircle className="w-4 h-4 mr-2" />
-                Análise Completa
+                Analysis Complete
               </Badge>
             </div>
           </div>
@@ -222,10 +248,10 @@ const Results = () => {
                 <CheckCircle className="w-5 h-5 text-success" />
               </div>
               <div>
-                <h2 className="text-lg font-bold text-foreground mb-1">Relatório Enviado com Sucesso</h2>
+                <h2 className="text-lg font-bold text-foreground mb-1">Report Sent Successfully</h2>
                 <p className="text-sm text-muted-foreground">
-                  Seu relatório de análise completo em PDF foi enviado para <span className="font-semibold text-success">seu email cadastrado</span>. 
-                  Por favor, verifique sua caixa de entrada para o relatório completo com explicações detalhadas dos códigos CPT, detalhamento de preços e recomendações práticas.
+                  Your full PDF analysis report has been sent to your <span className="font-semibold text-success">registered email</span>.
+                  Please check your inbox for the detailed report with CPT explanations, price breakdowns, and practical recommendations.
                 </p>
               </div>
             </div>
@@ -235,7 +261,7 @@ const Results = () => {
         {/* Detailed Issues with Confidence Badges - ALWAYS SHOW IF ISSUES EXIST */}
         {issues.length > 0 ? (
           <Card className="mb-6 p-6 shadow-card">
-            <h2 className="text-xl font-bold text-foreground mb-4">Problemas Identificados Detalhados</h2>
+            <h2 className="text-xl font-bold text-foreground mb-4">Detailed Identified Issues</h2>
             <div className="space-y-4">
               {issues.map((issue: any, index: number) => {
                 const chargedAmount = parseFloat(issue.impact?.replace(/[^0-9.]/g, '') || '0');
@@ -277,7 +303,7 @@ const Results = () => {
                     {issue.suggested_action && (
                       <div className="mt-2 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded p-2">
                         <p className="text-xs text-blue-800 dark:text-blue-200">
-                          <span className="font-semibold">Ação Recomendada:</span> {issue.suggested_action}
+                          <span className="font-semibold">Recommended Action:</span> {issue.suggested_action}
                         </p>
                       </div>
                     )}
@@ -290,10 +316,10 @@ const Results = () => {
           <Card className="mb-6 p-6 shadow-card bg-green-50 dark:bg-green-950/20">
             <div className="text-center py-4">
               <p className="text-lg font-semibold text-green-700 dark:text-green-300 mb-2">
-                ✅ Nenhum problema crítico detectado!
+                ✅ No critical issues detected!
               </p>
               <p className="text-sm text-muted-foreground">
-                Sua conta parece estar correta, mas sempre recomendamos revisar com um profissional.
+                Your bill appears accurate, but we still recommend reviewing it with a professional.
               </p>
             </div>
           </Card>
@@ -335,7 +361,7 @@ const Results = () => {
             <div className="flex items-start gap-3">
               <Database className="w-5 h-5 text-secondary mt-0.5" />
               <div>
-                <h3 className="text-sm font-semibold text-foreground mb-1">Informações da Instituição</h3>
+                <h3 className="text-sm font-semibold text-foreground mb-1">Facility Information</h3>
                 <p className="text-sm text-muted-foreground">{hospitalName}</p>
               </div>
             </div>
@@ -354,34 +380,34 @@ const Results = () => {
 
         {/* Included in Report */}
         <Card className="mb-6 p-6 border-secondary/20 shadow-card">
-          <h2 className="text-xl font-bold text-foreground mb-4">Seu Relatório Detalhado Inclui</h2>
+          <h2 className="text-xl font-bold text-foreground mb-4">Your Detailed Report Includes</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="flex gap-3">
               <div className="w-1.5 bg-secondary rounded-full flex-shrink-0" />
               <div>
-                <h3 className="text-sm font-semibold text-foreground mb-1">Análise Itemizada Completa</h3>
-                <p className="text-sm text-muted-foreground">Detalhamento linha por linha de cada cobrança com justificativa</p>
+                <h3 className="text-sm font-semibold text-foreground mb-1">Complete Itemized Analysis</h3>
+                <p className="text-sm text-muted-foreground">Line-by-line breakdown of each charge with justification</p>
               </div>
             </div>
             <div className="flex gap-3">
               <div className="w-1.5 bg-secondary rounded-full flex-shrink-0" />
               <div>
-                <h3 className="text-sm font-semibold text-foreground mb-1">Comparação com Medicare</h3>
-                <p className="text-sm text-muted-foreground">Como suas cobranças se comparam às taxas padrão permitidas</p>
+                <h3 className="text-sm font-semibold text-foreground mb-1">Medicare Comparison</h3>
+                <p className="text-sm text-muted-foreground">How your charges compare to standard allowed rates</p>
               </div>
             </div>
             <div className="flex gap-3">
               <div className="w-1.5 bg-secondary rounded-full flex-shrink-0" />
               <div>
-                <h3 className="text-sm font-semibold text-foreground mb-1">Itens de Ação Específicos</h3>
-                <p className="text-sm text-muted-foreground">Recomendações priorizadas para cada descoberta</p>
+                <h3 className="text-sm font-semibold text-foreground mb-1">Actionable Items</h3>
+                <p className="text-sm text-muted-foreground">Prioritized recommendations for each finding</p>
               </div>
             </div>
             <div className="flex gap-3">
               <div className="w-1.5 bg-secondary rounded-full flex-shrink-0" />
               <div>
-                <h3 className="text-sm font-semibold text-foreground mb-1">Modelos de Carta de Contestação</h3>
-                <p className="text-sm text-muted-foreground">Formulários pré-preenchidos prontos para envio</p>
+                <h3 className="text-sm font-semibold text-foreground mb-1">Dispute Letter Templates</h3>
+                <p className="text-sm text-muted-foreground">Pre-filled forms ready to send</p>
               </div>
             </div>
           </div>
@@ -397,10 +423,10 @@ const Results = () => {
               </div>
             </div>
             <h3 className="text-lg font-bold text-foreground mb-2">
-              Baixar Relatório Completo
+              Download Full Report
             </h3>
             <p className="text-sm text-muted-foreground mb-4">
-              Obtenha seu relatório de análise abrangente com explicações detalhadas de códigos CPT, detalhamento de preços e recomendações práticas
+              Get your comprehensive analysis report with detailed CPT explanations, pricing breakdowns, and practical recommendations
             </p>
             <Button 
               size="lg"
@@ -412,12 +438,12 @@ const Results = () => {
               {isGeneratingPDF ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Gerando PDF...
+                  Generating PDF...
                 </>
               ) : (
                 <>
                   <FileBarChart className="mr-2 w-5 h-5" />
-                  Baixar Relatório Detalhado
+                  Download Detailed Report
                 </>
               )}
             </Button>
@@ -431,10 +457,10 @@ const Results = () => {
               </div>
             </div>
             <h3 className="text-lg font-bold text-foreground mb-2">
-              Gerar Carta de Contestação
+              Generate Dispute Letter
             </h3>
             <p className="text-sm text-muted-foreground mb-4">
-              Crie uma carta profissional de contestação baseada nos resultados da sua análise
+              Create a professional dispute letter based on your analysis results
             </p>
             <Link 
               to="/generate-letter"
@@ -460,7 +486,7 @@ const Results = () => {
                 size="lg"
                 className="bg-accent hover:bg-accent/90 text-accent-foreground font-semibold group"
               >
-                Gerar Carta de Contestação
+                Generate Dispute Letter
                 <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </Button>
             </Link>
