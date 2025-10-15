@@ -118,14 +118,59 @@ serve(async (req) => {
           pdf_generated_at: new Date().toISOString()
         })
         .eq('id', analysis.id);
+
+      // Send email with PDF link using Resend API
+      const resendApiKey = Deno.env.get("RESEND_API_KEY");
+      const userEmail = analysis.user_email || user.email;
+
+      if (userEmail && resendApiKey) {
+        try {
+          const emailResponse = await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${resendApiKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              from: "Medical Bill Analysis <onboarding@resend.dev>",
+              to: [userEmail],
+              subject: "Your Medical Bill Analysis Report is Ready",
+              html: `
+                <h1>Your Detailed Report is Ready!</h1>
+                <p>Hi ${analysis.user_name || 'there'},</p>
+                <p>Your medical bill analysis has been completed. You can download your detailed PDF report using the link below:</p>
+                <p><a href="${result.pdf_url}" style="display: inline-block; padding: 12px 24px; background-color: #0066cc; color: white; text-decoration: none; border-radius: 4px; margin: 20px 0;">Download Your Report</a></p>
+                <p><strong>Summary:</strong></p>
+                <ul>
+                  <li>Critical Issues: ${analysis.critical_issues || 0}</li>
+                  <li>Potential Issues: ${analysis.moderate_issues || 0}</li>
+                  <li>Estimated Savings: $${analysis.estimated_savings || 0}</li>
+                </ul>
+                <p>If you have any questions, feel free to reach out.</p>
+                <p>Best regards,<br>Medical Bill Analysis Team</p>
+              `,
+            }),
+          });
+          
+          if (emailResponse.ok) {
+            console.log('Email sent successfully to:', userEmail);
+          } else {
+            const errorText = await emailResponse.text();
+            console.error('Resend API error:', errorText);
+          }
+        } catch (emailError) {
+          console.error('Failed to send email:', emailError);
+          // Don't fail the entire request if email fails
+        }
+      }
     }
 
     return new Response(
       JSON.stringify({ 
         success: true,
-        message: 'PDF report generation started',
+        message: 'PDF report generated and email sent',
         pdf_url: result.pdf_url,
-        result
+        email_sent: !!(analysis.user_email || user.email)
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

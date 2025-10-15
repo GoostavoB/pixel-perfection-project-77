@@ -119,69 +119,54 @@ const Results = () => {
 
   console.log('Bill Score calculated:', billScore, 'from', criticalIssues, 'critical +', moderateIssues, 'moderate');
 
-  const handleDownloadPDF = async () => {
-    if (!analysis) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Analysis data not available"
-      });
-      return;
-    }
-
+  const handleEmailReport = async () => {
     setIsGeneratingPDF(true);
-
     try {
-      // Primary: Generate via backend (more reliable)
-      const { data, error } = await supabase.functions.invoke('generate-pdf-report', {
-        body: { sessionId },
-      });
-
-      if (error) throw new Error(error.message || 'Failed to request PDF generation');
-
-      const pdfUrl = data?.pdf_url || data?.result?.pdf_url;
-      if (pdfUrl) {
-        window.open(pdfUrl, '_blank');
-        toast({ title: 'Success', description: 'Your PDF report opened in a new tab.' });
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast({
+          variant: "destructive",
+          title: "Authentication Required",
+          description: "Please sign in to receive your report via email"
+        });
         return;
       }
 
-      // Fallback: client-side generation if backend didn't return a URL
-      const reportData = {
-        job_id: sessionId,
-        hospital_name: hospitalName,
-        ui_summary: uiSummary,
-        full_analysis: fullAnalysis,
-      };
-
-      await pdfGenerator.generatePDF(
-        reportData,
-        `hospital-bill-analysis-${sessionId?.substring(0, 8)}.pdf`
-      );
-      toast({ title: 'Downloaded', description: 'PDF downloaded successfully.' });
-    } catch (err) {
-      console.error('PDF Generation Error:', err);
-      // Last resort: try client-side generation to avoid blank results
-      try {
-        const reportData = {
-          job_id: sessionId,
-          hospital_name: hospitalName,
-          ui_summary: uiSummary,
-          full_analysis: fullAnalysis,
-        };
-        await pdfGenerator.generatePDF(
-          reportData,
-          `hospital-bill-analysis-${sessionId?.substring(0, 8)}.pdf`
-        );
-        toast({ title: 'Downloaded', description: 'PDF downloaded successfully.' });
-      } catch (subErr) {
-        console.error('Client-side PDF fallback failed:', subErr);
+      if (!analysis?.session_id) {
         toast({
-          variant: 'destructive',
-          title: 'PDF Failed',
-          description: subErr instanceof Error ? subErr.message : 'Unable to generate PDF',
+          variant: "destructive",
+          title: "Error",
+          description: "Session ID not found"
+        });
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke('generate-pdf-report', {
+        body: { sessionId: analysis.session_id }
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (data?.email_sent) {
+        toast({
+          title: "Success!",
+          description: "Your detailed report has been sent to your email"
+        });
+      } else {
+        toast({
+          title: "Report Generated",
+          description: "Your report is ready. Check your email shortly."
         });
       }
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to send report. Please try again."
+      });
     } finally {
       setIsGeneratingPDF(false);
     }
@@ -432,18 +417,18 @@ const Results = () => {
               size="lg"
               variant="outline"
               className="border-secondary text-secondary hover:bg-secondary hover:text-secondary-foreground font-semibold group"
-              onClick={handleDownloadPDF}
+              onClick={handleEmailReport}
               disabled={isGeneratingPDF}
             >
               {isGeneratingPDF ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Generating PDF...
+                  Sending Report...
                 </>
               ) : (
                 <>
-                  <FileBarChart className="mr-2 w-5 h-5" />
-                  Download Detailed Report
+                  <Mail className="mr-2 w-5 h-5" />
+                  Email Detailed Report
                 </>
               )}
             </Button>
