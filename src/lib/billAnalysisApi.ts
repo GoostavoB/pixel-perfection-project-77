@@ -56,18 +56,23 @@ const CONFIG = {
  * @returns Upload response with job_id and ui_summary
  * @throws Error if upload fails
  */
-export async function uploadMedicalBill(file: File): Promise<UploadResponse> {
+export async function uploadMedicalBill(file: File, options?: { bypassCache?: boolean }): Promise<UploadResponse> {
   const formData = new FormData();
   formData.append('file', file);
 
   const { data: { session } } = await supabase.auth.getSession();
   const authToken = session?.access_token || CONFIG.SUPABASE_ANON_KEY;
 
+  const headers: Record<string, string> = {
+    'Authorization': `Bearer ${authToken}`,
+  };
+  if (options?.bypassCache) {
+    headers['x-bypass-cache'] = 'true';
+  }
+
   const response = await fetch(CONFIG.UPLOAD_ENDPOINT, {
     method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${authToken}`,
-    },
+    headers,
     body: formData,
   });
 

@@ -95,7 +95,11 @@ const Results = () => {
     category: it.type || it.category,
     description: it.line_description || it.description,
     finding: it.explanation_for_user || it.finding,
-    impact: it.billed_amount != null ? `$${Number(it.billed_amount).toFixed(2)}` : (it.impact || '$0'),
+    impact: it.overcharge_amount != null
+      ? `$${Number(it.overcharge_amount).toFixed(2)}`
+      : (it.billed_amount != null
+        ? `$${Number(it.billed_amount).toFixed(2)}`
+        : (it.impact || '$0')),
     cpt_code: it.cpt_code || 'N/A',
     suggested_action: it.suggested_action,
     confidence_score: it.confidence_score,
@@ -115,7 +119,7 @@ const Results = () => {
   const criticalIssues = uiSummary.high_priority_count ?? (fullAnalysis.high_priority_issues?.length ?? 0);
   const moderateIssues = uiSummary.potential_issues_count ?? (fullAnalysis.potential_issues?.length ?? 0);
   const estimatedSavings = calculatedSavings > 0 ? calculatedSavings : (uiSummary.estimated_savings_if_corrected ?? (fullAnalysis.estimated_savings ?? 0));
-  const totalCharged = analysis.total_charged ?? 2380; // fallback
+  const totalCharged = analysis.total_charged ?? fullAnalysis.total_bill_amount ?? 0; // fallback
   const hospitalName = analysis.hospital_name || 'Hospital';
   const emailSent = analysis.email_sent || false;
 
@@ -245,12 +249,14 @@ const Results = () => {
               <div className="flex-1">
                 <h3 className="text-lg font-bold text-destructive mb-2">Data Validation Issue Detected</h3>
                 <p className="text-sm text-muted-foreground mb-3">
-                  The calculated potential savings (${calculatedSavings.toLocaleString()}) exceed the total bill amount (${totalCharged.toLocaleString()}). 
+                  The calculated potential savings (${calculatedSavings.toLocaleString()}) exceed the total bill amount (${
+                    Number(totalCharged || 0).toLocaleString()
+                  }). 
                   This indicates a calculation anomaly that needs to be recalculated.
                 </p>
                 <Button
                   onClick={() => {
-                    navigate('/upload');
+                    navigate('/upload', { state: { fresh: true } });
                   }}
                   variant="destructive"
                   size="sm"

@@ -22,7 +22,7 @@ const Processing = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { file, fileName } = (location.state as { file?: File; fileName?: string }) || {};
+  const { file, fileName, fresh } = (location.state as { file?: File; fileName?: string; fresh?: boolean }) || {};
   
   const [progress, setProgress] = useState(0);
   const [currentFact, setCurrentFact] = useState(0);
@@ -69,7 +69,7 @@ const Processing = () => {
       setStatus("Uploading your medical bill...");
       setProgress(20);
 
-      const uploadResponse = await uploadMedicalBill(file);
+      const uploadResponse = await uploadMedicalBill(file, { bypassCache: !!fresh });
       
       if (!uploadResponse.success) {
         throw new Error(uploadResponse.message || "Upload failed");

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Upload as UploadIcon, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -11,6 +11,8 @@ const Upload = () => {
   const [isDragging, setIsDragging] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const location = useLocation();
+  const { fresh } = (location.state as { fresh?: boolean }) || {};
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -114,7 +116,7 @@ const Upload = () => {
     }
 
     // Navigate to processing page immediately
-    navigate("/processing", { state: { file, fileName: file.name } });
+    navigate("/processing", { state: { file, fileName: file.name, fresh } });
   };
 
   return (
