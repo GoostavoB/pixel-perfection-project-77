@@ -67,6 +67,8 @@ export const DisputePackCard = ({ disputePack, sessionId }: DisputePackCardProps
   const totalAmount = disputePack.issue_blocks
     .filter(b => b.amount !== null)
     .reduce((sum, b) => sum + (b.amount || 0), 0);
+  
+  const totalIssuesCount = disputePack.issue_blocks.length;
 
   return (
     <Card className="p-6 bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200">
@@ -77,8 +79,8 @@ export const DisputePackCard = ({ disputePack, sessionId }: DisputePackCardProps
         <div className="flex-1">
           <h2 className="text-2xl font-bold text-blue-900 mb-2">Dispute Pack Ready</h2>
           <p className="text-sm text-blue-700 mb-3">
-            Professional dispute documentation for {disputePack.issue_blocks.length} issue
-            {disputePack.issue_blocks.length > 1 ? 's' : ''} identified
+            Professional dispute documentation for {totalIssuesCount} issue
+            {totalIssuesCount !== 1 ? 's' : ''} identified
           </p>
           <div className="flex flex-wrap gap-2">
             <Badge className="bg-blue-100 text-blue-700 border-blue-300">
@@ -109,7 +111,9 @@ export const DisputePackCard = ({ disputePack, sessionId }: DisputePackCardProps
         </div>
         <div>
           <p className="text-xs text-muted-foreground mb-1">Issues Amount</p>
-          <p className="text-sm font-semibold text-orange-700">${totalAmount.toFixed(2)}</p>
+          <p className="text-sm font-semibold text-destructive">
+            ${totalAmount > 0 ? totalAmount.toFixed(2) : 'Pending itemization'}
+          </p>
         </div>
       </div>
 

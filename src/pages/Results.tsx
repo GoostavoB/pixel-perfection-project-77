@@ -117,18 +117,45 @@ const Results = () => {
   const hi = Array.isArray(a.high_priority_issues) ? a.high_priority_issues : [];
   const pi = Array.isArray(a.potential_issues) ? a.potential_issues : [];
 
-  const estimatedSavings = [...hi, ...pi].reduce((sum: number, issue: any) => sum + num(issue.overcharge_amount || 0), 0);
+  // Calculate total duplicates amount
+  const totalDuplicatesAmount = duplicates.reduce((sum: number, dup: any) => sum + num(dup.amount || 0), 0);
+  
+  // Calculate estimated savings including duplicates, NSA, and other issues
+  const issuesSavings = [...hi, ...pi].reduce((sum: number, issue: any) => sum + num(issue.overcharge_amount || 0), 0);
+  const estimatedSavings = issuesSavings + totalDuplicatesAmount;
 
   // Generate dispute pack
   const disputePack = useMemo(() => generateDisputePack(analysis), [analysis]);
 
-  // What-if calculator items
-  const whatIfItems = [...hi, ...pi].map((issue: any, idx: number) => ({
-    id: `issue-${idx}`,
-    description: issue.line_description || issue.explanation_for_user || 'Unknown issue',
-    amount: num(issue.billed_amount || issue.charge_amount || 0),
-    estimatedReduction: num(issue.overcharge_amount || issue.billed_amount || 0) * 0.6,
-  })).filter(item => item.amount > 0);
+  // What-if calculator items - include reason/category for each issue
+  const whatIfItems = [
+    // Add duplicate items
+    ...duplicates.map((dup: any, idx: number) => ({
+      id: `duplicate-${idx}`,
+      description: dup.description,
+      amount: num(dup.amount || 0),
+      estimatedReduction: num(dup.amount || 0) * 0.8, // Higher reduction for duplicates
+      reason: 'Potential duplicate charge'
+    })),
+    // Add other issues
+    ...hi.map((issue: any, idx: number) => ({
+      id: `hi-${idx}`,
+      description: issue.line_description || issue.explanation_for_user || 'Unknown issue',
+      amount: num(issue.billed_amount || issue.charge_amount || 0),
+      estimatedReduction: num(issue.overcharge_amount || issue.billed_amount || 0) * 0.6,
+      reason: issue.category || issue.issue_type || 'Overcharge detected'
+    })),
+    ...pi.map((issue: any, idx: number) => ({
+      id: `pi-${idx}`,
+      description: issue.line_description || issue.explanation_for_user || 'Unknown issue',
+      amount: num(issue.billed_amount || issue.charge_amount || 0),
+      estimatedReduction: num(issue.overcharge_amount || issue.billed_amount || 0) * 0.6,
+      reason: issue.category || issue.issue_type || 'Potential overcharge'
+    }))
+  ].filter(item => item.amount > 0);
+  
+  // Total number of issues including duplicates
+  const totalIssuesCount = hi.length + pi.length + duplicates.length;
 
   const handleEmailReport = async () => {
     setIsGeneratingPDF(true);
@@ -193,8 +220,8 @@ const Results = () => {
                 )}
               </div>
               <div className="text-right">
-                <p className="text-sm font-semibold text-muted-foreground uppercase mb-2">Current Balance</p>
-                <div className="text-3xl font-bold text-primary">${totalCharged.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
+                <p className="text-sm font-semibold text-muted-foreground uppercase mb-2">Total Bill Amount</p>
+                <div className="text-3xl font-bold text-destructive">${totalCharged.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
               </div>
             </div>
           </Card>
@@ -202,13 +229,16 @@ const Results = () => {
           <Card className="p-6">
             <h3 className="text-sm font-semibold text-muted-foreground uppercase mb-3">Data Status</h3>
             <StatusPills itemizationStatus={itemizationStatus} nsaStatus={nsaApplies} duplicatesCount={duplicates.length} />
-            <p className="text-sm text-muted-foreground mt-4">
-              {itemizationStatus === 'missing' 
-                ? 'Codes missing. Savings unknown until itemized.' 
-                : itemizationStatus === 'partial'
-                ? 'Partial itemization. Request complete codes.'
-                : 'Complete itemization available.'}
-            </p>
+            <div className="mt-4 space-y-2">
+              <p className="text-sm text-foreground">
+                {itemizationStatus === 'complete' && '✓ Complete itemization available'}
+                {itemizationStatus === 'partial' && '⚠ Partial itemization - request complete codes'}
+                {itemizationStatus === 'missing' && '✗ Codes missing - savings unknown until itemized'}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Hover over each badge above to learn what it means and how it affects your analysis.
+              </p>
+            </div>
           </Card>
         </div>
 
@@ -227,25 +257,43 @@ const Results = () => {
         {/* Decision Summary - 3 metrics */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
           <Card className="p-6 text-center">
-            <p className="text-sm text-muted-foreground mb-1">Findings</p>
-            <p className="text-3xl font-bold text-foreground">{hi.length + pi.length}</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              We found {hi.length + pi.length} line{(hi.length + pi.length) !== 1 ? 's' : ''} with potential issues
+            <p className="text-xs text-muted-foreground mb-3">We found</p>
+            <p className={`text-5xl font-bold mb-3 ${
+              totalIssuesCount === 0 ? 'text-success' : 
+              totalIssuesCount <= 3 ? 'text-warning' : 
+              'text-destructive'
+            }`}>
+              {totalIssuesCount}
+            </p>
+            <p className="text-sm text-foreground font-medium">
+              line{totalIssuesCount !== 1 ? 's' : ''} with potential issues
             </p>
           </Card>
           <Card className="p-6 text-center relative">
-            <p className="text-sm text-muted-foreground mb-1">Potential Savings</p>
-            <p className="text-3xl font-bold text-primary">
-              {estimatedSavings > 0 && itemizationStatus !== 'missing'
+            <div className="flex items-center justify-center gap-2 mb-1">
+              <p className="text-sm text-muted-foreground">Potential Savings</p>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="w-4 h-4 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <p className="text-sm">Savings estimation includes all potential reductions: duplicate charges, NSA protections, code anomalies, and overcharges. If itemized details are missing, this number may increase once full data is provided.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+            <p className="text-3xl font-bold text-success">
+              {estimatedSavings > 0
                 ? `$${estimatedSavings.toLocaleString('en-US', { minimumFractionDigits: 2 })}` 
-                : 'Unknown until itemized'}
+                : itemizationStatus === 'missing' ? 'Unknown' : '$0.00'}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              {itemizationStatus === 'missing' ? 'needs codes' : 'estimated'}
+              {itemizationStatus === 'missing' ? 'itemization required' : 'estimated'}
             </p>
             {itemizationStatus === 'missing' && (
               <div className="mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-900 text-left">
-                <strong>Note:</strong> Please request an itemized bill from the hospital to calculate accurate savings.
+                <strong>Note:</strong> Request an itemized bill from the hospital to calculate accurate savings.
               </div>
             )}
           </Card>
