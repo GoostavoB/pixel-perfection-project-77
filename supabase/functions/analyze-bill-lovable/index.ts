@@ -1,9 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
-// PDF parsing (server-side, no rendering)
-import { getDocument, GlobalWorkerOptions } from "https://esm.sh/pdfjs-dist@4.4.168/build/pdf.mjs";
-// Configure worker for Deno environment (use reliable CDN)
-GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.4.168/build/pdf.worker.min.mjs";
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -60,7 +56,8 @@ serve(async (req) => {
 
     // Extract text/image from file
     const extractedContent = await extractTextFromFile(fileBuffer, file.type);
-    console.log('Content extracted, text length:', extractedContent.text.length, 'Has image:', !!extractedContent.imageData, 'Is scanned:', !!extractedContent.isScanned);
+    console.log('Content extracted - text length:', extractedContent.text.length, 'Has image:', !!extractedContent.imageData, 'Is scanned:', !!extractedContent.isScanned);
+    console.log('Extracted text preview:', extractedContent.text.slice(0, 300));
 
     // Analyze with Lovable AI
     const lovableApiKey = Deno.env.get('LOVABLE_API_KEY')!;
@@ -149,50 +146,45 @@ serve(async (req) => {
 async function extractTextFromFile(buffer: ArrayBuffer, mimeType: string): Promise<{text: string, imageData?: string, isScanned?: boolean}> {
   try {
     if (mimeType === 'application/pdf') {
-      // Use PDF.js to extract text from all pages
-      const bytes = new Uint8Array(buffer);
-      const loadingTask = getDocument({ data: bytes });
-      const pdf = await loadingTask.promise;
-
-      let fullText = '';
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const page = await pdf.getPage(i);
-        const content: any = await page.getTextContent();
-        const pageText = content.items.map((it: any) => (it?.str ?? '')).join(' ');
-        fullText += `\n\n--- Page ${i} ---\n${pageText}`;
-      }
-
-      const cleaned = fullText.replace(/\s+/g, ' ').trim();
+      console.log('Extracting PDF text using basic extraction...');
       
-      // OCR FALLBACK: If text is minimal, this is likely a scanned PDF
-      if (cleaned.length < 100) {
-        console.log(`PDF appears to be scanned (${cleaned.length} chars text extracted)`);
-        
-        // Convert PDF first page to base64 for vision analysis attempt
-        try {
-          // Get first page data as image
-          const firstPage = await pdf.getPage(1);
-          const viewport = firstPage.getViewport({ scale: 2.0 });
-          
-          // Since we can't use OffscreenCanvas in Deno, we'll try to extract the raw PDF page
-          // and send it to the AI with a note that it needs OCR
-          console.log(`Scanned PDF detected, will attempt vision analysis with AI`);
-          
-          return {
-            text: `SCANNED PDF DETECTED - This appears to be a scanned/image-based PDF with minimal extractable text (${cleaned.length} chars). Please use OCR to extract all visible charges, CPT codes, amounts, dates, and provider information from the document.`,
-            isScanned: true
-          };
-        } catch (err) {
-          console.error('Failed to process scanned PDF:', err);
-          return { 
-            text: `PDF appears to be scanned (${cleaned.length} chars). Unable to extract text. Recommend user upload as photo (JPG/PNG).`,
-            isScanned: true
-          };
+      // Convert ArrayBuffer to string and look for text content
+      const bytes = new Uint8Array(buffer);
+      let text = '';
+      
+      // PDF files store text in streams - extract visible text
+      const decoder = new TextDecoder('utf-8', { fatal: false });
+      const pdfString = decoder.decode(bytes);
+      
+      // Extract text from PDF streams (between BT and ET markers)
+      const streamMatches = pdfString.match(/BT(.*?)ET/gs) || [];
+      for (const stream of streamMatches) {
+        // Extract text from Tj operators: (text)Tj or [(text)]TJ
+        const textMatches = stream.match(/\((.*?)\)/g) || [];
+        for (const match of textMatches) {
+          const extracted = match.slice(1, -1)
+            .replace(/\\n/g, ' ')
+            .replace(/\\r/g, ' ')
+            .replace(/\\t/g, ' ')
+            .replace(/\\/g, '');
+          text += extracted + ' ';
         }
       }
+      
+      const cleaned = text.replace(/\s+/g, ' ').trim();
+      
+      console.log(`PDF extraction complete: ${cleaned.length} chars extracted`);
+      
+      // If still minimal, it's likely scanned
+      if (cleaned.length < 200) {
+        console.log(`PDF appears to be scanned or encrypted (${cleaned.length} chars)`);
+        return {
+          text: `SCANNED/ENCRYPTED PDF - Minimal text extracted (${cleaned.length} chars). For accurate analysis, please re-upload your medical bill as clear JPG or PNG images of each page. This will enable full OCR and detailed fraud detection. Current limited extraction: ${cleaned}`,
+          isScanned: true
+        };
+      }
 
-      // Normal text-based PDF
-      console.log(`PDF text extracted: ${cleaned.length} chars`);
+      console.log(`PDF text successfully extracted: ${cleaned.length} chars`);
       return { text: cleaned.slice(0, 120_000) };
     }
 
@@ -518,19 +510,41 @@ Return your analysis in this EXACT JSON structure:
   }
 
   const data = await response.json();
-  console.log('AI response received');
+  console.log('AI response received, raw data:', JSON.stringify(data).slice(0, 500));
   
   // Extract structured data from tool call
   const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
+  console.log('Tool call present:', !!toolCall, 'Function args:', toolCall?.function?.arguments?.slice(0, 200));
+  
   if (toolCall?.function?.arguments) {
     const analysis = JSON.parse(toolCall.function.arguments);
     console.log('Parsed analysis:', {
-      high_priority: analysis.high_priority_issues?.length,
-      potential: analysis.potential_issues?.length
+      high_priority: analysis.high_priority_issues?.length || 0,
+      potential: analysis.potential_issues?.length || 0,
+      data_sources: analysis.data_sources?.length || 0,
+      tags: analysis.tags?.length || 0
     });
+    
+    // If extraction failed and we got no issues, add a note
+    if (extractedContent.isScanned && 
+        (!analysis.high_priority_issues?.length) && 
+        (!analysis.potential_issues?.length)) {
+      console.log('SCANNED PDF with no findings - adding extraction failure note');
+      return {
+        ...analysis,
+        high_priority_issues: [],
+        potential_issues: [],
+        data_sources: ['Limited extraction from scanned PDF'],
+        tags: ['scanned_pdf', 'limited_analysis', 're_upload_recommended'],
+        extraction_note: 'This PDF appears to be scanned. For complete analysis, please re-upload as JPG/PNG images.'
+      };
+    }
+    
     return analysis;
   }
 
+  // Fallback if no tool call
+  console.error('No tool call in AI response, full response:', JSON.stringify(data));
   throw new Error('No structured analysis returned from AI');
 }
 
