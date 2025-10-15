@@ -44,18 +44,22 @@ serve(async (req) => {
     const fileName = `${sessionId}/${file.name}`;
     const fileBuffer = await file.arrayBuffer();
     
-    // ✅ DETERMINISTIC: Calculate PDF hash for caching
+    // ✅ DETERMINISTIC: Calculate PDF hash for caching (dedupe only)
     const pdfHash = await calculateHash(fileBuffer);
     console.log('PDF Hash:', pdfHash.slice(0, 16) + '...');
     
-    // 🔧 FIX 1: Check for cache bypass (header, form field, or query param)
+    // ✅ VERSIONED CACHE KEY: Combine file + versions
+    const cacheKey = await sha256Versioned(fileBuffer);
+    console.log('Cache Key:', cacheKey.slice(0, 16) + '...');
+    
+    // 🔧 Check for cache bypass (header, form field, or query param)
     const bypassHeader = req.headers.get('x-bypass-cache') === 'true';
     const url = new URL(req.url);
     const queryFresh = url.searchParams.get('fresh') === '1' || url.searchParams.get('fresh') === 'true';
     const formFresh = (formData.get('fresh') as string) === 'true';
     
-    // 🔧 TEMPORARY: Force bypass during testing to ensure new logic runs
-    const forceBypass = true; // TODO: Set to false after testing complete
+    // ✅ Caching is now ENABLED
+    const forceBypass = false;
     
     const bypassCache = forceBypass || !!(bypassHeader || queryFresh || formFresh);
     
@@ -69,40 +73,36 @@ serve(async (req) => {
       ts: new Date().toISOString(),
     }));
     
-    // ✅ CACHE CHECK: Look for existing analysis (unless bypassed)
+    // ✅ CACHE CHECK: Look for existing analysis by versioned cache_key (unless bypassed)
     if (!bypassCache) {
       const { data: cachedAnalysis } = await supabase
         .from('bill_analyses')
         .select('*')
-        .eq('pdf_hash', pdfHash)
+        .eq('cache_key', cacheKey)
         .maybeSingle();
       
       if (cachedAnalysis) {
-        // Validate cached data quality before returning
+        // ✅ Quality gate: validate cache before returning
+        const isValid = validateCacheQuality(cachedAnalysis);
+        
         const ar: any = cachedAnalysis.analysis_result || {};
-        const totalBill = Number(ar.total_bill_amount) || 0;
-        const est = Number(cachedAnalysis.estimated_savings) || 0;
-        const sampleIssue = (ar.high_priority_issues?.[0] || ar.potential_issues?.[0]) || {};
-        const hasOvercharge = typeof sampleIssue.overcharge_amount === 'number';
-        const invalid = (totalBill <= 0) || !hasOvercharge || (totalBill > 0 && est > totalBill * 0.9 + 1);
         
         // 🔍 HIGH-SIGNAL CACHE DECISION LOG
         console.log('[CACHE_DECISION]', JSON.stringify({
           willBypass: bypassCache,
           cacheHit: true,
           cachedAt: cachedAnalysis.created_at,
-          isValid: !invalid,
-          analysisVersion: '2.0.0',
-          modelVersion: 'gemini-2.5-flash',
-          totalBill,
-          estimatedSavings: est,
-          hasOverchargeField: hasOvercharge,
+          isValid,
+          analysisVersion: ar.analysis_version || 'missing',
+          promptVersion: ar.prompt_version || 'missing',
+          modelId: ar.model_id || 'missing',
+          schemaVersion: ar.schema_version || 'missing',
+          totalBill: Number(ar.total_bill_amount) || 0,
+          estimatedSavings: Number(cachedAnalysis.estimated_savings) || 0,
         }));
         
-        if (invalid) {
-          console.warn('[CACHE] Invalid cached analysis detected → forcing fresh run', {
-            hasOvercharge, totalBill, est
-          });
+        if (!isValid) {
+          console.warn('[CACHE] Quality gate failed → forcing fresh analysis');
         } else {
           console.log('[CACHE HIT] Returning cached analysis from', cachedAnalysis.created_at);
           return new Response(
@@ -115,11 +115,15 @@ serve(async (req) => {
                 potential_issues_count: cachedAnalysis.moderate_issues || 0,
                 estimated_savings_if_corrected: cachedAnalysis.estimated_savings || 0,
                 data_sources_used: ar?.data_sources || ['Cached Analysis'],
-                tags: ar?.tags || ['cached']
+                tags: [...(ar?.tags || []), 'cached'],
+                analysis_version: ar.analysis_version,
+                schema_version: ar.schema_version
               },
               status: 'ready',
               message: 'Analysis complete (from cache)',
-              cached: true
+              cached: true,
+              analysis_version: ar.analysis_version,
+              schema_version: ar.schema_version
             }),
             { 
               status: 200, 
@@ -127,6 +131,8 @@ serve(async (req) => {
             }
           );
         }
+      } else {
+        console.log('[CACHE MISS] No cached analysis found for this version');
       }
     }
     
@@ -225,6 +231,7 @@ serve(async (req) => {
         file_type: file.type,
         file_url: publicUrl,
         pdf_hash: pdfHash,
+        cache_key: cacheKey,
         extracted_text: extractedContent.text,
         status: 'completed',
         analysis_result: analysisResult,
@@ -255,10 +262,15 @@ serve(async (req) => {
           potential_issues_count: analysisResult.potential_issues?.length || 0,
           estimated_savings_if_corrected: calculateSavings(analysisResult),
           data_sources_used: analysisResult.data_sources || ['Lovable AI Analysis'],
-          tags: analysisResult.tags || []
+          tags: analysisResult.tags || [],
+          analysis_version: analysisResult.analysis_version,
+          schema_version: analysisResult.schema_version
         },
         status: 'ready',
-        message: 'Analysis complete'
+        message: 'Analysis complete',
+        cached: false,
+        analysis_version: analysisResult.analysis_version,
+        schema_version: analysisResult.schema_version
       }),
       { 
         status: 200, 
@@ -804,6 +816,53 @@ const SCHEMA_VERSION = "ai-output-v3";
 
 // 🔧 Cache TTL in milliseconds (7 days)
 const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+// ✅ Generate versioned cache key
+async function sha256Versioned(fileBuffer: ArrayBuffer): Promise<string> {
+  const encoder = new TextEncoder();
+  const versionString = ANALYSIS_VERSION + PROMPT_VERSION + MODEL_ID + SCHEMA_VERSION;
+  const versionBytes = encoder.encode(versionString);
+  
+  // Combine file bytes + version string
+  const combined = new Uint8Array(fileBuffer.byteLength + versionBytes.byteLength);
+  combined.set(new Uint8Array(fileBuffer), 0);
+  combined.set(versionBytes, fileBuffer.byteLength);
+  
+  const hashBuffer = await crypto.subtle.digest('SHA-256', combined);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// ✅ Validate cache quality before returning
+function validateCacheQuality(cachedAnalysis: any): boolean {
+  const ar: any = cachedAnalysis.analysis_result || {};
+  
+  // Check 1: Versions must match current
+  if (ar.analysis_version !== ANALYSIS_VERSION) return false;
+  if (ar.schema_version !== SCHEMA_VERSION) return false;
+  
+  // Check 2: TTL must be valid
+  const createdAt = new Date(cachedAnalysis.created_at).getTime();
+  if (Date.now() - createdAt > CACHE_TTL_MS) return false;
+  
+  // Check 3: Basic sanity checks
+  const totalBill = Number(ar.total_bill_amount) || 0;
+  const savings = Number(ar.total_potential_savings) || 0;
+  if (totalBill <= 0) return false;
+  if (savings > totalBill) return false;
+  
+  // Check 4: All issues must have numeric overcharge_amount
+  const allIssues = [
+    ...(ar.high_priority_issues || []),
+    ...(ar.potential_issues || [])
+  ];
+  for (const issue of allIssues) {
+    if (typeof issue.overcharge_amount !== 'number') return false;
+    if (!Number.isFinite(issue.overcharge_amount)) return false;
+  }
+  
+  return true;
+}
 
 // 🔧 NEW: Numeric hygiene helper
 function isNum(x: any): boolean {
