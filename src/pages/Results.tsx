@@ -81,7 +81,13 @@ const Results = () => {
   const hospitalName = a.hospital_name ?? 'Provider';
   const analysisDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
-  // Build charge categories for charge map
+  // ✅ ALL DATA FROM BACKEND - No frontend calculations
+  const itemizationStatus = a.itemization_status || 'unknown';
+  const totalIssuesCount = a.total_issues_count || 0;
+  const estimatedSavings = a.estimated_total_savings || 0;
+  const whatIfItems = a.what_if_calculator_items || [];
+  
+  // Build charge categories for charge map (from backend data)
   const chargeCategories = (a.charges || []).map((charge: any) => ({
     category: charge.description || 'Unknown',
     amount: num(charge.charge_amount || 0),
@@ -93,7 +99,7 @@ const Results = () => {
     ]
   })).filter((c: any) => c.amount > 0);
 
-  // Extract duplicates
+  // Extract duplicates from backend analysis
   const duplicateFindings = fullAnalysis.duplicate_findings?.flags || [];
   const duplicates = duplicateFindings
     .filter((flag: any) => flag.category === 'P1' || flag.category === 'P2')
@@ -105,57 +111,16 @@ const Results = () => {
       disputeText: flag.dispute_text || 'Please provide details.'
     }));
 
-  // NSA status
+  // NSA status from backend
   const nsaReview = fullAnalysis.duplicate_findings?.nsa_review || {};
   const nsaApplies = nsaReview.applies === 'yes' ? 'protected' : nsaReview.applies === 'no' ? 'not-protected' : 'unknown';
 
-  // Itemization status
-  const hasAllCodes = (a.charges || []).every((c: any) => c.cpt_code && c.cpt_code !== 'N/A');
-  const hasSomeCodes = (a.charges || []).some((c: any) => c.cpt_code && c.cpt_code !== 'N/A');
-  const itemizationStatus = hasAllCodes ? 'complete' : hasSomeCodes ? 'partial' : 'missing';
-
+  // Get issues from backend
   const hi = Array.isArray(a.high_priority_issues) ? a.high_priority_issues : [];
   const pi = Array.isArray(a.potential_issues) ? a.potential_issues : [];
-
-  // Calculate total duplicates amount
-  const totalDuplicatesAmount = duplicates.reduce((sum: number, dup: any) => sum + num(dup.amount || 0), 0);
   
-  // Calculate estimated savings including duplicates, NSA, and other issues
-  const issuesSavings = [...hi, ...pi].reduce((sum: number, issue: any) => sum + num(issue.overcharge_amount || 0), 0);
-  const estimatedSavings = issuesSavings + totalDuplicatesAmount;
-
   // Generate dispute pack
   const disputePack = useMemo(() => generateDisputePack(analysis), [analysis]);
-
-  // What-if calculator items - include reason/category for each issue
-  const whatIfItems = [
-    // Add duplicate items
-    ...duplicates.map((dup: any, idx: number) => ({
-      id: `duplicate-${idx}`,
-      description: dup.description,
-      amount: num(dup.amount || 0),
-      estimatedReduction: num(dup.amount || 0) * 0.8, // Higher reduction for duplicates
-      reason: 'Potential duplicate charge'
-    })),
-    // Add other issues
-    ...hi.map((issue: any, idx: number) => ({
-      id: `hi-${idx}`,
-      description: issue.line_description || issue.explanation_for_user || 'Unknown issue',
-      amount: num(issue.billed_amount || issue.charge_amount || 0),
-      estimatedReduction: num(issue.overcharge_amount || issue.billed_amount || 0) * 0.6,
-      reason: issue.category || issue.issue_type || 'Overcharge detected'
-    })),
-    ...pi.map((issue: any, idx: number) => ({
-      id: `pi-${idx}`,
-      description: issue.line_description || issue.explanation_for_user || 'Unknown issue',
-      amount: num(issue.billed_amount || issue.charge_amount || 0),
-      estimatedReduction: num(issue.overcharge_amount || issue.billed_amount || 0) * 0.6,
-      reason: issue.category || issue.issue_type || 'Potential overcharge'
-    }))
-  ].filter(item => item.amount > 0);
-  
-  // Total number of issues including duplicates
-  const totalIssuesCount = hi.length + pi.length + duplicates.length;
 
   const handleEmailReport = async () => {
     setIsGeneratingPDF(true);

@@ -178,6 +178,33 @@ serve(async (req) => {
     
     // Integrate duplicate findings into main analysis
     analysisResult.duplicate_findings = duplicateFindings;
+    
+    // Update computed fields with duplicate data
+    const duplicateCount = (duplicateFindings.flags || []).filter((f: any) => f.category === 'P1' || f.category === 'P2').length;
+    analysisResult.total_issues_count = (analysisResult.total_issues_count || 0) + duplicateCount;
+    
+    // Add duplicates to what_if_calculator_items
+    (duplicateFindings.flags || [])
+      .filter((f: any) => f.category === 'P1' || f.category === 'P2')
+      .forEach((flag: any, idx: number) => {
+        const amount = (flag.evidence?.prices || []).reduce((sum: number, p: number) => sum + p, 0);
+        analysisResult.what_if_calculator_items.push({
+          id: `duplicate-${idx}`,
+          description: flag.reason || 'Potential duplicate charge',
+          amount: amount,
+          estimated_reduction: Math.round(amount * 0.8 * 100) / 100,
+          reason: flag.dispute_text || 'Potential duplicate - same service billed multiple times'
+        });
+      });
+    
+    // Recalculate estimated_total_savings including duplicates
+    analysisResult.estimated_total_savings = calculateSavings(analysisResult);
+    
+    console.log('[INTEGRATION] Updated analysis with duplicates:', {
+      total_issues: analysisResult.total_issues_count,
+      what_if_items: analysisResult.what_if_calculator_items?.length,
+      estimated_savings: analysisResult.estimated_total_savings
+    });
 
     // Get user ID from auth header
     const authHeader = req.headers.get('Authorization');
@@ -810,6 +837,24 @@ Return your analysis in this EXACT JSON structure (ALL fields REQUIRED):
                 type: 'string',
                 description: 'Service date or date range'
               },
+              account_number: {
+                type: 'string',
+                description: 'Account or bill number if visible'
+              },
+              charges: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    description: { type: 'string' },
+                    cpt_code: { type: 'string', description: 'CPT/HCPCS code or "N/A" if missing' },
+                    charge_amount: { type: 'number' },
+                    overcharge_amount: { type: 'number', description: 'Estimated overcharge for this line' },
+                    units: { type: 'number' },
+                    revenue_code: { type: 'string' }
+                  }
+                }
+              },
               nsa_protected: {
                 type: 'boolean',
                 description: 'Whether bill is protected under No Surprises Act'
@@ -824,16 +869,20 @@ Return your analysis in this EXACT JSON structure (ALL fields REQUIRED):
                   type: 'object',
                   properties: {
                     type: { type: 'string' },
+                    category: { type: 'string' },
+                    issue_type: { type: 'string', enum: ['duplicate', 'overcharge', 'nsa_violation', 'unbundling', 'other'] },
                     cpt_code: { type: 'string' },
                     line_description: { type: 'string' },
                     billed_amount: { type: 'number' },
                     overcharge_amount: { type: 'number' },
+                    reason: { type: 'string', description: 'CRITICAL: Clear explanation of WHY this is an issue' },
                     explanation_for_user: { type: 'string' },
                     suggested_action: { type: 'string' },
+                    confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
                     confidence_score: { type: 'number' },
                     ranking: { type: 'string', description: 'Issue ranking like #1 most common (30-40% of bills)' }
                   },
-                  required: ['type', 'line_description', 'billed_amount', 'overcharge_amount', 'explanation_for_user', 'suggested_action', 'confidence_score']
+                  required: ['type', 'line_description', 'billed_amount', 'overcharge_amount', 'reason', 'explanation_for_user', 'suggested_action', 'confidence_score']
                 }
               },
               potential_issues: {
@@ -842,6 +891,8 @@ Return your analysis in this EXACT JSON structure (ALL fields REQUIRED):
                   type: 'object',
                   properties: {
                     type: { type: 'string' },
+                    category: { type: 'string' },
+                    issue_type: { type: 'string', enum: ['duplicate', 'overcharge', 'nsa_violation', 'unbundling', 'other'] },
                     cpt_code: { type: 'string' },
                     line_description: { type: 'string' },
                     billed_amount: { type: 'number' },
@@ -849,12 +900,14 @@ Return your analysis in this EXACT JSON structure (ALL fields REQUIRED):
                     reasonable_rate: { type: 'number' },
                     overcharge_amount: { type: 'number' },
                     markup_percentage: { type: 'number' },
+                    reason: { type: 'string', description: 'CRITICAL: Clear explanation of WHY this is potentially an issue' },
                     explanation_for_user: { type: 'string' },
                     suggested_action: { type: 'string' },
+                    confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
                     confidence_score: { type: 'number' },
                     ranking: { type: 'string' }
                   },
-                  required: ['type', 'line_description', 'billed_amount', 'overcharge_amount', 'explanation_for_user', 'suggested_action', 'confidence_score']
+                  required: ['type', 'line_description', 'billed_amount', 'overcharge_amount', 'reason', 'explanation_for_user', 'suggested_action', 'confidence_score']
                 }
               },
               total_potential_savings: { 
@@ -936,7 +989,11 @@ Return your analysis in this EXACT JSON structure (ALL fields REQUIRED):
       throw new Error(`Invalid analysis: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
     
-    // Step 4: Add version metadata
+    // Step 4: Compute ALL frontend-needed fields
+    analysis = computeFrontendFields(analysis);
+    console.log('[COMPUTE] ✅ All frontend fields computed');
+    
+    // Step 5: Add version metadata
     analysis.analysis_version = ANALYSIS_VERSION;
     analysis.prompt_version = PROMPT_VERSION;
     analysis.model_id = MODEL_ID;
@@ -1203,6 +1260,60 @@ function sanitizeIssue(issue: any): any {
     ...issue,
     billed_amount: billed,
   };
+}
+
+
+// 🔧 Compute all frontend-needed fields
+function computeFrontendFields(analysis: any): any {
+  console.log('[COMPUTE] Computing frontend fields...');
+  
+  // 1. Compute itemization_status
+  const charges = analysis.charges || [];
+  const hasAllCodes = charges.every((c: any) => c.cpt_code && c.cpt_code !== 'N/A');
+  const hasSomeCodes = charges.some((c: any) => c.cpt_code && c.cpt_code !== 'N/A');
+  analysis.itemization_status = hasAllCodes ? 'complete' : hasSomeCodes ? 'partial' : 'missing';
+  
+  // 2. Compute total_issues_count (will be updated after duplicate detection)
+  const highPriorityCount = (analysis.high_priority_issues || []).length;
+  const potentialCount = (analysis.potential_issues || []).length;
+  analysis.total_issues_count = highPriorityCount + potentialCount;
+  
+  // 3. Build what_if_calculator_items with reasons
+  const whatIfItems: any[] = [];
+  
+  // Add high priority issues
+  (analysis.high_priority_issues || []).forEach((issue: any, idx: number) => {
+    whatIfItems.push({
+      id: `high-${idx}`,
+      description: issue.line_description || issue.explanation_for_user || 'High priority issue',
+      amount: issue.billed_amount || 0,
+      estimated_reduction: Math.round((issue.overcharge_amount || 0) * 0.8 * 100) / 100,
+      reason: issue.reason || issue.explanation_for_user || 'Overcharge detected'
+    });
+  });
+  
+  // Add potential issues
+  (analysis.potential_issues || []).forEach((issue: any, idx: number) => {
+    whatIfItems.push({
+      id: `potential-${idx}`,
+      description: issue.line_description || issue.explanation_for_user || 'Potential issue',
+      amount: issue.billed_amount || 0,
+      estimated_reduction: Math.round((issue.overcharge_amount || 0) * 0.6 * 100) / 100,
+      reason: issue.reason || issue.explanation_for_user || 'Potential overcharge'
+    });
+  });
+  
+  analysis.what_if_calculator_items = whatIfItems;
+  
+  // 4. estimated_total_savings will be computed by calculateSavings after duplicate detection
+  
+  console.log('[COMPUTE] Frontend fields:', {
+    itemization_status: analysis.itemization_status,
+    total_issues_count: analysis.total_issues_count,
+    what_if_items: whatIfItems.length
+  });
+  
+  return analysis;
 }
 
 function calculateSavings(analysis: any): number {

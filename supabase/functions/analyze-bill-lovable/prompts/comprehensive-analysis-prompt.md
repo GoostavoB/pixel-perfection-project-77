@@ -98,7 +98,127 @@ Return both:
 
 ### A) Human summary ≤160 words.
 
-### B) JSON named DuplicateFindings:
+### B) JSON named AnalysisResult with ALL computed fields:
+
+```json
+{
+  "version": "2.0",
+  "analysis_version": "2.0.1",
+  "prompt_version": "pv-2025-10-15-3",
+  "model_id": "gemini-2.5-flash",
+  "schema_version": "ai-output-v4",
+  
+  "total_bill_amount": number,
+  "hospital_name": "string",
+  "date_of_service": "YYYY-MM-DD or range",
+  "account_number": "string|null",
+  
+  "itemization_status": "complete|partial|missing",
+  "total_issues_count": number,
+  "estimated_total_savings": number,
+  
+  "charges": [
+    {
+      "description": "string",
+      "cpt_code": "string|N/A",
+      "charge_amount": number,
+      "overcharge_amount": number,
+      "units": number,
+      "revenue_code": "string|null"
+    }
+  ],
+  
+  "high_priority_issues": [
+    {
+      "line_description": "string",
+      "explanation_for_user": "string",
+      "category": "string",
+      "issue_type": "duplicate|overcharge|nsa_violation|other",
+      "billed_amount": number,
+      "overcharge_amount": number,
+      "reason": "string - WHY this is an issue",
+      "confidence": "high|medium|low",
+      "recommended_action": "string"
+    }
+  ],
+  
+  "potential_issues": [
+    {
+      "line_description": "string",
+      "explanation_for_user": "string",
+      "category": "string", 
+      "issue_type": "duplicate|overcharge|nsa_violation|other",
+      "billed_amount": number,
+      "overcharge_amount": number,
+      "reason": "string - WHY this is potentially an issue",
+      "confidence": "high|medium|low",
+      "recommended_action": "string"
+    }
+  ],
+  
+  "what_if_calculator_items": [
+    {
+      "description": "string",
+      "amount": number,
+      "estimated_reduction": number,
+      "reason": "string - clear explanation of WHY (e.g., 'Potential duplicate with Emergency Room charge', 'Violates No Surprises Act clause X', 'Highly overcharged - 400% above Medicare rate')"
+    }
+  ],
+  
+  "tags": ["string"],
+  "data_sources": ["string"],
+  "missing_data_requests": ["string"]
+}
+```
+
+## Critical Computation Rules
+
+### itemization_status Calculation:
+- **"complete"**: ALL charges have valid CPT/HCPCS codes
+- **"partial"**: SOME charges have codes, others show "N/A" or generic descriptions
+- **"missing"**: NO charges have codes, only aggregate categories
+
+### total_issues_count Calculation:
+Sum of:
+- high_priority_issues.length
+- potential_issues.length  
+- duplicate_findings.flags where category is P1 or P2
+
+### estimated_total_savings Calculation:
+Sum of:
+- All high_priority_issues overcharge_amount
+- All potential_issues overcharge_amount
+- All duplicate_findings suspect_amount (from P1 and P2 flags)
+- NSA savings (if applies=yes, estimate 30% of total bill)
+- Pricing overcharges from pricing_review
+
+### what_if_calculator_items Generation:
+For EACH issue (high_priority + potential + duplicates), create an item with:
+- **description**: User-friendly name of the charge
+- **amount**: The billed amount
+- **estimated_reduction**: Conservative estimate of how much could be reduced (60-80% of overcharge_amount)
+- **reason**: CLEAR explanation of WHY - examples:
+  - "Potential duplicate charge - same service billed twice on same date"
+  - "Violates No Surprises Act § 149.410 - out-of-network provider at in-network facility"
+  - "Overcharged by 400% compared to Medicare benchmark rate"
+  - "Unbundled - component already included in panel test"
+  - "Upcoded - Level 5 ER visit for non-critical condition"
+
+### Reason Field Requirements:
+Every issue MUST include a specific, actionable reason that explains:
+1. WHAT the problem is
+2. WHY it's problematic
+3. Reference to relevant rule/law when applicable (NSA § 149.410, CMS bundling rules, etc.)
+
+## Quality Checks Before Return
+
+1. Verify itemization_status matches actual code availability
+2. Verify total_issues_count = high_priority.length + potential.length + duplicate P1/P2 count
+3. Verify estimated_total_savings includes ALL sources
+4. Verify every what_if_calculator_item has a clear, specific reason
+5. No vague language like "common billing error" without specifics
+6. If data is missing, state exactly what's needed in missing_data_requests
+
 
 ```json
 {
