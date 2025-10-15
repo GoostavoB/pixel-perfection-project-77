@@ -48,11 +48,13 @@ serve(async (req) => {
     const pdfHash = await calculateHash(fileBuffer);
     console.log('PDF Hash:', pdfHash.slice(0, 16) + '...');
     
-    // 🔧 FIX 1: Check for cache bypass header
-    const bypassCache = req.headers.get('x-bypass-cache') === 'true';
-    if (bypassCache) {
-      console.log('[CACHE BYPASS] x-bypass-cache header detected - forcing fresh analysis');
-    }
+    // 🔧 FIX 1: Check for cache bypass (header, form field, or query param)
+    const bypassHeader = req.headers.get('x-bypass-cache') === 'true';
+    const url = new URL(req.url);
+    const queryFresh = url.searchParams.get('fresh') === '1' || url.searchParams.get('fresh') === 'true';
+    const formFresh = (formData.get('fresh') as string) === 'true';
+    const bypassCache = !!(bypassHeader || queryFresh || formFresh);
+    console.log('[CACHE] Bypass header:', bypassHeader, '| query:', queryFresh, '| form:', formFresh, '| => willBypass:', bypassCache);
     
     // ✅ CACHE CHECK: Look for existing analysis (unless bypassed)
     if (!bypassCache) {
@@ -63,28 +65,42 @@ serve(async (req) => {
         .maybeSingle();
       
       if (cachedAnalysis) {
-        console.log('[CACHE HIT] Returning cached analysis from', cachedAnalysis.created_at);
-        return new Response(
-          JSON.stringify({
-            success: true,
-            session_id: cachedAnalysis.session_id,
-            job_id: cachedAnalysis.id,
-            ui_summary: {
-              high_priority_count: cachedAnalysis.critical_issues || 0,
-              potential_issues_count: cachedAnalysis.moderate_issues || 0,
-              estimated_savings_if_corrected: cachedAnalysis.estimated_savings || 0,
-              data_sources_used: cachedAnalysis.analysis_result?.data_sources || ['Cached Analysis'],
-              tags: cachedAnalysis.analysis_result?.tags || ['cached']
-            },
-            status: 'ready',
-            message: 'Analysis complete (from cache)',
-            cached: true
-          }),
-          { 
-            status: 200, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-          }
-        );
+        // Validate cached data quality before returning
+        const ar: any = cachedAnalysis.analysis_result || {};
+        const totalBill = Number(ar.total_bill_amount) || 0;
+        const est = Number(cachedAnalysis.estimated_savings) || 0;
+        const sampleIssue = (ar.high_priority_issues?.[0] || ar.potential_issues?.[0]) || {};
+        const hasOvercharge = typeof sampleIssue.overcharge_amount === 'number';
+        const invalid = (totalBill <= 0) || !hasOvercharge || (totalBill > 0 && est > totalBill * 0.9 + 1);
+        
+        if (invalid) {
+          console.warn('[CACHE] Invalid cached analysis detected → forcing fresh run', {
+            hasOvercharge, totalBill, est
+          });
+        } else {
+          console.log('[CACHE HIT] Returning cached analysis from', cachedAnalysis.created_at);
+          return new Response(
+            JSON.stringify({
+              success: true,
+              session_id: cachedAnalysis.session_id,
+              job_id: cachedAnalysis.id,
+              ui_summary: {
+                high_priority_count: cachedAnalysis.critical_issues || 0,
+                potential_issues_count: cachedAnalysis.moderate_issues || 0,
+                estimated_savings_if_corrected: cachedAnalysis.estimated_savings || 0,
+                data_sources_used: ar?.data_sources || ['Cached Analysis'],
+                tags: ar?.tags || ['cached']
+              },
+              status: 'ready',
+              message: 'Analysis complete (from cache)',
+              cached: true
+            }),
+            { 
+              status: 200, 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+            }
+          );
+        }
       }
     }
     
@@ -142,6 +158,26 @@ serve(async (req) => {
     console.log('[FINAL] Reduction Factor:', analysisResult.reduction_factor || 'none');
     console.log('[FINAL] Tags:', analysisResult.tags || []);
     
+    // Final server-side safety clamp before storage
+    const billTotalForClamp = Number(analysisResult.total_bill_amount) || 0;
+    if (billTotalForClamp > 0 && finalSavings > billTotalForClamp * 0.9) {
+      const factor = (billTotalForClamp * 0.9) / finalSavings;
+      const scaleIssues = (arr: any[] = []) => arr.map((it: any) => ({
+        ...it,
+        overcharge_amount: typeof it.overcharge_amount === 'number'
+          ? Math.round(it.overcharge_amount * factor * 100) / 100
+          : it.overcharge_amount,
+        validation_adjusted: true,
+      }));
+      analysisResult.high_priority_issues = scaleIssues(analysisResult.high_priority_issues);
+      analysisResult.potential_issues = scaleIssues(analysisResult.potential_issues);
+      analysisResult.total_potential_savings = Math.round(billTotalForClamp * 0.9 * 100) / 100;
+      (analysisResult.tags ||= []).push('validation_adjusted', 'server_clamped');
+      analysisResult.validation_applied = true;
+      analysisResult.reduction_factor = (billTotalForClamp * 0.9) / finalSavings;
+      console.warn('[FINAL] Safety clamp applied before storage.');
+    }
+
     // Store in database
     const { data: dbData, error: dbError } = await supabase
       .from('bill_analyses')

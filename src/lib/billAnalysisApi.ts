@@ -59,6 +59,9 @@ const CONFIG = {
 export async function uploadMedicalBill(file: File, options?: { bypassCache?: boolean }): Promise<UploadResponse> {
   const formData = new FormData();
   formData.append('file', file);
+  if (options?.bypassCache) {
+    formData.append('fresh', 'true'); // backend also checks this flag
+  }
 
   const { data: { session } } = await supabase.auth.getSession();
   const authToken = session?.access_token || CONFIG.SUPABASE_ANON_KEY;
