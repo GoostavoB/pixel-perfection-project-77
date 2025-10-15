@@ -85,21 +85,21 @@ export const BillScore = ({
 
         {/* Mensagem empática */}
         {estimatedSavings > 0 && (
-          <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg p-4">
-            <p className="text-sm text-green-800 dark:text-green-200 mb-3">
-              <span className="font-semibold">Good news!</span> We found questionable charges.
-            </p>
-            <div className="text-center mb-3">
-              <div className="text-5xl font-bold text-green-600 dark:text-green-400">
+          <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg p-6">
+            <div className="text-center space-y-4">
+              <p className="text-base font-semibold text-green-800 dark:text-green-200">
+                We identified potential billing discrepancies
+              </p>
+              <div className="text-6xl font-bold text-green-600 dark:text-green-400">
                 ${estimatedSavings.toFixed(2)}
               </div>
-              <p className="text-xs text-green-700 dark:text-green-300 mt-1 font-medium">
-                Potential Savings if Confirmed
+              <p className="text-sm text-green-700 dark:text-green-300 font-medium">
+                Estimated Potential Savings
+              </p>
+              <p className="text-sm text-green-800 dark:text-green-200 max-w-md mx-auto">
+                Our analysis suggests these charges may warrant further review. We'll guide you through the resolution process step by step.
               </p>
             </div>
-            <p className="text-sm text-green-800 dark:text-green-200 text-center">
-              We'll help you resolve this step by step.
-            </p>
           </div>
         )}
       </div>
