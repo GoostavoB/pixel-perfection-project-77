@@ -9,6 +9,10 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { pdfGenerator } from '@/utils/pdfGenerator';
+import { BillScore } from "@/components/BillScore";
+import { MedicalGlossary } from "@/components/MedicalGlossary";
+import { KnowYourRights } from "@/components/KnowYourRights";
+import { ConfidenceBadge } from "@/components/ConfidenceBadge";
 
 const Results = () => {
   const location = useLocation();
@@ -49,6 +53,18 @@ const Results = () => {
   const dataSources = uiSummary.data_sources_used || fullAnalysis.data_sources || [];
   const tags = uiSummary.tags || fullAnalysis.tags || [];
   const emailSent = analysis.email_sent || false;
+
+  // Calculate Bill Score (0-100)
+  const totalIssues = criticalIssues + moderateIssues;
+  const totalCharged = analysis.total_charged || 1000; // fallback
+  const savingsPercentage = (estimatedSavings / totalCharged) * 100;
+  
+  // Score calculation: Start at 100, deduct points for issues
+  let billScore = 100;
+  billScore -= criticalIssues * 15; // -15 points per critical issue
+  billScore -= moderateIssues * 8;  // -8 points per moderate issue
+  billScore -= Math.min(savingsPercentage * 0.5, 20); // Up to -20 for high savings %
+  billScore = Math.max(0, Math.min(100, Math.round(billScore))); // Clamp 0-100
 
   const handleDownloadPDF = async () => {
     if (!analysis) {
@@ -102,25 +118,39 @@ const Results = () => {
           <div className="flex items-start justify-between mb-4">
             <div>
               <h1 className="text-3xl font-bold text-foreground mb-2">
-                Medical Bill Analysis Report
+                Análise da Sua Conta Médica
               </h1>
               <div className="flex items-center gap-4 text-sm text-muted-foreground">
                 <div className="flex items-center gap-2">
                   <Calendar className="w-4 h-4" />
-                  <span>Analysis Date: {analysisDate}</span>
+                  <span>Data da Análise: {analysisDate}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <FileBarChart className="w-4 h-4" />
-                  <span>Report ID: #HBC-2024-1847</span>
+                  <span>Sessão: {sessionId?.substring(0, 12)}</span>
                 </div>
               </div>
             </div>
-            <Badge className="bg-success/10 text-success border-success/20 px-4 py-2 text-sm font-semibold">
-              <CheckCircle className="w-4 h-4 mr-2" />
-              Analysis Complete
-            </Badge>
+            <div className="flex items-center gap-2">
+              <MedicalGlossary />
+              <Badge className="bg-success/10 text-success border-success/20 px-4 py-2 text-sm font-semibold">
+                <CheckCircle className="w-4 h-4 mr-2" />
+                Análise Completa
+              </Badge>
+            </div>
           </div>
           <Separator className="my-4" />
+        </div>
+
+        {/* Bill Score Card */}
+        <div className="mb-8">
+          <BillScore 
+            score={billScore}
+            totalCharged={totalCharged}
+            estimatedSavings={estimatedSavings}
+            criticalIssues={criticalIssues}
+            moderateIssues={moderateIssues}
+          />
         </div>
 
         {/* Executive Summary */}
@@ -131,79 +161,55 @@ const Results = () => {
                 <CheckCircle className="w-5 h-5 text-success" />
               </div>
               <div>
-                <h2 className="text-lg font-bold text-foreground mb-1">Report Delivered Successfully</h2>
+                <h2 className="text-lg font-bold text-foreground mb-1">Relatório Enviado com Sucesso</h2>
                 <p className="text-sm text-muted-foreground">
-                  Your comprehensive PDF analysis report has been sent to <span className="font-semibold text-success">your registered email address</span>. 
-                  Please check your inbox for the complete report with detailed CPT code explanations, pricing breakdowns, and actionable recommendations.
+                  Seu relatório de análise completo em PDF foi enviado para <span className="font-semibold text-success">seu email cadastrado</span>. 
+                  Por favor, verifique sua caixa de entrada para o relatório completo com explicações detalhadas dos códigos CPT, detalhamento de preços e recomendações práticas.
                 </p>
               </div>
             </div>
           </Card>
         )}
 
-        {/* Key Metrics Grid */}
-        <div className="mb-6">
-          <h2 className="text-xl font-bold text-foreground mb-4">Summary of Findings</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* High Priority Issues */}
-            <Card className="p-5 border-l-4 border-l-destructive hover:shadow-card-hover transition-shadow">
-              <div className="flex items-center justify-between mb-3">
-                <div className="p-2 bg-destructive/10 rounded">
-                  <AlertCircle className="w-5 h-5 text-destructive" />
-                </div>
-                <span className="text-3xl font-bold text-destructive">{criticalIssues}</span>
-              </div>
-              <h3 className="text-sm font-semibold text-foreground mb-1">Critical Issues</h3>
-              <p className="text-xs text-muted-foreground">Require immediate attention</p>
-            </Card>
-
-            {/* Potential Issues */}
-            <Card className="p-5 border-l-4 border-l-warning hover:shadow-card-hover transition-shadow">
-              <div className="flex items-center justify-between mb-3">
-                <div className="p-2 bg-warning/10 rounded">
-                  <AlertTriangle className="w-5 h-5 text-warning" />
-                </div>
-                <span className="text-3xl font-bold text-warning">{moderateIssues}</span>
-              </div>
-              <h3 className="text-sm font-semibold text-foreground mb-1">Moderate Concerns</h3>
-              <p className="text-xs text-muted-foreground">For further review</p>
-            </Card>
-
-            {/* Savings Potential */}
-            <Card className="p-5 border-l-4 border-l-success hover:shadow-card-hover transition-shadow">
-              <div className="flex items-center justify-between mb-3">
-                <div className="p-2 bg-success/10 rounded">
-                  <TrendingDown className="w-5 h-5 text-success" />
-                </div>
-                <span className="text-3xl font-bold text-success">${estimatedSavings.toLocaleString()}</span>
-              </div>
-              <h3 className="text-sm font-semibold text-foreground mb-1">Est. Savings</h3>
-              <p className="text-xs text-muted-foreground">Potential cost reduction</p>
-            </Card>
-
-            {/* Data Sources */}
-            <Card className="p-5 border-l-4 border-l-secondary hover:shadow-card-hover transition-shadow">
-              <div className="flex items-center justify-between mb-3">
-                <div className="p-2 bg-secondary/10 rounded">
-                  <Database className="w-5 h-5 text-secondary" />
-                </div>
-                <span className="text-3xl font-bold text-secondary">{dataSources.length}</span>
-              </div>
-              <h3 className="text-sm font-semibold text-foreground mb-1">Data Sources</h3>
-              <p className="text-xs text-muted-foreground">{dataSources.join(', ') || 'Referenced databases'}</p>
-            </Card>
-          </div>
-        </div>
-
-        {/* Tags/Issues Summary */}
-        {tags.length > 0 && (
+        {/* Detailed Issues with Confidence Badges */}
+        {(analysis.issues || []).length > 0 && (
           <Card className="mb-6 p-6 shadow-card">
-            <h2 className="text-xl font-bold text-foreground mb-4">Identified Issues</h2>
-            <div className="flex flex-wrap gap-2">
-              {tags.map((tag: string, index: number) => (
-                <Badge key={index} variant="outline" className="text-sm px-3 py-1">
-                  {tag}
-                </Badge>
+            <h2 className="text-xl font-bold text-foreground mb-4">Problemas Identificados</h2>
+            <div className="space-y-4">
+              {analysis.issues.map((issue: any, index: number) => (
+                <div key={index} className="border-l-4 border-l-destructive pl-4 py-3 bg-muted/20 rounded-r">
+                  <div className="flex items-start justify-between gap-4 mb-2">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="font-semibold text-sm">
+                          {issue.category || "Problema de Cobrança"}
+                        </h3>
+                        {issue.confidence_score && issue.accuracy_label && (
+                          <ConfidenceBadge 
+                            score={issue.confidence_score} 
+                            label={issue.accuracy_label}
+                          />
+                        )}
+                      </div>
+                      <p className="text-sm text-muted-foreground mb-2">
+                        {issue.details || issue.finding}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-semibold text-destructive">{issue.impact}</p>
+                      {issue.cpt_code && issue.cpt_code !== "N/A" && (
+                        <p className="text-xs text-muted-foreground">CPT: {issue.cpt_code}</p>
+                      )}
+                    </div>
+                  </div>
+                  {issue.suggested_action && (
+                    <div className="mt-2 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded p-2">
+                      <p className="text-xs text-blue-800 dark:text-blue-200">
+                        <span className="font-semibold">Ação Recomendada:</span> {issue.suggested_action}
+                      </p>
+                    </div>
+                  )}
+                </div>
               ))}
             </div>
           </Card>
@@ -214,43 +220,48 @@ const Results = () => {
             <div className="flex items-start gap-3">
               <Database className="w-5 h-5 text-secondary mt-0.5" />
               <div>
-                <h3 className="text-sm font-semibold text-foreground mb-1">Facility Information</h3>
+                <h3 className="text-sm font-semibold text-foreground mb-1">Informações da Instituição</h3>
                 <p className="text-sm text-muted-foreground">{hospitalName}</p>
               </div>
             </div>
           </Card>
         )}
 
+        {/* Know Your Rights Section */}
+        <div className="mb-6">
+          <KnowYourRights />
+        </div>
+
         {/* Included in Report */}
         <Card className="mb-6 p-6 border-secondary/20 shadow-card">
-          <h2 className="text-xl font-bold text-foreground mb-4">Your Detailed Report Includes</h2>
+          <h2 className="text-xl font-bold text-foreground mb-4">Seu Relatório Detalhado Inclui</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="flex gap-3">
               <div className="w-1.5 bg-secondary rounded-full flex-shrink-0" />
               <div>
-                <h3 className="text-sm font-semibold text-foreground mb-1">Complete Itemized Analysis</h3>
-                <p className="text-sm text-muted-foreground">Line-by-line breakdown of every charge with justification</p>
+                <h3 className="text-sm font-semibold text-foreground mb-1">Análise Itemizada Completa</h3>
+                <p className="text-sm text-muted-foreground">Detalhamento linha por linha de cada cobrança com justificativa</p>
               </div>
             </div>
             <div className="flex gap-3">
               <div className="w-1.5 bg-secondary rounded-full flex-shrink-0" />
               <div>
-                <h3 className="text-sm font-semibold text-foreground mb-1">Medicare Benchmark Comparison</h3>
-                <p className="text-sm text-muted-foreground">How your charges compare to standard allowable rates</p>
+                <h3 className="text-sm font-semibold text-foreground mb-1">Comparação com Medicare</h3>
+                <p className="text-sm text-muted-foreground">Como suas cobranças se comparam às taxas padrão permitidas</p>
               </div>
             </div>
             <div className="flex gap-3">
               <div className="w-1.5 bg-secondary rounded-full flex-shrink-0" />
               <div>
-                <h3 className="text-sm font-semibold text-foreground mb-1">Specific Action Items</h3>
-                <p className="text-sm text-muted-foreground">Prioritized recommendations for each finding</p>
+                <h3 className="text-sm font-semibold text-foreground mb-1">Itens de Ação Específicos</h3>
+                <p className="text-sm text-muted-foreground">Recomendações priorizadas para cada descoberta</p>
               </div>
             </div>
             <div className="flex gap-3">
               <div className="w-1.5 bg-secondary rounded-full flex-shrink-0" />
               <div>
-                <h3 className="text-sm font-semibold text-foreground mb-1">Dispute Letter Templates</h3>
-                <p className="text-sm text-muted-foreground">Pre-filled forms ready for submission</p>
+                <h3 className="text-sm font-semibold text-foreground mb-1">Modelos de Carta de Contestação</h3>
+                <p className="text-sm text-muted-foreground">Formulários pré-preenchidos prontos para envio</p>
               </div>
             </div>
           </div>
@@ -266,10 +277,10 @@ const Results = () => {
               </div>
             </div>
             <h3 className="text-lg font-bold text-foreground mb-2">
-              Download Full Report
+              Baixar Relatório Completo
             </h3>
             <p className="text-sm text-muted-foreground mb-4">
-              Get your complete comprehensive analysis report with detailed CPT code explanations, pricing breakdowns, and actionable recommendations
+              Obtenha seu relatório de análise abrangente com explicações detalhadas de códigos CPT, detalhamento de preços e recomendações práticas
             </p>
             <Button 
               size="lg"
@@ -281,12 +292,12 @@ const Results = () => {
               {isGeneratingPDF ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Generating PDF...
+                  Gerando PDF...
                 </>
               ) : (
                 <>
                   <FileBarChart className="mr-2 w-5 h-5" />
-                  Download Detailed Report
+                  Baixar Relatório Detalhado
                 </>
               )}
             </Button>
@@ -300,10 +311,10 @@ const Results = () => {
               </div>
             </div>
             <h3 className="text-lg font-bold text-foreground mb-2">
-              Generate Dispute Letter
+              Gerar Carta de Contestação
             </h3>
             <p className="text-sm text-muted-foreground mb-4">
-              Create a professional dispute letter based on your analysis findings
+              Crie uma carta profissional de contestação baseada nos resultados da sua análise
             </p>
             <Link 
               to="/generate-letter"
@@ -329,7 +340,7 @@ const Results = () => {
                 size="lg"
                 className="bg-accent hover:bg-accent/90 text-accent-foreground font-semibold group"
               >
-                Generate Letter
+                Gerar Carta de Contestação
                 <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </Button>
             </Link>
