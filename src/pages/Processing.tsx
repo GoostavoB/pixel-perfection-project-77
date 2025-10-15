@@ -4,8 +4,9 @@ import { Loader2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import Header from "@/components/Header";
-import { uploadMedicalBill, getJobStatus, getAnalysisDetails, retryWithBackoff } from "@/lib/billAnalysisApi";
+import { uploadMedicalBill } from "@/lib/billAnalysisApi";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const facts = [
   "80% of medical bills contain errors that could increase your costs.",
@@ -26,7 +27,6 @@ const Processing = () => {
   const [progress, setProgress] = useState(0);
   const [currentFact, setCurrentFact] = useState(0);
   const [status, setStatus] = useState("Uploading bill...");
-  const [jobId, setJobId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!file) {
@@ -49,9 +49,9 @@ const Processing = () => {
     if (!file) return;
 
     try {
-      // Step 1: Upload file (this takes ~5-6 seconds)
+      // Step 1: Upload file and analyze (happens in one call now)
       setStatus("Uploading your medical bill...");
-      setProgress(10);
+      setProgress(20);
 
       const uploadResponse = await uploadMedicalBill(file);
       
@@ -59,14 +59,38 @@ const Processing = () => {
         throw new Error(uploadResponse.message || "Upload failed");
       }
 
-      const currentJobId = uploadResponse.job_id;
-      setJobId(currentJobId);
-      
-      setProgress(30);
-      setStatus("Extracting text from PDF...");
+      setProgress(50);
+      setStatus("Analyzing with Lovable AI...");
 
-      // Step 2: Poll for completion (backend processes in ~5-6 seconds total)
-      await pollForCompletion(currentJobId);
+      // Small delay for UX (actual analysis is fast)
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      setProgress(90);
+      setStatus("Generating your report...");
+
+      // Fetch the complete analysis from database
+      const { data, error } = await supabase
+        .from('bill_analyses')
+        .select('*')
+        .eq('session_id', uploadResponse.session_id)
+        .single();
+
+      if (error || !data) {
+        throw new Error('Failed to retrieve analysis results');
+      }
+
+      setProgress(100);
+      setStatus("Complete!");
+
+      // Navigate to results
+      setTimeout(() => {
+        navigate('/results', {
+          state: {
+            analysis: data,
+            sessionId: uploadResponse.session_id
+          }
+        });
+      }, 500);
 
     } catch (error) {
       console.error('Analysis error:', error);
@@ -78,78 +102,6 @@ const Processing = () => {
       
       // Wait a bit before redirecting so user can see the error
       setTimeout(() => navigate('/upload'), 2000);
-    }
-  };
-
-  const pollForCompletion = async (currentJobId: string) => {
-    let attempts = 0;
-    const maxAttempts = 20; // 20 seconds max
-    const pollInterval = 1000; // Check every 1 second
-
-    const checkStatus = async (): Promise<boolean> => {
-      try {
-        const jobStatus = await getJobStatus(currentJobId);
-        
-        setProgress(Math.min(30 + (attempts * 3), 90));
-
-        if (jobStatus.status === 'ready' || jobStatus.status === 'completed') {
-          setProgress(95);
-          setStatus("Analysis complete! Loading results...");
-          
-          // Fetch full analysis details with retry
-          const analysisDetails = await retryWithBackoff(
-            () => getAnalysisDetails(currentJobId),
-            3,
-            1000
-          );
-          
-          setProgress(100);
-          
-          // Navigate to results with complete data
-          setTimeout(() => {
-            navigate('/results', {
-              state: {
-                analysis: analysisDetails,
-                sessionId: currentJobId
-              }
-            });
-          }, 500);
-          
-          return true;
-        } else if (jobStatus.status === 'error') {
-          throw new Error(jobStatus.error_message || 'Analysis failed');
-        }
-
-        // Update status messages based on progress
-        if (attempts < 3) {
-          setStatus("Extracting text from PDF...");
-        } else if (attempts < 8) {
-          setStatus("Analyzing charges with AI...");
-        } else {
-          setStatus("Generating report...");
-        }
-
-        return false;
-      } catch (error) {
-        if (attempts < maxAttempts - 1) {
-          // Continue polling on transient errors
-          return false;
-        }
-        throw error;
-      }
-    };
-
-    // Poll until complete or max attempts reached
-    while (attempts < maxAttempts) {
-      const isComplete = await checkStatus();
-      if (isComplete) break;
-      
-      await new Promise(resolve => setTimeout(resolve, pollInterval));
-      attempts++;
-    }
-
-    if (attempts >= maxAttempts) {
-      throw new Error('Analysis timed out. Please try again.');
     }
   };
 

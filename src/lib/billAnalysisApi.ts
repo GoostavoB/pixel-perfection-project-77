@@ -1,5 +1,5 @@
-// Hospital Bill Checker - N8N Backend Integration
-// Based on complete integration guide from backend developer
+// Hospital Bill Checker - Lovable AI Integration
+// Direct Supabase edge function using Lovable AI for consistent analysis
 
 interface UISummary {
   high_priority_count: number;
@@ -41,11 +41,11 @@ interface JobStatus {
   error_message: string | null;
 }
 
-// API Configuration
+// API Configuration - Now using Lovable AI instead of n8n
 const CONFIG = {
-  UPLOAD_ENDPOINT: 'https://learnlearnlearn.app.n8n.cloud/webhook/upload-bill',
-  SUPABASE_URL: 'https://jafaukblhxbycjzrbkeq.supabase.co',
-  SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImphZmF1a2JsaHhieWNqenJia2VxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAzMzkwNDcsImV4cCI6MjA3NTkxNTA0N30.x5GIY2n5M6NEhgRXYND-5k7v4h4NBDIS_-VVoF8uSk0',
+  UPLOAD_ENDPOINT: `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-bill-lovable`,
+  SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL,
+  SUPABASE_ANON_KEY: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
 };
 
 /**
@@ -60,10 +60,15 @@ export async function uploadMedicalBill(file: File): Promise<UploadResponse> {
 
   const response = await fetch(CONFIG.UPLOAD_ENDPOINT, {
     method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${CONFIG.SUPABASE_ANON_KEY}`,
+    },
     body: formData,
   });
 
   if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Upload failed:', response.status, errorText);
     throw new Error(`Upload failed: ${response.statusText}`);
   }
 
