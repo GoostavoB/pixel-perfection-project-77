@@ -130,9 +130,8 @@ serve(async (req) => {
       }
     }
     
-    if (!existing) {
-      console.log('[CACHE MISS] No existing analysis found. Proceeding with new analysis');
-    }
+    
+    console.log('[CACHE MISS] Proceeding with new analysis');
     
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from('medical-bills')
