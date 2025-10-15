@@ -24,6 +24,7 @@ import { DisputePackCard } from "@/components/DisputePackCard";
 import { StickySummary } from "@/components/StickySummary";
 import { ComprehensiveSavings } from "@/components/ComprehensiveSavings";
 import { ItemizationAlert } from "@/components/ItemizationAlert";
+import { MedicalBillingGlossary } from "@/components/MedicalBillingGlossary";
 
 const Results = () => {
   const location = useLocation();
@@ -168,7 +169,10 @@ const Results = () => {
       <main className="container mx-auto px-4 py-8 max-w-7xl">
         {/* Page Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">Your Medical Bill Analysis</h1>
+          <div className="flex items-center justify-between mb-2">
+            <h1 className="text-3xl font-bold">Your Medical Bill Analysis</h1>
+            <MedicalBillingGlossary />
+          </div>
           <div className="flex items-center gap-4 text-sm text-muted-foreground">
             <Calendar className="w-4 h-4" />
             <span>{analysisDate}</span>
