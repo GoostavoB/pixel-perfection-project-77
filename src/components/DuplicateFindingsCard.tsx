@@ -113,11 +113,11 @@ const DuplicateFindingsCard = ({ findings }: DuplicateFindingsCardProps) => {
       <Accordion type="multiple" className="space-y-3">
         {p1Flags.length > 0 && (
           <AccordionItem value="p1" className={`border rounded-lg ${categoryConfig.P1.bgColor} ${categoryConfig.P1.borderColor}`}>
-            <AccordionTrigger className="px-4 hover:no-underline">
+            <AccordionTrigger className="px-4 hover:no-underline [&[data-state=open]>div>svg:last-child]:rotate-180">
               <div className="flex items-center gap-3 w-full">
                 <categoryConfig.P1.icon className={`w-5 h-5 ${categoryConfig.P1.color}`} />
                 <span className="font-semibold">{categoryConfig.P1.label}</span>
-                <Badge variant="destructive" className="ml-auto mr-2">{p1Flags.length}</Badge>
+                <Badge variant="destructive" className="ml-auto">{p1Flags.length}</Badge>
               </div>
             </AccordionTrigger>
             <AccordionContent className="px-4 pb-4">
@@ -132,11 +132,11 @@ const DuplicateFindingsCard = ({ findings }: DuplicateFindingsCardProps) => {
 
         {p2Flags.length > 0 && (
           <AccordionItem value="p2" className={`border rounded-lg ${categoryConfig.P2.bgColor} ${categoryConfig.P2.borderColor}`}>
-            <AccordionTrigger className="px-4 hover:no-underline">
+            <AccordionTrigger className="px-4 hover:no-underline [&[data-state=open]>div>svg:last-child]:rotate-180">
               <div className="flex items-center gap-3 w-full">
                 <categoryConfig.P2.icon className={`w-5 h-5 ${categoryConfig.P2.color}`} />
                 <span className="font-semibold">{categoryConfig.P2.label}</span>
-                <Badge variant="secondary" className="ml-auto mr-2">{p2Flags.length}</Badge>
+                <Badge variant="secondary" className="ml-auto">{p2Flags.length}</Badge>
               </div>
             </AccordionTrigger>
             <AccordionContent className="px-4 pb-4">
@@ -151,11 +151,11 @@ const DuplicateFindingsCard = ({ findings }: DuplicateFindingsCardProps) => {
 
         {p3Flags.length > 0 && (
           <AccordionItem value="p3" className={`border rounded-lg ${categoryConfig.P3.bgColor} ${categoryConfig.P3.borderColor}`}>
-            <AccordionTrigger className="px-4 hover:no-underline">
+            <AccordionTrigger className="px-4 hover:no-underline [&[data-state=open]>div>svg:last-child]:rotate-180">
               <div className="flex items-center gap-3 w-full">
                 <categoryConfig.P3.icon className={`w-5 h-5 ${categoryConfig.P3.color}`} />
                 <span className="font-semibold">{categoryConfig.P3.label}</span>
-                <Badge variant="outline" className="ml-auto mr-2">{p3Flags.length}</Badge>
+                <Badge variant="outline" className="ml-auto">{p3Flags.length}</Badge>
               </div>
             </AccordionTrigger>
             <AccordionContent className="px-4 pb-4">
@@ -170,11 +170,11 @@ const DuplicateFindingsCard = ({ findings }: DuplicateFindingsCardProps) => {
 
         {p4Flags.length > 0 && (
           <AccordionItem value="p4" className={`border rounded-lg ${categoryConfig.P4.bgColor} ${categoryConfig.P4.borderColor}`}>
-            <AccordionTrigger className="px-4 hover:no-underline">
+            <AccordionTrigger className="px-4 hover:no-underline [&[data-state=open]>div>svg:last-child]:rotate-180">
               <div className="flex items-center gap-3 w-full">
                 <categoryConfig.P4.icon className={`w-5 h-5 ${categoryConfig.P4.color}`} />
                 <span className="font-semibold">{categoryConfig.P4.label} (Valid)</span>
-                <Badge variant="outline" className="ml-auto mr-2">{p4Flags.length}</Badge>
+                <Badge variant="outline" className="ml-auto">{p4Flags.length}</Badge>
               </div>
             </AccordionTrigger>
             <AccordionContent className="px-4 pb-4">
