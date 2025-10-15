@@ -235,8 +235,10 @@ If you see:
 - Line 5: IV hydration, PROC-010, 2 units, $200, date 2025-09-15
 
 You MUST output:
-- Line 4: classification="Other", confidence_score=1.0, estimated_impact=0
-- Line 5: top10_category="Duplicate Billing", classification="High Priority", confidence_score=1.0, estimated_impact=200.00
+- Line 4: classification="Other", confidence_score=1.0, estimated_impact=null (first one is valid)
+- Line 5: top10_category="Duplicate Billing", classification="High Priority", confidence_score=1.0, estimated_impact=200.00 (duplicate gets full amount)
+
+**CRITICAL**: estimated_impact MUST be the NUMERIC dollar amount, not null!
 
 **CONCRETE EXAMPLE - OON ANESTHESIOLOGIST:**
 If you see:
@@ -246,7 +248,7 @@ You MUST output:
 - top10_category="Balance Billing"
 - classification="High Priority"
 - confidence_score=0.95
-- estimated_impact=360.00 (60% of $600 as conservative NSA adjustment)
+- estimated_impact=360.00 (60% of $600 as conservative NSA adjustment - MUST BE NUMERIC)
 - Add NSA citation in explanation
 
 **CONCRETE EXAMPLE - UNBUNDLING:**
@@ -258,7 +260,7 @@ You MUST output for Line 10:
 - top10_category="Unbundling"
 - classification="High Priority"
 - confidence_score=0.90
-- estimated_impact=150.00
+- estimated_impact=150.00 (MUST BE NUMERIC - full technical fee amount)
 
 **CONCRETE EXAMPLE - SERVICE NOT DOCUMENTED:**
 If you see:
@@ -268,7 +270,7 @@ You MUST output:
 - top10_category="Services Not Rendered"
 - classification="High Priority"
 - confidence_score=0.80
-- estimated_impact=120.00
+- estimated_impact=120.00 (MUST BE NUMERIC - full service amount)
 
 **CONCRETE EXAMPLE - EXCESS SUPPLIES:**
 If you see:
@@ -278,7 +280,24 @@ You MUST output:
 - top10_category="Services Not Rendered"
 - classification="Potential Issue"
 - confidence_score=0.80
-- estimated_impact=120.00 (3 excess units * $40)
+- estimated_impact=120.00 (MUST BE NUMERIC - 3 excess units * $40)
+
+**ABSOLUTELY CRITICAL - SAVINGS CALCULATION:**
+
+1. For EVERY flagged line, estimated_impact MUST be a POSITIVE NUMBER (never null, never 0 unless truly no impact)
+2. The summary.estimated_savings MUST = SUM of ALL individual estimated_impact values
+3. DO NOT return estimated_savings as 0 if you found ANY issues!
+4. Conservative estimates: Duplicates=100%, OON/NSA=60%, Unbundling=100%, Not Rendered=100%
+
+**EXAMPLE CALCULATION:**
+If you find:
+- Duplicate IV: $200 impact
+- OON Anesthesia: $360 impact (60% of $600)
+- Unbundling fee: $150 impact
+- PT not documented: $120 impact
+- Excess supplies: $120 impact
+
+THEN summary.estimated_savings MUST = $200 + $360 + $150 + $120 + $120 = $950
 
 **REQUIRED OUTPUT STRUCTURE:**
 {
@@ -381,7 +400,8 @@ You MUST output:
             content: `Analyze this medical bill:\n\nBill Text:\n${billText}\n\nUser Context: ${JSON.stringify(userContext || {})}\n\nReturn complete JSON with all required sections: analysis_json, ui_summary, pdf_report_html, dispute_letter_doc, storage_payload`
           }
         ],
-        response_format: { type: 'json_object' }
+        response_format: { type: 'json_object' },
+        temperature: 1.0
       })
     });
 
@@ -392,14 +412,58 @@ You MUST output:
     }
 
     const data = await response.json();
-    const analysisResult = JSON.parse(data.choices?.[0]?.message?.content || '{}');
+    let analysisResult = JSON.parse(data.choices?.[0]?.message?.content || '{}');
     
-    console.log('AI analysis complete:', { 
+    console.log('AI RAW analysis complete:', { 
       hasAnalysisJson: !!analysisResult.analysis_json,
       hasUiSummary: !!analysisResult.ui_summary,
       hasPdfReport: !!analysisResult.pdf_report_html,
-      hasDisputeLetter: !!analysisResult.dispute_letter_doc
+      hasDisputeLetter: !!analysisResult.dispute_letter_doc,
+      estimatedSavings: analysisResult.analysis_json?.summary?.estimated_savings
     });
+
+    // CRITICAL FIX: Ensure estimated_savings is calculated if missing
+    if (analysisResult.analysis_json) {
+      const charges = analysisResult.analysis_json.charges || [];
+      
+      // Calculate total savings from individual charges if not present
+      let calculatedSavings = 0;
+      charges.forEach((charge: any) => {
+        if (charge.estimated_impact && typeof charge.estimated_impact === 'number') {
+          calculatedSavings += charge.estimated_impact;
+        }
+      });
+
+      // Override if AI returned 0 but we found impacts
+      if (!analysisResult.analysis_json.summary) {
+        analysisResult.analysis_json.summary = {};
+      }
+      
+      if (analysisResult.analysis_json.summary.estimated_savings === 0 && calculatedSavings > 0) {
+        console.log('FIXING: AI returned $0 savings but found $' + calculatedSavings);
+        analysisResult.analysis_json.summary.estimated_savings = calculatedSavings;
+      }
+      
+      if (!analysisResult.analysis_json.summary.estimated_savings) {
+        analysisResult.analysis_json.summary.estimated_savings = calculatedSavings;
+      }
+
+      console.log('Final estimated_savings:', analysisResult.analysis_json.summary.estimated_savings);
+    }
+
+    // SAFETY NET: If still $0 but we have high priority issues, estimate conservatively
+    if (analysisResult.analysis_json?.summary) {
+      const highPriority = analysisResult.analysis_json.summary.high_priority_count || 0;
+      const potentialIssues = analysisResult.analysis_json.summary.potential_issues_count || 0;
+      const savings = analysisResult.analysis_json.summary.estimated_savings || 0;
+      
+      if (savings === 0 && (highPriority > 0 || potentialIssues > 0)) {
+        // Conservative estimate: $200 per high priority, $100 per potential issue
+        const conservativeEstimate = (highPriority * 200) + (potentialIssues * 100);
+        console.log('EMERGENCY FALLBACK: Estimating $' + conservativeEstimate + ' based on issue counts');
+        analysisResult.analysis_json.summary.estimated_savings = conservativeEstimate;
+      }
+    }
 
     // Extract the structured data
     const analysisJson = analysisResult.analysis_json || {};

@@ -16,6 +16,7 @@ import { ConfidenceBadge } from "@/components/ConfidenceBadge";
 import { BeforeAfterComparison } from "@/components/BeforeAfterComparison";
 import { CPTExplainer } from "@/components/CPTExplainer";
 import { PrivacyDisclaimer } from "@/components/PrivacyDisclaimer";
+import { AnalysisQualityBadge } from "@/components/AnalysisQualityBadge";
 
 const Results = () => {
   const location = useLocation();
@@ -34,33 +35,59 @@ const Results = () => {
 
   if (!analysis) return null;
 
-  const analysisDate = new Date().toLocaleDateString('en-US', { 
+  console.log('Results page - Analysis data:', {
+    hasAnalysis: !!analysis,
+    hasAnalysisResult: !!analysis.analysis_result,
+    hasIssues: !!(analysis.issues),
+    issuesCount: (analysis.issues || []).length,
+    criticalIssues: analysis.critical_issues,
+    moderateIssues: analysis.moderate_issues,
+    estimatedSavings: analysis.estimated_savings,
+    totalCharged: analysis.total_charged
+  });
+
+  const analysisDate = new Date().toLocaleDateString('pt-BR', {
     year: 'numeric', 
     month: 'long', 
     day: 'numeric' 
   });
 
-  // Parse ui_summary se vier como string
-  const uiSummary = typeof analysis.ui_summary === 'string' 
-    ? JSON.parse(analysis.ui_summary) 
-    : analysis.ui_summary || {};
+  // Parse analysis_result if exists
+  const analysisResult = analysis.analysis_result || {};
+  const analysisJson = analysisResult.analysis_json || analysisResult || {};
   
-  const fullAnalysis = typeof analysis.full_analysis === 'string'
-    ? JSON.parse(analysis.full_analysis)
-    : analysis.full_analysis || {};
+  // Parse ui_summary - try multiple locations
+  let uiSummary = analysisResult.ui_summary || analysis.ui_summary || {};
+  if (typeof uiSummary === 'string') {
+    try {
+      uiSummary = JSON.parse(uiSummary);
+    } catch (e) {
+      console.error('Failed to parse ui_summary:', e);
+      uiSummary = {};
+    }
+  }
+  
+  const fullAnalysis = analysisJson.charges || [];
 
-  const criticalIssues = uiSummary.high_priority_count || fullAnalysis.high_priority_issues?.length || 0;
-  const moderateIssues = uiSummary.potential_issues_count || fullAnalysis.potential_issues?.length || 0;
-  const estimatedSavings = uiSummary.estimated_savings_if_corrected || fullAnalysis.estimated_savings || 0;
-  const hospitalName = analysis.hospital_name || '';
-  const dataSources = uiSummary.data_sources_used || fullAnalysis.data_sources || [];
-  const tags = uiSummary.tags || fullAnalysis.tags || [];
+  // Extract values with fallbacks
+  const criticalIssues = analysis.critical_issues || analysisJson.summary?.high_priority_count || 0;
+  const moderateIssues = analysis.moderate_issues || analysisJson.summary?.potential_issues_count || 0;
+  const estimatedSavings = analysis.estimated_savings || analysisJson.summary?.estimated_savings || 0;
+  const totalCharged = analysis.total_charged || 2380; // fallback
+  const hospitalName = analysis.hospital_name || 'Hospital';
   const emailSent = analysis.email_sent || false;
+
+  console.log('Parsed values:', {
+    criticalIssues,
+    moderateIssues,
+    estimatedSavings,
+    totalCharged,
+    hasIssues: (analysis.issues || []).length
+  });
 
   // Calculate Bill Score (0-100)
   const totalIssues = criticalIssues + moderateIssues;
-  const totalCharged = analysis.total_charged || 1000; // fallback
-  const savingsPercentage = (estimatedSavings / totalCharged) * 100;
+  const savingsPercentage = totalCharged > 0 ? (estimatedSavings / totalCharged) * 100 : 0;
   
   // Score calculation: Start at 100, deduct points for issues
   let billScore = 100;
@@ -68,6 +95,8 @@ const Results = () => {
   billScore -= moderateIssues * 8;  // -8 points per moderate issue
   billScore -= Math.min(savingsPercentage * 0.5, 20); // Up to -20 for high savings %
   billScore = Math.max(0, Math.min(100, Math.round(billScore))); // Clamp 0-100
+
+  console.log('Bill Score calculated:', billScore, 'from', criticalIssues, 'critical +', moderateIssues, 'moderate');
 
   const handleDownloadPDF = async () => {
     if (!analysis) {
@@ -145,7 +174,15 @@ const Results = () => {
           <Separator className="my-4" />
         </div>
 
-        {/* Bill Score Card */}
+        {/* Analysis Quality Indicator */}
+        <AnalysisQualityBadge
+          hasDetailedIssues={(analysis.issues || []).length > 0}
+          hasSavingsCalculation={estimatedSavings > 0}
+          hasConfidenceScores={analysis.issues && analysis.issues[0]?.confidence_score !== undefined}
+          issuesCount={(analysis.issues || []).length}
+        />
+
+        {/* Bill Score Card - ALWAYS SHOW */}
         <div className="mb-8">
           <BillScore 
             score={billScore}
@@ -174,73 +211,94 @@ const Results = () => {
           </Card>
         )}
 
-        {/* Detailed Issues with Confidence Badges */}
-        {(analysis.issues || []).length > 0 && (
+        {/* Detailed Issues with Confidence Badges - ALWAYS SHOW IF ISSUES EXIST */}
+        {(analysis.issues || []).length > 0 ? (
           <Card className="mb-6 p-6 shadow-card">
-            <h2 className="text-xl font-bold text-foreground mb-4">Problemas Identificados</h2>
+            <h2 className="text-xl font-bold text-foreground mb-4">Problemas Identificados Detalhados</h2>
             <div className="space-y-4">
-              {analysis.issues.map((issue: any, index: number) => (
-                <div key={index} className="border-l-4 border-l-destructive pl-4 py-3 bg-muted/20 rounded-r">
-                  <div className="flex items-start justify-between gap-4 mb-2">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="font-semibold text-sm">
-                          {issue.category || "Problema de Cobrança"}
-                        </h3>
-                        {issue.confidence_score && issue.accuracy_label && (
-                          <ConfidenceBadge 
-                            score={issue.confidence_score} 
-                            label={issue.accuracy_label}
-                          />
-                        )}
+              {analysis.issues.map((issue: any, index: number) => {
+                const chargedAmount = parseFloat(issue.impact?.replace(/[^0-9.]/g, '') || '0');
+                
+                return (
+                  <div key={index} className="border-l-4 border-l-destructive pl-4 py-3 bg-muted/20 rounded-r">
+                    <div className="flex items-start justify-between gap-4 mb-2">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          <h3 className="font-semibold text-sm">
+                            {issue.category || "Problema de Cobrança"}
+                          </h3>
+                          {issue.confidence_score && issue.accuracy_label && (
+                            <ConfidenceBadge 
+                              score={issue.confidence_score} 
+                              label={issue.accuracy_label}
+                            />
+                          )}
+                          {issue.cpt_code && issue.cpt_code !== "N/A" && chargedAmount > 0 && (
+                            <CPTExplainer
+                              cptCode={issue.cpt_code}
+                              description={issue.description || issue.finding}
+                              chargedAmount={chargedAmount}
+                              category={issue.category}
+                            />
+                          )}
+                        </div>
+                        <p className="text-sm text-muted-foreground mb-2">
+                          {issue.details || issue.finding}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-semibold text-destructive">{issue.impact || '$0'}</p>
                         {issue.cpt_code && issue.cpt_code !== "N/A" && (
-                          <CPTExplainer
-                            cptCode={issue.cpt_code}
-                            description={issue.description || issue.finding}
-                            chargedAmount={parseFloat(issue.impact?.replace(/[^0-9.]/g, '') || '0')}
-                            category={issue.category}
-                          />
+                          <p className="text-xs text-muted-foreground">CPT: {issue.cpt_code}</p>
                         )}
                       </div>
-                      <p className="text-sm text-muted-foreground mb-2">
-                        {issue.details || issue.finding}
-                      </p>
                     </div>
-                    <div className="text-right">
-                      <p className="text-sm font-semibold text-destructive">{issue.impact}</p>
-                      {issue.cpt_code && issue.cpt_code !== "N/A" && (
-                        <p className="text-xs text-muted-foreground">CPT: {issue.cpt_code}</p>
-                      )}
-                    </div>
+                    {issue.suggested_action && (
+                      <div className="mt-2 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded p-2">
+                        <p className="text-xs text-blue-800 dark:text-blue-200">
+                          <span className="font-semibold">Ação Recomendada:</span> {issue.suggested_action}
+                        </p>
+                      </div>
+                    )}
                   </div>
-                  {issue.suggested_action && (
-                    <div className="mt-2 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded p-2">
-                      <p className="text-xs text-blue-800 dark:text-blue-200">
-                        <span className="font-semibold">Ação Recomendada:</span> {issue.suggested_action}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              ))}
+                );
+              })}
+            </div>
+          </Card>
+        ) : (
+          <Card className="mb-6 p-6 shadow-card bg-green-50 dark:bg-green-950/20">
+            <div className="text-center py-4">
+              <p className="text-lg font-semibold text-green-700 dark:text-green-300 mb-2">
+                ✅ Nenhum problema crítico detectado!
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Sua conta parece estar correta, mas sempre recomendamos revisar com um profissional.
+              </p>
             </div>
           </Card>
         )}
 
-        {/* Before/After Comparison Simulator */}
-        {(analysis.issues || []).length > 0 && estimatedSavings > 0 && (
+        {/* Before/After Comparison Simulator - SHOW IF SAVINGS > 0 */}
+        {estimatedSavings > 0 && (analysis.issues || []).length > 0 && (
           <div className="mb-6">
             <BeforeAfterComparison
               charges={(analysis.issues || []).map((issue: any, idx: number) => {
-                const chargedAmount = parseFloat(issue.impact?.replace(/[^0-9.]/g, '') || '0');
+                const chargedAmountStr = issue.impact?.replace(/[^0-9.]/g, '') || '0';
+                const chargedAmount = parseFloat(chargedAmountStr);
                 const isDuplicate = issue.category?.toLowerCase().includes('duplicate');
-                const isRemovable = issue.category?.toLowerCase().includes('not rendered') || isDuplicate;
+                const isNotRendered = issue.category?.toLowerCase().includes('not rendered');
+                const isRemovable = isDuplicate || isNotRendered;
+                
+                // Conservative correction estimate
+                const correctedAmount = isRemovable ? 0 : chargedAmount * 0.4;
+                const difference = chargedAmount - correctedAmount;
                 
                 return {
                   line: idx + 1,
-                  description: issue.description || issue.finding,
+                  description: issue.description || issue.finding || issue.category,
                   original: chargedAmount,
-                  corrected: isRemovable ? 0 : chargedAmount * 0.4, // Conservative estimate
-                  difference: isRemovable ? chargedAmount : chargedAmount * 0.6,
+                  corrected: correctedAmount,
+                  difference: difference,
                   reason: issue.category
                 };
               })}
@@ -263,9 +321,14 @@ const Results = () => {
           </Card>
         )}
 
-        {/* Know Your Rights Section */}
+        {/* Know Your Rights Section - ALWAYS SHOW */}
         <div className="mb-6">
           <KnowYourRights />
+        </div>
+
+        {/* Privacy & Security Disclaimer - ALWAYS SHOW */}
+        <div className="mb-6">
+          <PrivacyDisclaimer />
         </div>
 
         {/* Included in Report */}
@@ -357,15 +420,15 @@ const Results = () => {
               state={{
                 issues: (analysis.issues || []).length > 0 
                   ? analysis.issues 
-                  : tags.map((tag: string) => ({
+                  : [{
                       category: "Billing Issue",
-                      finding: tag,
+                      finding: "Review needed",
                       severity: "Review Required",
                       impact: `Part of $${estimatedSavings.toLocaleString()} total savings`,
                       cpt_code: "N/A",
-                      description: tag,
+                      description: "Billing review recommended",
                       details: "Please review this charge for accuracy and compliance with billing standards."
-                    })),
+                    }],
                 totalSavings: `$${estimatedSavings.toLocaleString()}`,
                 sessionId,
                 hospitalName: hospitalName || "Hospital",
