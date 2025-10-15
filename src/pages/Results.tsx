@@ -285,6 +285,51 @@ const Results = () => {
           <Separator className="my-4" />
         </div>
 
+        {/* Bill Summary Card - NEW: Display total and hospital prominently */}
+        <Card className="mb-8 p-6 bg-gradient-to-br from-primary/5 to-accent/5 border-primary/20">
+          <div className="space-y-4">
+            <div className="flex items-start justify-between gap-4 flex-wrap">
+              <div className="flex-1 min-w-[200px]">
+                <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                  Provider
+                </p>
+                <h2 className="text-2xl font-bold text-foreground">
+                  {hospitalName || 'Hospital'}
+                </h2>
+              </div>
+              <div className="text-right">
+                <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                  Total Bill Amount
+                </p>
+                <div className="text-3xl font-bold text-primary">
+                  ${totalCharged.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </div>
+              </div>
+            </div>
+            {fullAnalysis.date_of_service && (
+              <div className="pt-4 border-t border-muted">
+                <p className="text-sm text-muted-foreground">
+                  <span className="font-semibold">Service Date:</span> {fullAnalysis.date_of_service}
+                </p>
+              </div>
+            )}
+            {fullAnalysis.bill_language && fullAnalysis.bill_language !== 'English' && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Badge variant="outline" className="bg-accent/10">
+                  Translated from {fullAnalysis.bill_language}
+                </Badge>
+              </div>
+            )}
+            {fullAnalysis.nsa_protected && (
+              <div className="pt-2">
+                <Badge className="bg-green-500/10 text-green-700 border-green-500/20">
+                  Protected under No Surprises Act
+                </Badge>
+              </div>
+            )}
+          </div>
+        </Card>
+
         {/* Analysis Quality Indicator */}
         <AnalysisQualityBadge
           hasDetailedIssues={issues.length > 0}

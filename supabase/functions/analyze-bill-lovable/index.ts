@@ -784,6 +784,30 @@ Return your analysis in this EXACT JSON structure (ALL fields REQUIRED):
           parameters: {
             type: 'object',
             properties: {
+              total_bill_amount: { 
+                type: 'number',
+                description: 'MANDATORY: Total bill amount from TOTAL ADEUDADO, BALANCE DUE, AMOUNT OWED, or TOTAL CHARGES'
+              },
+              hospital_name: { 
+                type: 'string',
+                description: 'MANDATORY: Hospital/provider name from bill header'
+              },
+              bill_language: {
+                type: 'string',
+                description: 'Language of the bill (Spanish, English, etc.)'
+              },
+              date_of_service: {
+                type: 'string',
+                description: 'Service date or date range'
+              },
+              nsa_protected: {
+                type: 'boolean',
+                description: 'Whether bill is protected under No Surprises Act'
+              },
+              nsa_category: {
+                type: 'string',
+                description: 'NSA protection category if applicable'
+              },
               high_priority_issues: {
                 type: 'array',
                 items: {
@@ -796,12 +820,12 @@ Return your analysis in this EXACT JSON structure (ALL fields REQUIRED):
                     overcharge_amount: { type: 'number' },
                     explanation_for_user: { type: 'string' },
                     suggested_action: { type: 'string' },
-                    confidence_score: { type: 'number' }
+                    confidence_score: { type: 'number' },
+                    ranking: { type: 'string', description: 'Issue ranking like #1 most common (30-40% of bills)' }
                   },
-                  required: ['type', 'cpt_code', 'line_description', 'billed_amount', 'overcharge_amount', 'explanation_for_user', 'suggested_action', 'confidence_score']
+                  required: ['type', 'line_description', 'billed_amount', 'overcharge_amount', 'explanation_for_user', 'suggested_action', 'confidence_score']
                 }
               },
-              total_bill_amount: { type: 'number' },
               potential_issues: {
                 type: 'array',
                 items: {
@@ -817,10 +841,28 @@ Return your analysis in this EXACT JSON structure (ALL fields REQUIRED):
                     markup_percentage: { type: 'number' },
                     explanation_for_user: { type: 'string' },
                     suggested_action: { type: 'string' },
-                    confidence_score: { type: 'number' }
+                    confidence_score: { type: 'number' },
+                    ranking: { type: 'string' }
                   },
-                  required: ['type', 'cpt_code', 'line_description', 'billed_amount', 'overcharge_amount', 'explanation_for_user', 'suggested_action', 'confidence_score']
+                  required: ['type', 'line_description', 'billed_amount', 'overcharge_amount', 'explanation_for_user', 'suggested_action', 'confidence_score']
                 }
+              },
+              total_potential_savings: { 
+                type: 'number',
+                description: 'Sum of all overcharge_amount values'
+              },
+              summary_for_user: {
+                type: 'string',
+                description: 'Friendly summary of findings'
+              },
+              provider_notes: {
+                type: 'string',
+                description: 'Notes about provider verification'
+              },
+              next_steps: {
+                type: 'array',
+                items: { type: 'string' },
+                description: 'Actionable next steps for the patient'
               },
               data_sources: {
                 type: 'array',
@@ -831,7 +873,7 @@ Return your analysis in this EXACT JSON structure (ALL fields REQUIRED):
                 items: { type: 'string' }
               }
             },
-            required: ['high_priority_issues', 'potential_issues', 'data_sources', 'tags']
+            required: ['total_bill_amount', 'hospital_name', 'high_priority_issues', 'potential_issues', 'total_potential_savings', 'data_sources', 'tags', 'next_steps']
           }
         }
       }],
