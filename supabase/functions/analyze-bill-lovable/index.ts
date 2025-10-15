@@ -599,8 +599,9 @@ Bill shows: "LABORATORY SERVICES $18,861.71" without itemization
 → MODERATE PRIORITY: Cannot verify without breakdown, confidence 0.60
 → "This is a large aggregate charge. Request an itemized breakdown of all lab tests to verify each charge against Medicare rates. Lab markups often exceed 500%."
 
-Return your analysis in this EXACT JSON structure:
+Return your analysis in this EXACT JSON structure (ALL fields REQUIRED):
 {
+  "total_bill_amount": 27838.01,
   "high_priority_issues": [
     {
       "type": "Major Overcharge",
@@ -631,6 +632,7 @@ Return your analysis in this EXACT JSON structure:
   "total_potential_savings": 495,
   "data_sources": ["Medicare Fee Schedule 2025", "Regional Pricing (Your State)", "Provider Verification"],
   "provider_notes": "Provider verified as legitimate and active.",
+  "hospital_name": "Baylor Scott & White Health",
   "next_steps": [
     "Call billing department: [phone]",
     "Reference the specific overcharges listed above",
@@ -638,7 +640,12 @@ Return your analysis in this EXACT JSON structure:
     "Request payment plan if needed"
   ],
   "tags": ["overcharging", "negotiable", "high_confidence"]
-}`;
+}
+
+🚨 CRITICAL REQUIREMENTS:
+- total_bill_amount is MANDATORY - extract from "TOTAL ADEUDADO", "BALANCE DUE", "AMOUNT OWED", "TOTAL CHARGES"
+- If total cannot be found, set total_bill_amount to 0 and add tag "missing_total"
+- hospital_name is MANDATORY - extract from bill header`;
 
   // Build message content - include image if available (for vision analysis)
   const userMessage: any = {
