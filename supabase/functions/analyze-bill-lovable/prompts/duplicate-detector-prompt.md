@@ -229,3 +229,75 @@ Output flags:
 
 ## Output Format
 Return a JSON object with the following schema and a short human summary (max 160 words).
+
+### JSON Schema
+```json
+{
+  "bill_id": "string",
+  "patient_id": "string|null",
+  "service_dates": ["YYYY-MM-DD", "..."],
+  "flags": [
+    {
+      "category": "P1|P2|P3|P4",
+      "reason": "string",
+      "evidence": {
+        "line_ids": ["string|int"],
+        "date_of_service": "YYYY-MM-DD",
+        "codes": [{"type":"CPT|HCPCS|REV|NDC|DESC","value":"string"}],
+        "modifiers": ["string"],
+        "units": ["number"],
+        "provider_group": "string|null",
+        "place_of_service": "string|null",
+        "ndc_dose_route": {"ndc":"string|null","dose":"string|null","route":"string|null"},
+        "prices": ["number"],
+        "timestamps": ["HH:MM"|null],
+        "eob_notes": "string|null"
+      },
+      "panel_unbundling": {"panel_code":"string|null","component_codes":["string"]},
+      "confidence": "high|medium|low",
+      "recommended_action": "string",
+      "dispute_text": "string"
+    }
+  ],
+  "nsa_review": {
+    "applies": "yes|no|unknown",
+    "scenarios": ["string"],
+    "missing_for_nsa": ["string"],
+    "prelim_assessment": "string"
+  },
+  "pricing_review": {
+    "has_eob": "yes|no",
+    "suspect_overcharge_amount": "number|null",
+    "notes": "string"
+  },
+  "totals": {
+    "suspect_lines": "int",
+    "suspect_amount": "number|null"
+  },
+  "missing_data_requests": ["string"]
+}
+```
+
+### NSA Review Section
+Determine if the bill may be protected under the No Surprises Act:
+- **"yes"**: Emergency services OR out-of-network ancillary at in-network facility OR air ambulance
+- **"no"**: Ground ambulance OR elective OON with consent
+- **"unknown"**: Insufficient information to determine
+
+**scenarios**: List applicable NSA scenarios (e.g., "Emergency room visit", "OON anesthesia at in-network facility")
+
+**missing_for_nsa**: List missing data (e.g., "Network status of facility and providers", "EOB with in-network cost-sharing", "Notice-and-consent forms")
+
+**prelim_assessment**: Brief assessment of NSA protection based on available info
+
+### Pricing Review Section
+Assess whether EOB is available and identify potential overcharges:
+
+**has_eob**: "yes" if EOB/remittance present, "no" otherwise
+
+**suspect_overcharge_amount**: Total estimated overcharge if computable (charged - allowed - patient responsibility already paid), or null if cannot calculate
+
+**notes**: Explanation of pricing findings and what additional information is needed (e.g., "EOB required to calculate refund", "Charges exceed typical commercial rates by 200%", "Need CPT codes and units to verify pricing")
+
+### Human Summary
+Max 160 words summarizing findings from all three checks (duplicates, NSA, pricing)

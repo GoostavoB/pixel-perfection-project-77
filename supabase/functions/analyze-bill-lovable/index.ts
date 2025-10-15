@@ -1402,6 +1402,25 @@ async function detectDuplicateCharges(
                     required: ['category', 'reason', 'confidence', 'recommended_action', 'dispute_text']
                   }
                 },
+                nsa_review: {
+                  type: 'object',
+                  properties: {
+                    applies: { type: 'string', enum: ['yes', 'no', 'unknown'] },
+                    scenarios: { type: 'array', items: { type: 'string' } },
+                    missing_for_nsa: { type: 'array', items: { type: 'string' } },
+                    prelim_assessment: { type: 'string' }
+                  },
+                  required: ['applies', 'prelim_assessment']
+                },
+                pricing_review: {
+                  type: 'object',
+                  properties: {
+                    has_eob: { type: 'string', enum: ['yes', 'no'] },
+                    suspect_overcharge_amount: { type: 'number' },
+                    notes: { type: 'string' }
+                  },
+                  required: ['has_eob', 'notes']
+                },
                 totals: {
                   type: 'object',
                   properties: {
@@ -1415,7 +1434,7 @@ async function detectDuplicateCharges(
                 },
                 human_summary: { type: 'string' }
               },
-              required: ['flags', 'totals', 'human_summary']
+              required: ['flags', 'nsa_review', 'pricing_review', 'totals', 'human_summary']
             }
           }
         }],
@@ -1425,7 +1444,13 @@ async function detectDuplicateCharges(
     
     if (!response.ok) {
       console.error('Duplicate detection API error:', response.status);
-      return { flags: [], totals: { suspect_lines: 0, suspect_amount: 0 }, human_summary: 'Duplicate detection unavailable' };
+      return { 
+        flags: [], 
+        nsa_review: { applies: 'unknown', scenarios: [], missing_for_nsa: [], prelim_assessment: 'NSA assessment unavailable' },
+        pricing_review: { has_eob: 'no', notes: 'Pricing review unavailable' },
+        totals: { suspect_lines: 0, suspect_amount: 0 }, 
+        human_summary: 'Duplicate detection unavailable' 
+      };
     }
     
     const data = await response.json();
@@ -1435,16 +1460,30 @@ async function detectDuplicateCharges(
       const findings = JSON.parse(toolCall.function.arguments);
       console.log('Duplicate findings parsed:', {
         flags: findings.flags?.length || 0,
-        suspect_amount: findings.totals?.suspect_amount || 0
+        suspect_amount: findings.totals?.suspect_amount || 0,
+        nsa_applies: findings.nsa_review?.applies,
+        has_eob: findings.pricing_review?.has_eob
       });
       return findings;
     }
     
     console.warn('No duplicate findings returned');
-    return { flags: [], totals: { suspect_lines: 0, suspect_amount: 0 }, human_summary: 'No duplicates detected' };
+    return { 
+      flags: [], 
+      nsa_review: { applies: 'unknown', scenarios: [], missing_for_nsa: [], prelim_assessment: 'No NSA issues detected' },
+      pricing_review: { has_eob: 'no', notes: 'No pricing issues detected' },
+      totals: { suspect_lines: 0, suspect_amount: 0 }, 
+      human_summary: 'No duplicates detected' 
+    };
     
   } catch (error) {
     console.error('Error in duplicate detection:', error);
-    return { flags: [], totals: { suspect_lines: 0, suspect_amount: 0 }, human_summary: 'Duplicate detection error' };
+    return { 
+      flags: [], 
+      nsa_review: { applies: 'unknown', scenarios: [], missing_for_nsa: [], prelim_assessment: 'NSA check failed' },
+      pricing_review: { has_eob: 'no', notes: 'Pricing check failed' },
+      totals: { suspect_lines: 0, suspect_amount: 0 }, 
+      human_summary: 'Duplicate detection error' 
+    };
   }
 }
