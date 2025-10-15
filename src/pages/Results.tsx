@@ -22,6 +22,7 @@ import { WhatIfCalculator } from "@/components/WhatIfCalculator";
 import { generateDisputePack } from "@/utils/disputePackGenerator";
 import { DisputePackCard } from "@/components/DisputePackCard";
 import { StickySummary } from "@/components/StickySummary";
+import { ComprehensiveSavings } from "@/components/ComprehensiveSavings";
 
 const Results = () => {
   const location = useLocation();
@@ -86,6 +87,9 @@ const Results = () => {
   const totalIssuesCount = a.total_issues_count || 0;
   const estimatedSavings = a.estimated_total_savings || 0;
   const whatIfItems = a.what_if_calculator_items || [];
+  
+  // ✅ NEW: Comprehensive savings from savings engine
+  const savingsTotals = a._savings_details || null;
   
   // Build charge categories for charge map (from backend data)
   const chargeCategories = (a.charges || []).map((charge: any) => ({
@@ -280,6 +284,13 @@ const Results = () => {
             <p className="text-xs text-muted-foreground mt-1">see badges below for details</p>
           </Card>
         </div>
+
+        {/* Comprehensive Savings Display */}
+        {savingsTotals && (
+          <div className="mb-8">
+            <ComprehensiveSavings savings={savingsTotals} />
+          </div>
+        )}
 
         {/* Charge Map */}
         {chargeCategories.length > 0 && (
