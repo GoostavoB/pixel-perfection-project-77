@@ -130,7 +130,9 @@ serve(async (req) => {
       }
     }
     
-    console.log('[CACHE MISS] Proceeding with new analysis');
+    if (!existing) {
+      console.log('[CACHE MISS] No existing analysis found. Proceeding with new analysis');
+    }
     
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from('medical-bills')
@@ -765,6 +767,13 @@ Return your analysis in this EXACT JSON structure:
       throw new Error(`Invalid analysis: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
     
+    // Step 4: Add version metadata
+    analysis.analysis_version = ANALYSIS_VERSION;
+    analysis.prompt_version = PROMPT_VERSION;
+    analysis.model_id = MODEL_ID;
+    analysis.schema_version = SCHEMA_VERSION;
+    analysis.cached = false;
+    
     // If extraction failed and we got no issues, add a note
     if (extractedContent.isScanned && 
         (!analysis.high_priority_issues?.length) && 
@@ -793,6 +802,9 @@ const ANALYSIS_VERSION = "2.0.1";
 const PROMPT_VERSION = "pv-2025-10-15-2";
 const MODEL_ID = "gemini-2.5-flash";
 const SCHEMA_VERSION = "ai-output-v3";
+
+// 🔧 Cache TTL in milliseconds (7 days)
+const CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 // 🔧 NEW: Numeric hygiene helper
 function isNum(x: any): boolean {
