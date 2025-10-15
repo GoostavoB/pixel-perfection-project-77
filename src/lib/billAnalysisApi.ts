@@ -59,22 +59,15 @@ const CONFIG = {
 export async function uploadMedicalBill(file: File, options?: { bypassCache?: boolean }): Promise<UploadResponse> {
   const formData = new FormData();
   formData.append('file', file);
-  
-  // 🔧 ALWAYS bypass cache during testing to ensure latest logic runs
-  formData.append('fresh', 'true');
 
   const { data: { session } } = await supabase.auth.getSession();
   const authToken = session?.access_token || CONFIG.SUPABASE_ANON_KEY;
 
-  // 🔧 Add query parameter + header + form field for triple redundancy
-  const urlWithBypass = `${CONFIG.UPLOAD_ENDPOINT}?fresh=true`;
-
   const headers: Record<string, string> = {
     'Authorization': `Bearer ${authToken}`,
-    'x-bypass-cache': 'true', // Always bypass during testing
   };
 
-  const response = await fetch(urlWithBypass, {
+  const response = await fetch(CONFIG.UPLOAD_ENDPOINT, {
     method: 'POST',
     headers,
     body: formData,
