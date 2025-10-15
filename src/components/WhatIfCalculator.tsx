@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Calculator, TrendingDown } from "lucide-react";
@@ -15,9 +15,10 @@ interface WhatIfCalculatorProps {
   items: DisputeItem[];
   currentTotal: number;
   hasEOB: boolean;
+  onSelectionsChange?: (totalReduction: number, selectedCount: number) => void;
 }
 
-export const WhatIfCalculator = ({ items, currentTotal, hasEOB }: WhatIfCalculatorProps) => {
+export const WhatIfCalculator = ({ items, currentTotal, hasEOB, onSelectionsChange }: WhatIfCalculatorProps) => {
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
 
   const handleToggle = (id: string) => {
@@ -36,6 +37,13 @@ export const WhatIfCalculator = ({ items, currentTotal, hasEOB }: WhatIfCalculat
 
   const newTotal = currentTotal - totalReduction;
   const savingsPercentage = currentTotal > 0 ? (totalReduction / currentTotal) * 100 : 0;
+
+  // Notify parent component of selection changes
+  useEffect(() => {
+    if (onSelectionsChange) {
+      onSelectionsChange(totalReduction, selectedItems.size);
+    }
+  }, [totalReduction, selectedItems.size, onSelectionsChange]);
 
   return (
     <Card className="p-6 bg-gradient-to-br from-green-50 to-emerald-50 border-green-200">

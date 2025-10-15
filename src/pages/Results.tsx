@@ -15,6 +15,7 @@ import { ActionPlanCard } from "@/components/ActionPlanCard";
 import { WhatIfCalculator } from "@/components/WhatIfCalculator";
 import { generateDisputePack } from "@/utils/disputePackGenerator";
 import { DisputePackCard } from "@/components/DisputePackCard";
+import { StickySummary } from "@/components/StickySummary";
 
 const Results = () => {
   const location = useLocation();
@@ -24,6 +25,7 @@ const Results = () => {
   
   const [analysis] = useState(passedAnalysis);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [selectedReductions, setSelectedReductions] = useState(0);
   
   useEffect(() => {
     if (!analysis || !sessionId) {
@@ -141,9 +143,25 @@ const Results = () => {
 
   const callScript = `Hi, I'm requesting an itemized bill for account ${a.account_number || '[ID]'}, dates ${a.date_of_service || '[range]'}. Please include CPT or HCPCS for each service, modifiers, units, revenue codes, provider NPI or tax ID, and for medications the NDC, dose, and quantity. For blood services, include product codes, units transfused, and the medication administration record with times.`;
 
+  const handleSelectionsChange = (totalReduction: number) => {
+    setSelectedReductions(totalReduction);
+  };
+
+  const estimatedNewTotal = totalCharged - selectedReductions;
+  const savingsPercentage = totalCharged > 0 ? (selectedReductions / totalCharged) * 100 : 0;
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
+      
+      {/* Sticky Summary */}
+      <StickySummary 
+        currentTotal={totalCharged}
+        selectedReductions={selectedReductions}
+        estimatedNewTotal={estimatedNewTotal}
+        savingsPercentage={savingsPercentage}
+      />
+      
       <main className="container mx-auto px-4 py-8 max-w-7xl">
         {/* Page Header */}
         <div className="mb-8">
@@ -284,6 +302,7 @@ const Results = () => {
               items={whatIfItems}
               currentTotal={totalCharged}
               hasEOB={!!a.has_eob}
+              onSelectionsChange={handleSelectionsChange}
             />
           </div>
         )}
