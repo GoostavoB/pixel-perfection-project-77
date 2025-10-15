@@ -894,12 +894,20 @@ Return your analysis in this EXACT JSON structure (ALL fields REQUIRED):
                     line_description: { type: 'string' },
                     billed_amount: { type: 'number' },
                     overcharge_amount: { type: 'number' },
-                    reason: { type: 'string', description: 'CRITICAL: Clear explanation of WHY this is an issue' },
+                    reason: { type: 'string', description: 'CRITICAL: DETAILED evidence-based explanation with (1) specific charge, (2) WHY with evidence (federal law citation, pricing benchmark, or matching criteria), (3) dollar amount, (4) legal/rule reference' },
                     explanation_for_user: { type: 'string' },
                     suggested_action: { type: 'string' },
                     confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
                     confidence_score: { type: 'number' },
-                    ranking: { type: 'string', description: 'Issue ranking like #1 most common (30-40% of bills)' }
+                    ranking: { type: 'string', description: 'Issue ranking like #1 most common (30-40% of bills)' },
+                    evidence: {
+                      type: 'object',
+                      properties: {
+                        citation: { type: 'string', description: 'Legal citation for NSA violations (e.g., 45 CFR 149.110)' },
+                        benchmark: { type: 'string', description: 'Pricing comparison for overcharges (e.g., Medicare $450 vs charged $1,800)' },
+                        matching_criteria: { type: 'string', description: 'For duplicates: what matched (e.g., Same CPT, date, provider, no valid modifier)' }
+                      }
+                    }
                   },
                   required: ['type', 'line_description', 'billed_amount', 'overcharge_amount', 'reason', 'explanation_for_user', 'suggested_action', 'confidence_score']
                 }
@@ -919,12 +927,20 @@ Return your analysis in this EXACT JSON structure (ALL fields REQUIRED):
                     reasonable_rate: { type: 'number' },
                     overcharge_amount: { type: 'number' },
                     markup_percentage: { type: 'number' },
-                    reason: { type: 'string', description: 'CRITICAL: Clear explanation of WHY this is potentially an issue' },
+                    reason: { type: 'string', description: 'CRITICAL: DETAILED evidence-based explanation with (1) specific charge, (2) WHY with evidence (federal law citation, pricing benchmark, or matching criteria), (3) dollar amount, (4) legal/rule reference' },
                     explanation_for_user: { type: 'string' },
                     suggested_action: { type: 'string' },
                     confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
                     confidence_score: { type: 'number' },
-                    ranking: { type: 'string' }
+                    ranking: { type: 'string' },
+                    evidence: {
+                      type: 'object',
+                      properties: {
+                        citation: { type: 'string', description: 'Legal citation for NSA violations (e.g., 45 CFR 149.420)' },
+                        benchmark: { type: 'string', description: 'Pricing comparison for overcharges (e.g., Medicare $450 vs charged $1,800)' },
+                        matching_criteria: { type: 'string', description: 'For duplicates: what matched' }
+                      }
+                    }
                   },
                   required: ['type', 'line_description', 'billed_amount', 'overcharge_amount', 'reason', 'explanation_for_user', 'suggested_action', 'confidence_score']
                 }
