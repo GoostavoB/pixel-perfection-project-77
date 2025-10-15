@@ -90,10 +90,17 @@ const Results = () => {
       : undefined,
   }));
   
+  // Calculate estimated savings from actual issue amounts
+  const calculatedSavings = issues.reduce((sum: number, issue: any) => {
+    const amountStr = issue.impact?.replace(/[^0-9.]/g, '') || '0';
+    const amount = parseFloat(amountStr);
+    return sum + (isNaN(amount) ? 0 : amount);
+  }, 0);
+  
   // Extract values with fallbacks
   const criticalIssues = uiSummary.high_priority_count ?? (fullAnalysis.high_priority_issues?.length ?? 0);
   const moderateIssues = uiSummary.potential_issues_count ?? (fullAnalysis.potential_issues?.length ?? 0);
-  const estimatedSavings = uiSummary.estimated_savings_if_corrected ?? (fullAnalysis.estimated_savings ?? 0);
+  const estimatedSavings = calculatedSavings > 0 ? calculatedSavings : (uiSummary.estimated_savings_if_corrected ?? (fullAnalysis.estimated_savings ?? 0));
   const totalCharged = analysis.total_charged ?? 2380; // fallback
   const hospitalName = analysis.hospital_name || 'Hospital';
   const emailSent = analysis.email_sent || false;
