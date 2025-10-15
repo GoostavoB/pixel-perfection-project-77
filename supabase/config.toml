@@ -50,3 +50,6 @@ verify_jwt = false
 
 [functions.upload-bill]
 verify_jwt = false
+
+[functions.generate-dispute-pack-pdf]
+verify_jwt = false

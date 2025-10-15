@@ -12,6 +12,7 @@ import Results from "./pages/Results";
 import Auth from "./pages/Auth";
 import AuthGuard from "./components/AuthGuard";
 import NewResults from "./pages/NewResults";
+import ResultsV2 from "./pages/ResultsV2";
 import UserForm from "./pages/UserForm";
 import Blog from "./pages/Blog";
 import MedicalDebtCreditReport from "./pages/blog/MedicalDebtCreditReport";
@@ -54,6 +55,7 @@ const App = () => (
           <Route path="/form" element={<AuthGuard><UserForm /></AuthGuard>} />
           <Route path="/results" element={<AuthGuard><Results /></AuthGuard>} />
           <Route path="/results-old" element={<AuthGuard><NewResults /></AuthGuard>} />
+          <Route path="/results-v2" element={<AuthGuard><ResultsV2 /></AuthGuard>} />
           <Route path="/dispute-letter" element={<AuthGuard><DisputeLetter /></AuthGuard>} />
           <Route path="/generate-letter" element={<AuthGuard><GenerateLetter /></AuthGuard>} />
           <Route path="/blog" element={<Blog />} />

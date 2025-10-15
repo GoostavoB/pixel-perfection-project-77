@@ -5,7 +5,7 @@ import { Shield, Mail, ExternalLink } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface NSATriageProps {
-  applies: "yes" | "no" | "unknown";
+  applies: "protected" | "not-protected" | "unknown";
   scenarios: string[];
   missingData: string[];
   prelimAssessment: string;
@@ -32,9 +32,9 @@ export const NSATriage = ({ applies, scenarios, missingData, prelimAssessment }:
 
   const getStatusColor = () => {
     switch (applies) {
-      case "yes":
+      case "protected":
         return "bg-green-50 border-green-200";
-      case "no":
+      case "not-protected":
         return "bg-gray-50 border-gray-200";
       default:
         return "bg-blue-50 border-blue-200";
@@ -43,9 +43,9 @@ export const NSATriage = ({ applies, scenarios, missingData, prelimAssessment }:
 
   const getStatusIcon = () => {
     switch (applies) {
-      case "yes":
+      case "protected":
         return <Shield className="w-5 h-5 text-green-700" />;
-      case "no":
+      case "not-protected":
         return <Shield className="w-5 h-5 text-gray-700" />;
       default:
         return <Shield className="w-5 h-5 text-blue-700" />;
@@ -55,16 +55,16 @@ export const NSATriage = ({ applies, scenarios, missingData, prelimAssessment }:
   return (
     <Card className={`p-6 ${getStatusColor()}`}>
       <div className="flex items-start gap-3 mb-4">
-        <div className={`p-2 rounded-lg ${applies === "yes" ? "bg-green-100" : applies === "no" ? "bg-gray-100" : "bg-blue-100"}`}>
+        <div className={`p-2 rounded-lg ${applies === "protected" ? "bg-green-100" : applies === "not-protected" ? "bg-gray-100" : "bg-blue-100"}`}>
           {getStatusIcon()}
         </div>
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-2">
             <h2 className="text-xl font-bold text-foreground">No Surprises Act Protection</h2>
-            {applies === "yes" && (
+            {applies === "protected" && (
               <Badge className="bg-green-100 text-green-700 border-green-300">Protected</Badge>
             )}
-            {applies === "no" && (
+            {applies === "not-protected" && (
               <Badge className="bg-gray-100 text-gray-700 border-gray-300">Not Protected</Badge>
             )}
             {applies === "unknown" && (
@@ -110,7 +110,7 @@ export const NSATriage = ({ applies, scenarios, missingData, prelimAssessment }:
             Request NSA info
           </Button>
         )}
-        {applies === "yes" && (
+        {applies === "protected" && (
           <Button
             size="sm"
             variant="outline"
@@ -122,7 +122,7 @@ export const NSATriage = ({ applies, scenarios, missingData, prelimAssessment }:
         )}
       </div>
 
-      {applies === "yes" && (
+      {applies === "protected" && (
         <div className="mt-4 p-3 bg-green-100 rounded-lg">
           <p className="text-xs text-green-800">
             <strong>Your Rights:</strong> Under the No Surprises Act (45 CFR § 149.410), you owe only in-network cost-sharing. 

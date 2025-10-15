@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import Header from "@/components/Header";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ChargeMapTable } from "@/components/ChargeMapTable";
@@ -14,6 +14,8 @@ import { NSATriage } from "@/components/NSATriage";
 import { ActionPlanCard } from "@/components/ActionPlanCard";
 import { WhatIfCalculator } from "@/components/WhatIfCalculator";
 import { FriendlyIssueCard } from "@/components/FriendlyIssueCard";
+import { generateDisputePack } from "@/utils/disputePackGenerator";
+import { DisputePackCard } from "@/components/DisputePackCard";
 
 const ResultsV2 = () => {
   const location = useLocation();
@@ -94,7 +96,7 @@ const ResultsV2 = () => {
     }));
 
   const nsaReview = fullAnalysis.duplicate_findings?.nsa_review || {};
-  const nsaApplies = nsaReview.applies === 'yes' ? 'yes' : nsaReview.applies === 'no' ? 'no' : 'unknown';
+  const nsaApplies = nsaReview.applies === 'yes' ? 'protected' : nsaReview.applies === 'no' ? 'not-protected' : 'unknown';
 
   const hasAllCodes = (a.charges || []).every((c: any) => c.cpt_code && c.cpt_code !== 'N/A');
   const hasSomeCodes = (a.charges || []).some((c: any) => c.cpt_code && c.cpt_code !== 'N/A');
@@ -104,6 +106,8 @@ const ResultsV2 = () => {
   const pi = Array.isArray(a.potential_issues) ? a.potential_issues : [];
 
   const estimatedSavings = [...hi, ...pi].reduce((sum: number, issue: any) => sum + num(issue.overcharge_amount || 0), 0);
+
+  const disputePack = useMemo(() => generateDisputePack(analysis), [analysis]);
 
   const handleEmailReport = async () => {
     setIsGeneratingPDF(true);
@@ -160,6 +164,11 @@ const ResultsV2 = () => {
         {duplicates.length > 0 && <div className="mb-8"><DuplicatesHighlight duplicates={duplicates} /></div>}
         <div className="mb-8">
           <NSATriage applies={nsaApplies} scenarios={nsaReview.scenarios || []} missingData={nsaReview.missing_for_nsa || []} prelimAssessment={nsaReview.prelim_assessment || 'Unable to determine.'} />
+        </div>
+
+        {/* Dispute Pack */}
+        <div className="mb-8">
+          <DisputePackCard disputePack={disputePack} sessionId={sessionId || ''} />
         </div>
 
         <div className="mb-8">
