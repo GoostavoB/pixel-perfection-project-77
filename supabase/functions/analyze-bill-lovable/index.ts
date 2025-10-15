@@ -1095,8 +1095,8 @@ Return your analysis in this EXACT JSON structure (ALL fields REQUIRED):
 }
 
 // 🔧 VALIDATION: Constants for versioned caching
-const ANALYSIS_VERSION = "2.0.1";
-const PROMPT_VERSION = "pv-2025-10-15-2";
+const ANALYSIS_VERSION = "2.0.2";
+const PROMPT_VERSION = "pv-2025-10-15-3";
 const MODEL_ID = "gemini-2.5-flash";
 const SCHEMA_VERSION = "ai-output-v3";
 
