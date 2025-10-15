@@ -115,12 +115,25 @@ const Results = () => {
     return sum + (isNaN(amount) ? 0 : amount);
   }, 0);
   
-  // Extract values with fallbacks
+  // Extract values with fallbacks - defensive parsing
   const criticalIssues = uiSummary.high_priority_count ?? (fullAnalysis.high_priority_issues?.length ?? 0);
   const moderateIssues = uiSummary.potential_issues_count ?? (fullAnalysis.potential_issues?.length ?? 0);
-  const estimatedSavings = calculatedSavings > 0 ? calculatedSavings : (uiSummary.estimated_savings_if_corrected ?? (fullAnalysis.estimated_savings ?? 0));
-  const totalCharged = analysis.total_charged ?? fullAnalysis.total_bill_amount ?? 0; // fallback
-  const hospitalName = analysis.hospital_name || 'Hospital';
+  const estimatedSavings = calculatedSavings > 0 ? calculatedSavings : (uiSummary.estimated_savings_if_corrected ?? (fullAnalysis.total_potential_savings ?? (fullAnalysis.estimated_savings ?? 0)));
+  
+  // Total charged - check all possible locations
+  const totalCharged = Number(
+    analysis.total_charged ?? 
+    fullAnalysis.total_bill_amount ?? 
+    analysis.analysis_result?.total_bill_amount ?? 
+    0
+  );
+  
+  // Validate totalCharged is a finite number
+  if (!Number.isFinite(totalCharged) || totalCharged <= 0) {
+    console.error("Invalid total_bill_amount", { analysis, fullAnalysis, totalCharged });
+  }
+  
+  const hospitalName = fullAnalysis.hospital_name ?? analysis.hospital_name ?? 'Hospital';
   const emailSent = analysis.email_sent || false;
 
   console.log('Parsed values:', {
