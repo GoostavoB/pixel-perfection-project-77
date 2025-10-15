@@ -175,11 +175,17 @@ async function extractTextFromFile(buffer: ArrayBuffer, mimeType: string): Promi
       
       console.log(`PDF extraction complete: ${cleaned.length} chars extracted`);
       
-      // If still minimal, it's likely scanned
+      // If minimal, try OCR via RapidAPI
       if (cleaned.length < 200) {
-        console.log(`PDF appears to be scanned or encrypted (${cleaned.length} chars)`);
+        console.log(`PDF appears scanned (${cleaned.length} chars). Attempting OCR fallback via RapidAPI...`);
+        const ocrText = await ocrPdfWithRapidApi(bytes);
+        if (ocrText && ocrText.length > 500) {
+          console.log(`OCR succeeded: ${ocrText.length} chars`);
+          return { text: ocrText.slice(0, 120_000), isScanned: true };
+        }
+        console.log(`OCR failed or insufficient text (${ocrText?.length || 0} chars)`);
         return {
-          text: `SCANNED/ENCRYPTED PDF - Minimal text extracted (${cleaned.length} chars). For accurate analysis, please re-upload your medical bill as clear JPG or PNG images of each page. This will enable full OCR and detailed fraud detection. Current limited extraction: ${cleaned}`,
+          text: `SCANNED/ENCRYPTED PDF - Minimal text extracted (${cleaned.length} chars). OCR fallback ${ocrText ? 'returned ' + ocrText.length + ' chars' : 'not available'}. For accurate analysis, please re-upload your medical bill as clear JPG or PNG images of each page. Current limited extraction: ${cleaned}`,
           isScanned: true
         };
       }
@@ -214,6 +220,67 @@ async function extractTextFromFile(buffer: ArrayBuffer, mimeType: string): Promi
   } catch (err) {
     console.error('File extraction failed:', err);
     return { text: `File read error: ${err instanceof Error ? err.message : 'Unknown error'}. File size: ${buffer.byteLength} bytes.` };
+  }
+}
+
+// Helper: convert bytes to base64 safely (chunked)
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = '';
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, i + chunkSize);
+    let chunkStr = '';
+    for (let j = 0; j < chunk.length; j++) {
+      chunkStr += String.fromCharCode(chunk[j]);
+    }
+    binary += chunkStr;
+  }
+  return btoa(binary);
+}
+
+// OCR fallback using RapidAPI (ocr-space)
+async function ocrPdfWithRapidApi(pdfBytes: Uint8Array): Promise<string | null> {
+  try {
+    const rapidKey = Deno.env.get('RAPIDAPI_KEY');
+    if (!rapidKey) {
+      console.warn('RAPIDAPI_KEY not set; skipping OCR fallback');
+      return null;
+    }
+
+    const base64 = `data:application/pdf;base64,${bytesToBase64(pdfBytes)}`;
+    const params = new URLSearchParams({
+      base64Image: base64,
+      language: 'eng',
+      isOverlayRequired: 'false',
+      OCREngine: '2'
+    });
+
+    const resp = await fetch('https://ocr-space.p.rapidapi.com/parse/image', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/x-www-form-urlencoded',
+        'X-RapidAPI-Key': rapidKey,
+        'X-RapidAPI-Host': 'ocr-space.p.rapidapi.com'
+      },
+      body: params
+    });
+
+    if (!resp.ok) {
+      const t = await resp.text();
+      console.error('OCR RapidAPI error:', resp.status, t);
+      return null;
+    }
+
+    const data = await resp.json();
+    const text = (data?.ParsedResults || [])
+      .map((r: any) => r?.ParsedText || '')
+      .join('\n');
+
+    const cleaned = (text || '').replace(/\s+/g, ' ').trim();
+    return cleaned || null;
+  } catch (e) {
+    console.error('OCR fallback failed:', e);
+    return null;
   }
 }
 
