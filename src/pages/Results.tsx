@@ -64,7 +64,7 @@ const Results = () => {
   }
   
   // Parse full_analysis from analysis (string or object)
-  const fullAnalysisData = (() => {
+  const fullAnalysis = (() => {
     try {
       if (typeof analysis.full_analysis === 'string') return JSON.parse(analysis.full_analysis);
       return analysis.full_analysis || {};
@@ -75,8 +75,8 @@ const Results = () => {
 
   // Normalize issues list from full_analysis
   const issues = [
-    ...(fullAnalysisData.high_priority_issues || []),
-    ...(fullAnalysisData.potential_issues || []),
+    ...(fullAnalysis.high_priority_issues || []),
+    ...(fullAnalysis.potential_issues || []),
   ].map((it: any) => ({
     category: it.type || it.category,
     description: it.line_description || it.description,
@@ -91,9 +91,9 @@ const Results = () => {
   }));
   
   // Extract values with fallbacks
-  const criticalIssues = uiSummary.high_priority_count ?? (fullAnalysisData.high_priority_issues?.length ?? 0);
-  const moderateIssues = uiSummary.potential_issues_count ?? (fullAnalysisData.potential_issues?.length ?? 0);
-  const estimatedSavings = uiSummary.estimated_savings_if_corrected ?? (fullAnalysisData.estimated_savings ?? 0);
+  const criticalIssues = uiSummary.high_priority_count ?? (fullAnalysis.high_priority_issues?.length ?? 0);
+  const moderateIssues = uiSummary.potential_issues_count ?? (fullAnalysis.potential_issues?.length ?? 0);
+  const estimatedSavings = uiSummary.estimated_savings_if_corrected ?? (fullAnalysis.estimated_savings ?? 0);
   const totalCharged = analysis.total_charged ?? 2380; // fallback
   const hospitalName = analysis.hospital_name || 'Hospital';
   const emailSent = analysis.email_sent || false;
@@ -197,10 +197,10 @@ const Results = () => {
 
         {/* Analysis Quality Indicator */}
         <AnalysisQualityBadge
-          hasDetailedIssues={(analysis.issues || []).length > 0}
+          hasDetailedIssues={issues.length > 0}
           hasSavingsCalculation={estimatedSavings > 0}
-          hasConfidenceScores={analysis.issues && analysis.issues[0]?.confidence_score !== undefined}
-          issuesCount={(analysis.issues || []).length}
+          hasConfidenceScores={issues.length > 0 && issues[0]?.confidence_score !== undefined}
+          issuesCount={issues.length}
         />
 
         {/* Bill Score Card - ALWAYS SHOW */}
@@ -233,11 +233,11 @@ const Results = () => {
         )}
 
         {/* Detailed Issues with Confidence Badges - ALWAYS SHOW IF ISSUES EXIST */}
-        {(analysis.issues || []).length > 0 ? (
+        {issues.length > 0 ? (
           <Card className="mb-6 p-6 shadow-card">
             <h2 className="text-xl font-bold text-foreground mb-4">Problemas Identificados Detalhados</h2>
             <div className="space-y-4">
-              {analysis.issues.map((issue: any, index: number) => {
+              {issues.map((issue: any, index: number) => {
                 const chargedAmount = parseFloat(issue.impact?.replace(/[^0-9.]/g, '') || '0');
                 
                 return (
@@ -300,10 +300,10 @@ const Results = () => {
         )}
 
         {/* Before/After Comparison Simulator - SHOW IF SAVINGS > 0 */}
-        {estimatedSavings > 0 && (analysis.issues || []).length > 0 && (
+        {estimatedSavings > 0 && issues.length > 0 && (
           <div className="mb-6">
             <BeforeAfterComparison
-              charges={(analysis.issues || []).map((issue: any, idx: number) => {
+              charges={issues.map((issue: any, idx: number) => {
                 const chargedAmountStr = issue.impact?.replace(/[^0-9.]/g, '') || '0';
                 const chargedAmount = parseFloat(chargedAmountStr);
                 const isDuplicate = issue.category?.toLowerCase().includes('duplicate');
