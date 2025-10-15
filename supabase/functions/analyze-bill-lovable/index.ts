@@ -216,15 +216,29 @@ serve(async (req) => {
     
     // ✅ FIX: Recalculate estimated_total_savings INCLUDING duplicates
     const originalSavings = calculateSavings(analysisResult);
-    analysisResult.estimated_total_savings = originalSavings + totalDuplicateSavings;
+    
+    // 🔧 CRITICAL FIX: Extract actual savings from savings engine details
+    const savingsDetails = (analysisResult as any)._savings_details;
+    const actualTotalSavings = savingsDetails 
+      ? savingsDetails.total_potential_savings_likely 
+      : (originalSavings + totalDuplicateSavings);
+    
+    analysisResult.estimated_total_savings = actualTotalSavings;
+    
+    // 🔧 CRITICAL FIX: Update total_issues_count from savings engine
+    if (savingsDetails) {
+      analysisResult.total_issues_count = savingsDetails.lines_with_issues;
+    }
     
     console.log('[INTEGRATION] Updated analysis with duplicates:', {
       original_issues: originalIssueCount,
       duplicate_issues: duplicateLineCount,
-      total_issues: analysisResult.total_issues_count,
+      total_issues_from_engine: savingsDetails?.lines_with_issues || 'N/A',
+      total_issues_final: analysisResult.total_issues_count,
       original_savings: originalSavings,
       duplicate_savings: totalDuplicateSavings,
-      total_savings: analysisResult.estimated_total_savings,
+      savings_from_engine: savingsDetails?.total_potential_savings_likely || 'N/A',
+      total_savings_final: analysisResult.estimated_total_savings,
       what_if_items: analysisResult.what_if_calculator_items?.length
     });
 
