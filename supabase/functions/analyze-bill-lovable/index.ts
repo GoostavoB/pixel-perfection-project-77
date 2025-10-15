@@ -58,7 +58,16 @@ serve(async (req) => {
     const forceBypass = true; // TODO: Set to false after testing complete
     
     const bypassCache = forceBypass || !!(bypassHeader || queryFresh || formFresh);
-    console.log('[CACHE] Bypass header:', bypassHeader, '| query:', queryFresh, '| form:', formFresh, '| FORCE:', forceBypass, '| => willBypass:', bypassCache);
+    
+    // 🔍 HIGH-SIGNAL LOGGING for debugging
+    console.log('[REQ] freshSignals', JSON.stringify({
+      header: bypassHeader,
+      query: queryFresh,
+      form: formFresh,
+      forceBypass,
+      hash: pdfHash.slice(0, 16),
+      ts: new Date().toISOString(),
+    }));
     
     // ✅ CACHE CHECK: Look for existing analysis (unless bypassed)
     if (!bypassCache) {
@@ -76,6 +85,19 @@ serve(async (req) => {
         const sampleIssue = (ar.high_priority_issues?.[0] || ar.potential_issues?.[0]) || {};
         const hasOvercharge = typeof sampleIssue.overcharge_amount === 'number';
         const invalid = (totalBill <= 0) || !hasOvercharge || (totalBill > 0 && est > totalBill * 0.9 + 1);
+        
+        // 🔍 HIGH-SIGNAL CACHE DECISION LOG
+        console.log('[CACHE_DECISION]', JSON.stringify({
+          willBypass: bypassCache,
+          cacheHit: true,
+          cachedAt: cachedAnalysis.created_at,
+          isValid: !invalid,
+          analysisVersion: '2.0.0',
+          modelVersion: 'gemini-2.5-flash',
+          totalBill,
+          estimatedSavings: est,
+          hasOverchargeField: hasOvercharge,
+        }));
         
         if (invalid) {
           console.warn('[CACHE] Invalid cached analysis detected → forcing fresh run', {
@@ -777,34 +799,45 @@ function deduplicateLineItems(issues: any[]): any[] {
   console.log(`[DEDUP] Starting with ${issues.length} issues`);
   
   for (const issue of issues) {
-    if (!issue.line_description) continue;
+    // 🔧 PER-ISSUE VALIDATION: Sanitize each issue before dedup
+    const sanitized = sanitizeIssue(issue);
     
-    // Normalize description - remove "General Classification" and extra whitespace
-    const key = issue.line_description
-      .toLowerCase()
-      .replace(/\s*-?\s*general\s+classification/gi, '')
-      .replace(/\s+/g, ' ')
-      .trim();
+    // Create unique key
+    const key = `${sanitized.line_description}-${sanitized.billed_amount}`;
     
-    // Check if we've seen this or a parent aggregate
-    if (seen.has(key)) {
-      console.log(`[DEDUP] ⏭️ Skipping duplicate: "${issue.line_description}"`);
-      continue;
+    if (!seen.has(key)) {
+      seen.set(key, true);
+      deduplicated.push(sanitized);
+    } else {
+      console.log(`[DEDUP] Removed duplicate: ${key}`);
     }
-    
-    // If this is an aggregate (contains "General Classification"), mark base as seen
-    if (issue.line_description.toLowerCase().includes('general classification')) {
-      const baseKey = key.split('-')[0].trim();
-      seen.set(baseKey, true);
-      console.log(`[DEDUP] 📋 Marking aggregate as seen: "${baseKey}"`);
-    }
-    
-    seen.set(key, true);
-    deduplicated.push(issue);
   }
   
-  console.log(`[DEDUP] ✅ Reduced from ${issues.length} to ${deduplicated.length} unique items`);
+  console.log(`[DEDUP] After dedup: ${deduplicated.length} unique issues`);
   return deduplicated;
+}
+
+// 🔧 NEW: Per-issue validation to prevent invalid overcharge amounts
+function sanitizeIssue(issue: any): any {
+  const billed = Number(issue.billed_amount) || 0;
+  let overcharge = Number(issue.overcharge_amount) || 0;
+  
+  // Guard: negative overcharge
+  if (overcharge < 0) {
+    console.warn(`[SANITIZE] Negative overcharge detected: ${overcharge} → 0`);
+    overcharge = 0;
+  }
+  
+  // Guard: overcharge exceeds billed amount (impossible)
+  if (overcharge > billed) {
+    console.warn(`[SANITIZE] Overcharge ${overcharge} > billed ${billed} → capping to 70% of billed`);
+    overcharge = Math.min(billed, Math.round(billed * 0.7));
+  }
+  
+  return {
+    ...issue,
+    billed_amount: billed,
+  };
 }
 
 function calculateSavings(analysis: any): number {
