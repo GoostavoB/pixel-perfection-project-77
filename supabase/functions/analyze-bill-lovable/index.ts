@@ -745,7 +745,18 @@ Return your analysis in this EXACT JSON structure:
     // 🔧 FIX 5: UNCONDITIONAL validation with text extraction fallback
     analysis = validateAnalysis(analysis, extractedText);
     
-    // 🔧 NEW: Server-side assertions before DB insert
+    // 🔧 VALIDATION PIPELINE: Normalize → Finalize → Assert
+    console.log('[VALIDATION] Starting final validation pipeline');
+    
+    // Step 1: Normalize all numeric fields
+    analysis = normalizeAnalysis(analysis);
+    console.log('[NORMALIZE] ✅ All numbers coerced and cleaned');
+    
+    // Step 2: Round and clamp totals proportionally
+    analysis = finalizeTotals(analysis);
+    console.log('[FINALIZE] ✅ Totals rounded and clamped');
+    
+    // Step 3: Assert all invariants
     try {
       assertAnalysis(analysis);
       console.log('[ASSERT] ✅ Analysis passed all validation checks');
@@ -777,6 +788,12 @@ Return your analysis in this EXACT JSON structure:
   throw new Error('No structured analysis returned from AI');
 }
 
+// 🔧 VALIDATION: Constants for versioned caching
+const ANALYSIS_VERSION = "2.0.1";
+const PROMPT_VERSION = "pv-2025-10-15-2";
+const MODEL_ID = "gemini-2.5-flash";
+const SCHEMA_VERSION = "ai-output-v3";
+
 // 🔧 NEW: Numeric hygiene helper
 function isNum(x: any): boolean {
   return typeof x === 'number' && Number.isFinite(x);
@@ -788,6 +805,50 @@ function toNum(x: any): number {
   const cleaned = String(x).replace(/[$,\s]/g, '');
   const n = Number(cleaned);
   return Number.isFinite(n) ? n : 0;
+}
+
+// 🔧 NEW: Round to 2 decimals
+function round2(n: number): number {
+  return Math.round((n + Number.EPSILON) * 100) / 100;
+}
+
+// 🔧 NEW: Normalize all numbers in analysis
+function normalizeAnalysis(a: any): any {
+  const coerce = (x: any) => toNum(x);
+  
+  a.total_bill_amount = coerce(a.total_bill_amount);
+  
+  for (const i of [...(a.high_priority_issues || []), ...(a.potential_issues || [])]) {
+    i.billed_amount = coerce(i.billed_amount);
+    i.overcharge_amount = coerce(i.overcharge_amount);
+    i.medicare_benchmark = coerce(i.medicare_benchmark);
+    i.reasonable_rate = coerce(i.reasonable_rate);
+  }
+  
+  return a;
+}
+
+// 🔧 NEW: Round and clamp totals proportionally
+function finalizeTotals(a: any): any {
+  const allIssues = [...(a.high_priority_issues || []), ...(a.potential_issues || [])];
+  const sum = allIssues.reduce((s, i) => s + Number(i.overcharge_amount || 0), 0);
+  
+  a.total_potential_savings = round2(sum);
+  
+  // Proportional clamp if sum exceeds total
+  if (a.total_potential_savings > a.total_bill_amount) {
+    const factor = a.total_bill_amount / a.total_potential_savings;
+    console.log(`[CLAMP] Applying proportional factor ${factor.toFixed(4)} to prevent exceeding total`);
+    
+    for (const i of allIssues) {
+      i.overcharge_amount = round2(i.overcharge_amount * factor);
+    }
+    
+    a.total_potential_savings = round2(a.total_bill_amount);
+    a.validation_applied = true;
+  }
+  
+  return a;
 }
 
 // 🔧 NEW: Server-side assertion before DB insert
