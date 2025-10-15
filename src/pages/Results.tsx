@@ -48,16 +48,12 @@ const Results = () => {
 
   if (!analysis) return null;
 
-  console.log('Results page - Analysis data:', {
-    hasAnalysis: !!analysis,
-    hasAnalysisResult: !!analysis.analysis_result,
-    hasIssues: !!(analysis.issues),
-    issuesCount: (analysis.issues || []).length,
-    criticalIssues: analysis.critical_issues,
-    moderateIssues: analysis.moderate_issues,
-    estimatedSavings: analysis.estimated_savings,
-    totalCharged: analysis.total_charged
-  });
+  // Safe number parser
+  const num = (x: any): number => {
+    if (x == null) return NaN;
+    const n = Number(String(x).replace(/[,$\s]/g, ""));
+    return Number.isFinite(n) ? n : NaN;
+  };
 
   const analysisDate = new Date().toLocaleDateString('en-US', {
     year: 'numeric', 
@@ -87,10 +83,54 @@ const Results = () => {
     }
   })();
 
+  // Unified analysis object - check all possible locations
+  const a = fullAnalysis ?? analysis.analysis_result ?? analysis ?? {};
+
+  // Safe extraction with hard guards
+  const totalCharged = 
+    num(a.total_bill_amount) ||
+    num(a.total_charged) ||
+    num(uiSummary?.total_bill_amount) ||
+    NaN;
+
+  const savings =
+    num(a.total_potential_savings) ||
+    num(uiSummary?.estimated_savings_if_corrected) ||
+    NaN;
+
+  const hi = Array.isArray(a.high_priority_issues) ? a.high_priority_issues : [];
+  const pi = Array.isArray(a.potential_issues) ? a.potential_issues : [];
+
+  // Guard before render - show error banner if invalid data
+  if (!Number.isFinite(totalCharged) || totalCharged <= 0) {
+    console.error("Invalid totalCharged payload", { a, uiSummary, analysis, fullAnalysis });
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <main className="container mx-auto px-4 py-16">
+          <Card className="max-w-2xl mx-auto p-8 border-destructive">
+            <div className="text-center">
+              <AlertCircle className="w-16 h-16 text-destructive mx-auto mb-4" />
+              <h2 className="text-2xl font-bold text-foreground mb-2">
+                Unable to Parse Bill Total
+              </h2>
+              <p className="text-muted-foreground mb-6">
+                We could not parse the bill total. Please reupload or try another file.
+              </p>
+              <Button onClick={() => navigate('/upload')}>
+                Return to Upload
+              </Button>
+            </div>
+          </Card>
+        </main>
+      </div>
+    );
+  }
+
   // Normalize issues list from full_analysis
   const issues = [
-    ...(fullAnalysis.high_priority_issues || []),
-    ...(fullAnalysis.potential_issues || []),
+    ...hi,
+    ...pi,
   ].map((it: any) => ({
     category: it.type || it.category,
     description: it.line_description || it.description,
@@ -115,26 +155,21 @@ const Results = () => {
     return sum + (isNaN(amount) ? 0 : amount);
   }, 0);
   
-  // Extract values with fallbacks - defensive parsing
-  const criticalIssues = uiSummary.high_priority_count ?? (fullAnalysis.high_priority_issues?.length ?? 0);
-  const moderateIssues = uiSummary.potential_issues_count ?? (fullAnalysis.potential_issues?.length ?? 0);
-  const estimatedSavings = calculatedSavings > 0 ? calculatedSavings : (uiSummary.estimated_savings_if_corrected ?? (fullAnalysis.total_potential_savings ?? (fullAnalysis.estimated_savings ?? 0)));
+  // Extract values with fallbacks
+  const criticalIssues = uiSummary.high_priority_count ?? hi.length;
+  const moderateIssues = uiSummary.potential_issues_count ?? pi.length;
+  const estimatedSavings = calculatedSavings > 0 ? calculatedSavings : (Number.isFinite(savings) ? savings : 0);
   
-  // Total charged - check all possible locations
-  const totalCharged = Number(
-    analysis.total_charged ?? 
-    fullAnalysis.total_bill_amount ?? 
-    analysis.analysis_result?.total_bill_amount ?? 
-    0
-  );
-  
-  // Validate totalCharged is a finite number
-  if (!Number.isFinite(totalCharged) || totalCharged <= 0) {
-    console.error("Invalid total_bill_amount", { analysis, fullAnalysis, totalCharged });
-  }
-  
-  const hospitalName = fullAnalysis.hospital_name ?? analysis.hospital_name ?? 'Hospital';
+  const hospitalName = a.hospital_name ?? analysis.hospital_name ?? 'Hospital';
   const emailSent = analysis.email_sent || false;
+
+  console.log('Parsed values:', {
+    criticalIssues,
+    moderateIssues,
+    estimatedSavings,
+    totalCharged,
+    hasIssues: issues.length
+  });
 
   console.log('Parsed values:', {
     criticalIssues,

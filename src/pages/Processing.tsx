@@ -95,11 +95,16 @@ const Processing = () => {
         throw new Error('Failed to retrieve analysis results');
       }
 
+      // Guard: ensure we have valid analysis_result before navigating
+      if (data.status !== 'ready' || !data.analysis_result) {
+        throw new Error('Analysis result is incomplete or failed');
+      }
+
       setProgress(100);
       setStatus("Complete!");
       setIsAnalyzing(false);
 
-      // Navigate to results
+      // Navigate to results with complete analysis_result
       setTimeout(() => {
         navigate('/results', {
           state: {
