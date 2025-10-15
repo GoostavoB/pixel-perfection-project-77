@@ -58,14 +58,14 @@ serve(async (req) => {
       .from('medical-bills')
       .getPublicUrl(fileName);
 
-    // Extract text from PDF (simplified - in production use proper PDF parser)
-    const textContent = await extractTextFromFile(fileBuffer, file.type);
-    console.log('Text extracted, length:', textContent.length);
+    // Extract text/image from file
+    const extractedContent = await extractTextFromFile(fileBuffer, file.type);
+    console.log('Content extracted, text length:', extractedContent.text.length, 'Has image:', !!extractedContent.imageData);
 
     // Analyze with Lovable AI
     const lovableApiKey = Deno.env.get('LOVABLE_API_KEY')!;
     
-    const analysisResult = await analyzeBillWithAI(textContent, lovableApiKey, supabase);
+    const analysisResult = await analyzeBillWithAI(extractedContent, lovableApiKey, supabase);
     console.log('AI analysis complete');
 
     // Get user ID from auth header
@@ -87,7 +87,7 @@ serve(async (req) => {
         file_name: file.name,
         file_type: file.type,
         file_url: publicUrl,
-        extracted_text: textContent,
+        extracted_text: extractedContent.text,
         status: 'completed',
         analysis_result: analysisResult,
         critical_issues: analysisResult.high_priority_issues?.length || 0,
@@ -142,7 +142,7 @@ serve(async (req) => {
   }
 });
 
-async function extractTextFromFile(buffer: ArrayBuffer, mimeType: string): Promise<string> {
+async function extractTextFromFile(buffer: ArrayBuffer, mimeType: string): Promise<{text: string, imageData?: string}> {
   try {
     if (mimeType === 'application/pdf') {
       // Use PDF.js to extract text from all pages
@@ -161,22 +161,36 @@ async function extractTextFromFile(buffer: ArrayBuffer, mimeType: string): Promi
       const cleaned = fullText.replace(/\s+/g, ' ').trim();
       // Safety fallback if parsing failed
       if (cleaned.length < 50) {
-        return `PDF parsed but text was minimal (${cleaned.length} chars). File size: ${bytes.byteLength} bytes.`;
+        return { text: `PDF parsed but text was minimal (${cleaned.length} chars). File size: ${bytes.byteLength} bytes.` };
       }
 
       // Limit extremely long PDFs
-      return cleaned.slice(0, 120_000);
+      return { text: cleaned.slice(0, 120_000) };
     }
 
-    // Simple fallback for images/others
-    return `Medical bill received. File size: ${buffer.byteLength} bytes. MIME type: ${mimeType}`;
+    // For images (JPG, PNG, WEBP), convert to base64 for vision API
+    if (mimeType.startsWith('image/')) {
+      const bytes = new Uint8Array(buffer);
+      const base64 = btoa(String.fromCharCode(...bytes));
+      return {
+        text: `Medical bill image received. File size: ${buffer.byteLength} bytes. Using vision analysis.`,
+        imageData: `data:${mimeType};base64,${base64}`
+      };
+    }
+
+    // Simple fallback for other types
+    return { text: `Medical bill received. File size: ${buffer.byteLength} bytes. MIME type: ${mimeType}` };
   } catch (err) {
-    console.error('PDF text extraction failed:', err);
-    return `PDF read error. File size: ${buffer.byteLength} bytes. Please analyze by structure and common patterns.`;
+    console.error('File extraction failed:', err);
+    return { text: `File read error. File size: ${buffer.byteLength} bytes. Please analyze by structure and common patterns.` };
   }
 }
 
-async function analyzeBillWithAI(textContent: string, apiKey: string, supabase: any) {
+async function analyzeBillWithAI(
+  extractedContent: {text: string, imageData?: string}, 
+  apiKey: string, 
+  supabase: any
+) {
   console.log('Calling Lovable AI with pricing data...');
   
   // Fetch Medicare pricing data
@@ -193,7 +207,7 @@ async function analyzeBillWithAI(textContent: string, apiKey: string, supabase: 
 
   // Extract and validate NPIs from bill text
   const npiPattern = /\b\d{10}\b/g;
-  const foundNPIs = textContent.match(npiPattern) || [];
+  const foundNPIs = extractedContent.text.match(npiPattern) || [];
   
   let providerContext = '';
   if (foundNPIs.length > 0) {
@@ -239,38 +253,92 @@ ${regionalData?.map((r: any) => `${r.state_code} (${r.region_name}): ${r.adjustm
 ${providerContext}
 `;
   
-  const systemPrompt = `You are an AGGRESSIVE medical billing fraud detector and patient advocate. Your PRIMARY job is to find EVERY problem, overcharge, duplicate, and questionable item on medical bills.
+  const systemPrompt = `You are an AGGRESSIVE medical billing fraud detector and patient advocate specialized in analyzing ALL types of medical bills.
 
 ${pricingContext}
 
-CRITICAL INSTRUCTIONS - YOU MUST BE THOROUGH:
-⚠️ ALWAYS look for these common billing frauds:
-1. DUPLICATE CHARGES - Same procedure/code/date charged multiple times
-2. UNBUNDLING - Separate charges for things that should be bundled (e.g., "technical fee" separate from imaging)
-3. UPCODING - Simple procedures billed as complex ones
-4. PHANTOM BILLING - Charges for services never received
-5. OUT-OF-NETWORK SURPRISE BILLS - OON providers at in-network facilities (No Surprises Act violation)
-6. EXCESSIVE MARKUPS - Anything >3x Medicare rate is suspicious
-7. SUPPLY OVERCHARGES - $40 for a bandage, etc.
-8. ADMINISTRATIVE FEES - Non-standard junk fees
+BILL FORMAT ANALYSIS - Handle ALL these types:
+📋 **Structured Bills**: Line-by-line itemization with CPT/HCPCS codes (99213, 80053, etc.)
+📋 **Aggregate Bills**: Category summaries (LABORATORY SERVICES $18,861, PHARMACY $33,719)
+📋 **Photo Bills**: Poor quality images with partial codes visible
+📋 **Internal Codes**: Hospital-specific codes (SURG01, B&B01, LAB01) instead of standard CPT
+📋 **Mixed Format**: Some line items + some aggregated categories
 
-DETECTION RULES (BE AGGRESSIVE):
-✓ If you see identical line items → DUPLICATE (high priority)
-✓ If you see "technical fee" + imaging separately → UNBUNDLING (high priority)
-✓ If charge is >3x Medicare → MAJOR OVERCHARGE (high priority)
-✓ If supply units seem excessive (4 units of dressing?) → FLAG IT
-✓ If procedure has no documentation notes → PHANTOM BILLING
-✓ If out-of-network provider at in-network facility → NO SURPRISES ACT VIOLATION
-✓ Any "admin fee" or vague charge → FLAG AS QUESTIONABLE
+CRITICAL FRAUD DETECTION RULES:
+⚠️ **DUPLICATES** (High Priority):
+- Identical description + date + amount = 95% duplicate probability
+- Same service code charged 2x same day = investigate
+- Example: "IV hydration PROC-010 $200" appearing twice = $200 overcharge
 
-YOU MUST FIND PROBLEMS - Even on "simple" bills there are usually overcharges.
-If you genuinely find NOTHING wrong (rare), say so explicitly with confidence score.
+⚠️ **UNBUNDLING** (High Priority):
+- "Technical fee" + "Professional fee" separate from imaging = likely unbundled
+- Anesthesia + separate "monitoring fee" = red flag
+- Multiple "supply charges" for same procedure = investigate
 
-LANGUAGE STYLE:
-- Be direct and clear in English
-- Show specific dollar amounts
-- Calculate exact savings
-- Give actionable dispute steps
+⚠️ **MASSIVE OVERCHARGES** (High Priority):
+- Compare to Medicare: >3x Medicare = overcharge, >5x = extreme overcharge
+- $5,400 for appendectomy (Medicare ~$1,200) = $4,200+ potential savings
+- Room charges >$2,000/night = investigate regional rates
+
+⚠️ **OUT-OF-NETWORK SURPRISE** (No Surprises Act):
+- Anesthesiologist OON at in-network hospital = VIOLATION
+- Assistant surgeon OON = check if emergency (protected) or elective (negotiable)
+- Radiology reading by OON doctor = potential violation
+
+⚠️ **CATEGORY-LEVEL RED FLAGS**:
+- "SUPPLIES" >$10,000 without itemization = demand breakdown
+- "PHARMACY" >$50,000 without drug list = investigate
+- Any category >$100,000 needs detailed review
+
+⚠️ **CODING ISSUES**:
+- Generic codes (like "SURG01") prevent price verification = demand CPT codes
+- Missing procedure codes = cannot benchmark fairly = flag for clarification
+- Mismatched specialty (cardiologist billing neurosurgery code) = upcoding risk
+
+ANALYSIS STRATEGY:
+1. **Extract ALL charges** - even from aggregated categories
+2. **Pattern detection** - look for duplicates, unbundling, excessive markups
+3. **Benchmark aggressively** - use Medicare + regional adjustment as "fair" baseline
+4. **Calculate realistic savings** - conservative estimates (what patient can actually negotiate)
+5. **Actionable advice** - specific steps to dispute each overcharge
+
+LANGUAGE REQUIREMENTS:
+- ALL responses in English
+- Dollar amounts with commas ($1,234.56)
+- Percentages for markup (320% markup)
+- Confidence scores (0.0-1.0) for each finding
+
+REAL-WORLD EXAMPLES from training data:
+
+**Example 1 - Duplicate Charge:**
+Bill shows: "IV hydration PROC-010 2 units $200" appearing on Line 4 and Line 5 on same date
+→ HIGH PRIORITY: Duplicate charge, $200 overcharge, confidence 0.95
+→ "Line 4 and Line 5 both charge PROC-010 for IV hydration on 2025-09-15 for $200 each. This is a $200 duplicate that should be removed."
+
+**Example 2 - Unbundling:**
+Bill shows: "Imaging - chest X-ray IMG-001 $250" + separate "Technical fee - imaging TECH-IMG $150"
+→ HIGH PRIORITY: Unbundling fraud, $150 overcharge, confidence 0.90
+→ "Technical fees should be bundled with the imaging charge. The $150 TECH-IMG is an unbundled charge that violates billing standards."
+
+**Example 3 - Extreme Markup:**
+Bill shows: "Surgery - Appendectomy SURG01 $5,400" (Medicare benchmark ~$1,800)
+→ HIGH PRIORITY: 300% markup, $1,800-$2,700 potential savings, confidence 0.85
+→ "Medicare pays $1,800 for this surgery. Even with a fair 2-3x hospital markup, this should be $3,600-$5,400. You have strong grounds to negotiate down to $3,600 (saving $1,800)."
+
+**Example 4 - OON Surprise Bill:**
+Bill shows: "Anesthesiologist (OON) - procedural support ANES-500 $600" at in-network facility
+→ HIGH PRIORITY: No Surprises Act violation, $300-$600 potential adjustment, confidence 0.90
+→ "Out-of-network anesthesia at an in-network hospital violates the No Surprises Act (2022). You should only pay the in-network rate. Request immediate adjustment."
+
+**Example 5 - Supply Overcharge:**
+Bill shows: "Supply charge - dressing kit SUP-001, 4 units @ $40 = $160"
+→ MODERATE PRIORITY: Excessive units, $80-$120 potential savings, confidence 0.75
+→ "Four units of dressing supplies for one wound care seems excessive. Typically 1-2 units. Question why 4 units were necessary."
+
+**Example 6 - Aggregate Category (Large Bill):**
+Bill shows: "LABORATORY SERVICES $18,861.71" without itemization
+→ MODERATE PRIORITY: Cannot verify without breakdown, confidence 0.60
+→ "This is a large aggregate charge. Request an itemized breakdown of all lab tests to verify each charge against Medicare rates. Lab markups often exceed 500%."
 
 Return your analysis in this EXACT JSON structure:
 {
@@ -313,6 +381,23 @@ Return your analysis in this EXACT JSON structure:
   "tags": ["overcharging", "negotiable", "high_confidence"]
 }`;
 
+  // Build message content - include image if available (for vision analysis)
+  const userMessage: any = {
+    role: 'user',
+    content: extractedContent.imageData
+      ? [
+          {
+            type: 'text',
+            text: `ANALYZE THIS MEDICAL BILL IMAGE AGGRESSIVELY - Look for duplicates, unbundling, overcharges, phantom billing, and out-of-network surprises. Extract ALL visible charges, codes, descriptions, and amounts:\n\n${extractedContent.text}`
+          },
+          {
+            type: 'image_url',
+            image_url: { url: extractedContent.imageData }
+          }
+        ]
+      : `ANALYZE THIS MEDICAL BILL AGGRESSIVELY - Look for duplicates, unbundling, overcharges, phantom billing, and out-of-network surprises:\n\n${extractedContent.text}`
+  };
+
   const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -323,7 +408,7 @@ Return your analysis in this EXACT JSON structure:
       model: 'google/gemini-2.5-flash',
       messages: [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: `ANALYZE THIS MEDICAL BILL AGGRESSIVELY - Look for duplicates, unbundling, overcharges, phantom billing, and out-of-network surprises:\n\n${textContent}` }
+        userMessage
       ],
       temperature: 0.3, // Slightly higher for more thorough analysis
       tools: [{
