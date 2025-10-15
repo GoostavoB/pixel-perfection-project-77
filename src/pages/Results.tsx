@@ -276,6 +276,16 @@ const Results = () => {
             </div>
             <div className="flex items-center gap-2">
               <MedicalGlossary />
+              {analysis.cached && (
+                <Button
+                  onClick={() => navigate('/upload', { state: { fresh: true } })}
+                  variant="outline"
+                  size="sm"
+                  className="border-orange-500 text-orange-700 hover:bg-orange-50"
+                >
+                  🔄 Analyze Fresh
+                </Button>
+              )}
               <Badge className="bg-success/10 text-success border-success/20 px-4 py-2 text-sm font-semibold">
                 <CheckCircle className="w-4 h-4 mr-2" />
                 Analysis Complete
