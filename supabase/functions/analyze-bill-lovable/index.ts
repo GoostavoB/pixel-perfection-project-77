@@ -168,6 +168,16 @@ serve(async (req) => {
     
     const analysisResult = await analyzeBillWithAI(extractedContent, lovableApiKey, supabase);
     console.log('AI analysis complete - validated and ready for storage');
+    
+    // Run duplicate detection as complementary analysis
+    const duplicateFindings = await detectDuplicateCharges(extractedContent, analysisResult, lovableApiKey);
+    console.log('Duplicate detection complete:', {
+      total_flags: duplicateFindings.flags?.length || 0,
+      suspect_amount: duplicateFindings.totals?.suspect_amount || 0
+    });
+    
+    // Integrate duplicate findings into main analysis
+    analysisResult.duplicate_findings = duplicateFindings;
 
     // Get user ID from auth header
     const authHeader = req.headers.get('Authorization');
@@ -1298,4 +1308,143 @@ function validateAnalysis(analysis: any, extractedText: string): any {
   
   console.log('[VALIDATE] === Validation Complete ===');
   return analysis;
+}
+
+// Duplicate Charge Detection
+async function detectDuplicateCharges(
+  extractedContent: {text: string, imageData?: string},
+  mainAnalysis: any,
+  apiKey: string
+) {
+  console.log('Running duplicate charge detection...');
+  
+  const duplicatePrompt = await Deno.readTextFile(
+    new URL('./prompts/duplicate-detector-prompt.md', import.meta.url).pathname
+  );
+  
+  const systemPrompt = duplicatePrompt;
+  
+  const userMessage: any = {
+    role: 'user',
+    content: extractedContent.imageData
+      ? [
+          {
+            type: 'text',
+            text: `DETECT DUPLICATE CHARGES IN THIS MEDICAL BILL:\n\nBill Total: $${mainAnalysis.total_bill_amount}\nHospital: ${mainAnalysis.hospital_name}\nDate: ${mainAnalysis.date_of_service}\n\nExtracted Text:\n${extractedContent.text}`
+          },
+          {
+            type: 'image_url',
+            image_url: { url: extractedContent.imageData }
+          }
+        ]
+      : `DETECT DUPLICATE CHARGES IN THIS MEDICAL BILL:\n\nBill Total: $${mainAnalysis.total_bill_amount}\nHospital: ${mainAnalysis.hospital_name}\nDate: ${mainAnalysis.date_of_service}\n\nExtracted Text:\n${extractedContent.text}`
+  };
+  
+  try {
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'google/gemini-2.5-flash',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          userMessage
+        ],
+        temperature: 0,
+        tools: [{
+          type: 'function',
+          function: {
+            name: 'return_duplicate_findings',
+            description: 'Return duplicate charge findings',
+            parameters: {
+              type: 'object',
+              properties: {
+                bill_id: { type: 'string' },
+                patient_id: { type: 'string' },
+                service_dates: {
+                  type: 'array',
+                  items: { type: 'string' }
+                },
+                flags: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      category: { type: 'string', enum: ['P1', 'P2', 'P3', 'P4'] },
+                      reason: { type: 'string' },
+                      evidence: {
+                        type: 'object',
+                        properties: {
+                          line_ids: { type: 'array', items: { type: 'string' } },
+                          date_of_service: { type: 'string' },
+                          codes: { type: 'array' },
+                          modifiers: { type: 'array', items: { type: 'string' } },
+                          units: { type: 'array', items: { type: 'number' } },
+                          provider_group: { type: 'string' },
+                          place_of_service: { type: 'string' },
+                          prices: { type: 'array', items: { type: 'number' } }
+                        }
+                      },
+                      panel_unbundling: {
+                        type: 'object',
+                        properties: {
+                          panel_code: { type: 'string' },
+                          component_codes: { type: 'array', items: { type: 'string' } }
+                        }
+                      },
+                      confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
+                      recommended_action: { type: 'string' },
+                      dispute_text: { type: 'string' }
+                    },
+                    required: ['category', 'reason', 'confidence', 'recommended_action', 'dispute_text']
+                  }
+                },
+                totals: {
+                  type: 'object',
+                  properties: {
+                    suspect_lines: { type: 'number' },
+                    suspect_amount: { type: 'number' }
+                  }
+                },
+                missing_data_requests: {
+                  type: 'array',
+                  items: { type: 'string' }
+                },
+                human_summary: { type: 'string' }
+              },
+              required: ['flags', 'totals', 'human_summary']
+            }
+          }
+        }],
+        tool_choice: { type: 'function', function: { name: 'return_duplicate_findings' } }
+      }),
+    });
+    
+    if (!response.ok) {
+      console.error('Duplicate detection API error:', response.status);
+      return { flags: [], totals: { suspect_lines: 0, suspect_amount: 0 }, human_summary: 'Duplicate detection unavailable' };
+    }
+    
+    const data = await response.json();
+    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
+    
+    if (toolCall?.function?.arguments) {
+      const findings = JSON.parse(toolCall.function.arguments);
+      console.log('Duplicate findings parsed:', {
+        flags: findings.flags?.length || 0,
+        suspect_amount: findings.totals?.suspect_amount || 0
+      });
+      return findings;
+    }
+    
+    console.warn('No duplicate findings returned');
+    return { flags: [], totals: { suspect_lines: 0, suspect_amount: 0 }, human_summary: 'No duplicates detected' };
+    
+  } catch (error) {
+    console.error('Error in duplicate detection:', error);
+    return { flags: [], totals: { suspect_lines: 0, suspect_amount: 0 }, human_summary: 'Duplicate detection error' };
+  }
 }

@@ -20,6 +20,7 @@ import { AnalysisQualityBadge } from "@/components/AnalysisQualityBadge";
 import { SavingsHighlight } from "@/components/SavingsHighlight";
 import { FriendlyIssueCard } from "@/components/FriendlyIssueCard";
 import { NextStepsGuide } from "@/components/NextStepsGuide";
+import DuplicateFindingsCard from "@/components/DuplicateFindingsCard";
 
 const Results = () => {
   const location = useLocation();
@@ -397,6 +398,13 @@ const Results = () => {
             moderateIssues={moderateIssues}
           />
         </div>
+
+        {/* Duplicate Findings Card - NEW */}
+        {fullAnalysis.duplicate_findings && (
+          <div className="mb-8">
+            <DuplicateFindingsCard findings={fullAnalysis.duplicate_findings} />
+          </div>
+        )}
 
         {/* Friendly Summary from AI */}
         {fullAnalysis.summary_for_user && (
