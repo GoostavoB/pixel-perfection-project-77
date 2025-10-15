@@ -1,6 +1,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
-
+// PDF parsing (server-side, no rendering)
+import { getDocument, GlobalWorkerOptions } from "https://esm.sh/pdfjs-dist@4.4.168/build/pdf.mjs";
+// Configure worker for Deno environment
+GlobalWorkerOptions.workerSrc = "https://esm.sh/pdfjs-dist@4.4.168/build/pdf.worker.mjs";
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -140,18 +143,37 @@ serve(async (req) => {
 });
 
 async function extractTextFromFile(buffer: ArrayBuffer, mimeType: string): Promise<string> {
-  // For PDFs, we'd use a proper PDF parser
-  // For now, return a simple text representation
-  // In production, integrate with a PDF parsing library or service
-  
-  if (mimeType === 'application/pdf') {
-    // TODO: Implement proper PDF text extraction
-    // For now, return placeholder that triggers AI to request better data
-    return `PDF file received. File size: ${buffer.byteLength} bytes. Please analyze the medical bill structure.`;
+  try {
+    if (mimeType === 'application/pdf') {
+      // Use PDF.js to extract text from all pages
+      const bytes = new Uint8Array(buffer);
+      const loadingTask = getDocument({ data: bytes });
+      const pdf = await loadingTask.promise;
+
+      let fullText = '';
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const content: any = await page.getTextContent();
+        const pageText = content.items.map((it: any) => (it?.str ?? '')).join(' ');
+        fullText += `\n\n--- Page ${i} ---\n${pageText}`;
+      }
+
+      const cleaned = fullText.replace(/\s+/g, ' ').trim();
+      // Safety fallback if parsing failed
+      if (cleaned.length < 50) {
+        return `PDF parsed but text was minimal (${cleaned.length} chars). File size: ${bytes.byteLength} bytes.`;
+      }
+
+      // Limit extremely long PDFs
+      return cleaned.slice(0, 120_000);
+    }
+
+    // Simple fallback for images/others
+    return `Medical bill received. File size: ${buffer.byteLength} bytes. MIME type: ${mimeType}`;
+  } catch (err) {
+    console.error('PDF text extraction failed:', err);
+    return `PDF read error. File size: ${buffer.byteLength} bytes. Please analyze by structure and common patterns.`;
   }
-  
-  // For images, return metadata
-  return `Medical bill image received. File size: ${buffer.byteLength} bytes. MIME type: ${mimeType}`;
 }
 
 async function analyzeBillWithAI(textContent: string, apiKey: string, supabase: any) {
