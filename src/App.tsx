@@ -9,6 +9,8 @@ import Index from "./pages/Index";
 import Upload from "./pages/Upload";
 import Processing from "./pages/Processing";
 import Results from "./pages/Results";
+import Auth from "./pages/Auth";
+import AuthGuard from "./components/AuthGuard";
 import NewResults from "./pages/NewResults";
 import UserForm from "./pages/UserForm";
 import Blog from "./pages/Blog";
@@ -31,8 +33,6 @@ import Scoreboard from "./pages/Scoreboard";
 import GenerateLetter from "./pages/GenerateLetter";
 import FAQ from "./pages/FAQ";
 import NotFound from "./pages/NotFound";
-import Auth from "./pages/Auth";
-import AuthGuard from "./components/AuthGuard";
 import ApiTokens from "./pages/ApiTokens";
 
 // Query client for React Query
