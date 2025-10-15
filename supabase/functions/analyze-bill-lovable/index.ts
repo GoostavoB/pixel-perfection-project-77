@@ -1389,7 +1389,16 @@ function computeFrontendFields(analysis: any): any {
 
 // ✅ NEW: Production-ready savings calculation using multi-source baseline
 function calculateSavings(analysis: any): number {
-  console.log('[CALC] Starting production savings calculation...');
+  console.log('[CALC] === Starting Production Savings Calculation ===');
+  console.log('[CALC] Analysis structure:', {
+    has_charges: !!analysis.charges,
+    charges_count: (analysis.charges || []).length,
+    has_high_priority: !!analysis.high_priority_issues,
+    high_priority_count: (analysis.high_priority_issues || []).length,
+    has_potential: !!analysis.potential_issues,
+    potential_count: (analysis.potential_issues || []).length,
+    total_bill_amount: analysis.total_bill_amount
+  });
   
   // Extract charges from BOTH charges array AND issues
   let charges = analysis.charges || [];
