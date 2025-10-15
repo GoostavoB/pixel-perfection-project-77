@@ -14,7 +14,19 @@ const Upload = () => {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0]);
+      const selectedFile = e.target.files[0];
+      
+      // Check for empty or corrupted file
+      if (selectedFile.size === 0) {
+        toast({
+          title: "Invalid file",
+          description: "The selected file appears to be empty or corrupted. Please try a different file.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      setFile(selectedFile);
     }
   };
 
@@ -31,7 +43,19 @@ const Upload = () => {
     e.preventDefault();
     setIsDragging(false);
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      setFile(e.dataTransfer.files[0]);
+      const droppedFile = e.dataTransfer.files[0];
+      
+      // Check for empty or corrupted file
+      if (droppedFile.size === 0) {
+        toast({
+          title: "Invalid file",
+          description: "The selected file appears to be empty or corrupted. Please try a different file.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      setFile(droppedFile);
     }
   };
 
@@ -40,6 +64,16 @@ const Upload = () => {
       toast({
         title: "No file selected",
         description: "Please select a medical bill to analyze",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check for empty or corrupted file
+    if (file.size === 0) {
+      toast({
+        title: "Invalid file",
+        description: "The selected file appears to be empty or corrupted. Please try uploading a different file or convert it to JPG/PNG format.",
         variant: "destructive",
       });
       return;
