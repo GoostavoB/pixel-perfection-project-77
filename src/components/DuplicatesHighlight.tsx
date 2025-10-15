@@ -22,13 +22,13 @@ export const DuplicatesHighlight = ({ duplicates }: DuplicatesHighlightProps) =>
   const handleCopyDispute = (text: string) => {
     navigator.clipboard.writeText(text);
     toast({
-      title: "Copied!",
-      description: "Dispute text copied to clipboard",
+      title: "Copied to clipboard!",
+      description: "Paste this when calling billing",
     });
   };
 
   const handleEmailRequest = (duplicate: DuplicateItem) => {
-    const subject = encodeURIComponent(`Bill Dispute: ${duplicate.description}`);
+    const subject = encodeURIComponent(`Question About My Medical Bill`);
     const body = encodeURIComponent(duplicate.disputeText);
     window.location.href = `mailto:?subject=${subject}&body=${body}`;
   };
@@ -36,11 +36,11 @@ export const DuplicatesHighlight = ({ duplicates }: DuplicatesHighlightProps) =>
   const getConfidenceBadge = (confidence: string) => {
     switch (confidence) {
       case "high":
-        return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">High confidence</Badge>;
+        return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">Needs verification</Badge>;
       case "medium":
-        return <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">Medium confidence</Badge>;
+        return <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">Likely issue</Badge>;
       case "low":
-        return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">Low confidence</Badge>;
+        return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">Worth checking</Badge>;
       default:
         return null;
     }
@@ -57,10 +57,13 @@ export const DuplicatesHighlight = ({ duplicates }: DuplicatesHighlightProps) =>
           <Copy className="w-5 h-5 text-orange-700" />
         </div>
         <div className="flex-1">
-          <h2 className="text-xl font-bold text-orange-900 mb-1">Possible Duplicates</h2>
-          <p className="text-sm text-orange-700">
-            {duplicates.length} potential duplicate charge{duplicates.length > 1 ? 's' : ''} detected, 
-            totaling ${totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          <h2 className="text-xl font-bold text-orange-900 mb-1">Charges That Need Your Attention</h2>
+          <p className="text-sm text-orange-700 mb-1">
+            We found <strong>{duplicates.length} charge{duplicates.length > 1 ? 's' : ''}</strong> that you should ask about, 
+            totaling <strong>${totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
+          </p>
+          <p className="text-xs text-orange-600">
+            These might be billing errors, or they might be correct - but you need more information to verify them.
           </p>
         </div>
       </div>
@@ -71,14 +74,24 @@ export const DuplicatesHighlight = ({ duplicates }: DuplicatesHighlightProps) =>
             <div className="flex items-start justify-between mb-2">
               <div className="flex-1">
                 <h3 className="font-semibold text-foreground mb-1">{duplicate.description}</h3>
-                <p className="text-sm text-muted-foreground mb-2">{duplicate.details}</p>
+                {getConfidenceBadge(duplicate.confidence)}
               </div>
               <div className="text-right ml-4">
                 <div className="text-lg font-bold text-orange-700">
                   ${duplicate.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
-                {getConfidenceBadge(duplicate.confidence)}
               </div>
+            </div>
+
+            <div className="bg-blue-50 border-l-4 border-blue-400 p-3 mb-3 rounded">
+              <p className="text-sm text-gray-700 leading-relaxed">{duplicate.details}</p>
+            </div>
+
+            <div className="bg-green-50 border-l-4 border-green-400 p-3 mb-3 rounded">
+              <p className="text-xs font-semibold text-green-900 mb-1">
+                📞 What to say when you call billing:
+              </p>
+              <p className="text-sm text-green-800 italic">"{duplicate.disputeText}"</p>
             </div>
 
             <div className="flex gap-2 mt-3">
@@ -86,23 +99,31 @@ export const DuplicatesHighlight = ({ duplicates }: DuplicatesHighlightProps) =>
                 size="sm"
                 variant="outline"
                 onClick={() => handleCopyDispute(duplicate.disputeText)}
-                className="text-xs"
+                className="text-xs flex-1"
               >
                 <ClipboardCopy className="w-3 h-3 mr-1" />
-                Copy dispute text
+                Copy what to say
               </Button>
               <Button
                 size="sm"
                 variant="outline"
                 onClick={() => handleEmailRequest(duplicate)}
-                className="text-xs"
+                className="text-xs flex-1"
               >
                 <Mail className="w-3 h-3 mr-1" />
-                Email billing
+                Draft email
               </Button>
             </div>
           </div>
         ))}
+      </div>
+
+      <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+        <p className="text-sm text-blue-900">
+          <strong>💡 Remember:</strong> Asking questions about your bill is completely normal and expected. 
+          Hospitals have billing departments specifically to handle these questions. You're not being difficult - 
+          you're being smart with your money.
+        </p>
       </div>
     </Card>
   );
