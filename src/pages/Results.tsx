@@ -17,6 +17,9 @@ import { BeforeAfterComparison } from "@/components/BeforeAfterComparison";
 import { CPTExplainer } from "@/components/CPTExplainer";
 import { PrivacyDisclaimer } from "@/components/PrivacyDisclaimer";
 import { AnalysisQualityBadge } from "@/components/AnalysisQualityBadge";
+import { SavingsHighlight } from "@/components/SavingsHighlight";
+import { FriendlyIssueCard } from "@/components/FriendlyIssueCard";
+import { NextStepsGuide } from "@/components/NextStepsGuide";
 
 const Results = () => {
   const location = useLocation();
@@ -221,6 +224,16 @@ const Results = () => {
           issuesCount={issues.length}
         />
 
+        {/* Friendly Savings Highlight - NEW */}
+        {estimatedSavings > 0 && (
+          <div className="mb-8">
+            <SavingsHighlight 
+              totalSavings={estimatedSavings}
+              issuesFound={issues.length}
+            />
+          </div>
+        )}
+
         {/* Bill Score Card - ALWAYS SHOW */}
         <div className="mb-8">
           <BillScore 
@@ -231,6 +244,18 @@ const Results = () => {
             moderateIssues={moderateIssues}
           />
         </div>
+
+        {/* Friendly Summary from AI */}
+        {fullAnalysis.summary_for_user && (
+          <Card className="mb-8 p-6 bg-gradient-to-br from-purple-50 to-pink-50 border-purple-200">
+            <h3 className="text-xl font-bold text-purple-900 mb-3">
+              📋 Here's What We Found
+            </h3>
+            <p className="text-purple-800 text-lg leading-relaxed">
+              {fullAnalysis.summary_for_user}
+            </p>
+          </Card>
+        )}
 
         {/* Executive Summary */}
         {emailSent && (
@@ -250,8 +275,69 @@ const Results = () => {
           </Card>
         )}
 
-        {/* Detailed Issues with Confidence Badges - ALWAYS SHOW IF ISSUES EXIST */}
+        {/* Detailed Issues - Friendly Cards */}
         {issues.length > 0 ? (
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold text-foreground mb-6 flex items-center gap-3">
+              <AlertCircle className="w-6 h-6 text-red-600" />
+              Let's Break Down These Charges
+            </h2>
+            
+            {/* High Priority Issues */}
+            {fullAnalysis.high_priority_issues && fullAnalysis.high_priority_issues.length > 0 && (
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold text-red-700 mb-4 flex items-center gap-2">
+                  <AlertCircle className="w-5 h-5" />
+                  Major Overcharges (These Need Your Attention)
+                </h3>
+                <div className="space-y-4">
+                  {fullAnalysis.high_priority_issues.map((issue: any, idx: number) => (
+                    <FriendlyIssueCard key={`high-${idx}`} issue={issue} isPriority={true} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Potential Issues */}
+            {fullAnalysis.potential_issues && fullAnalysis.potential_issues.length > 0 && (
+              <div>
+                <h3 className="text-lg font-semibold text-yellow-700 mb-4 flex items-center gap-2">
+                  <AlertTriangle className="w-5 h-5" />
+                  Worth Double-Checking (Lower Priority)
+                </h3>
+                <div className="space-y-4">
+                  {fullAnalysis.potential_issues.map((issue: any, idx: number) => (
+                    <FriendlyIssueCard key={`pot-${idx}`} issue={issue} isPriority={false} />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <Card className="mb-6 p-6 shadow-card bg-green-50 dark:bg-green-950/20">
+            <div className="text-center py-4">
+              <p className="text-lg font-semibold text-green-700 dark:text-green-300 mb-2">
+                ✅ No critical issues detected!
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Your bill appears accurate, but we still recommend reviewing it with a professional.
+              </p>
+            </div>
+          </Card>
+        )}
+
+        {/* Action Plan */}
+        {issues.length > 0 && (
+          <div className="mb-8">
+            <NextStepsGuide 
+              nextSteps={fullAnalysis.next_steps}
+              hospitalName={hospitalName}
+            />
+          </div>
+        )}
+
+        {/* Original Detailed Issues List (fallback) */}
+        {issues.length > 0 && (!fullAnalysis.high_priority_issues && !fullAnalysis.potential_issues) && (
           <Card className="mb-6 p-6 shadow-card">
             <h2 className="text-xl font-bold text-foreground mb-4">Detailed Identified Issues</h2>
             <div className="space-y-4">
@@ -302,17 +388,6 @@ const Results = () => {
                   </div>
                 );
               })}
-            </div>
-          </Card>
-        ) : (
-          <Card className="mb-6 p-6 shadow-card bg-green-50 dark:bg-green-950/20">
-            <div className="text-center py-4">
-              <p className="text-lg font-semibold text-green-700 dark:text-green-300 mb-2">
-                ✅ No critical issues detected!
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Your bill appears accurate, but we still recommend reviewing it with a professional.
-              </p>
             </div>
           </Card>
         )}
