@@ -101,7 +101,7 @@ export const KnowYourRights = () => {
               variant="link" 
               size="sm" 
               className="p-0 h-auto"
-              onClick={() => window.open('https://www.consumerfinance.gov/complaint/', '_blank')}
+              onClick={() => window.open('https://www.consumerfinance.gov/consumer-tools/submit-a-complaint/', '_blank')}
             >
               Report to CFPB <ExternalLink className="h-3 w-3 ml-1" />
             </Button>
