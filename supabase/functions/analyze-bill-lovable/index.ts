@@ -1206,16 +1206,37 @@ function sanitizeIssue(issue: any): any {
 }
 
 function calculateSavings(analysis: any): number {
-  // ✅ FIXED: Sum overcharge_amount (savings), NOT billed_amount (charges)
+  // ✅ Sum overcharge_amount from high_priority_issues and potential_issues
   const highPriorityTotal = (analysis.high_priority_issues || [])
     .reduce((sum: number, issue: any) => sum + (issue.overcharge_amount || 0), 0);
   
   const potentialTotal = (analysis.potential_issues || [])
     .reduce((sum: number, issue: any) => sum + (issue.overcharge_amount || 0), 0);
   
-  const total = highPriorityTotal + potentialTotal;
-  console.log(`[CALC] Savings - High: $${highPriorityTotal.toLocaleString()}, Potential: $${potentialTotal.toLocaleString()}, Total: $${total.toLocaleString()}`);
-  return total;
+  // ✅ Add duplicate charges amount from duplicate_findings
+  const duplicateTotal = analysis.duplicate_findings?.totals?.suspect_amount || 0;
+  
+  // ✅ Add NSA potential savings if applicable
+  let nsaSavings = 0;
+  if (analysis.duplicate_findings?.nsa_review?.applies === 'yes') {
+    // Conservative estimate: 30% of out-of-network charges could be reduced to in-network rates
+    const totalBill = Number(analysis.total_bill_amount) || 0;
+    nsaSavings = Math.round(totalBill * 0.30);
+  }
+  
+  // ✅ Add pricing overcharges from pricing_review
+  const pricingOvercharge = analysis.duplicate_findings?.pricing_review?.suspect_overcharge_amount || 0;
+  
+  const total = highPriorityTotal + potentialTotal + duplicateTotal + nsaSavings + pricingOvercharge;
+  console.log(`[CALC] Savings Breakdown:`);
+  console.log(`  - High Priority Issues: $${highPriorityTotal.toLocaleString()}`);
+  console.log(`  - Potential Issues: $${potentialTotal.toLocaleString()}`);
+  console.log(`  - Duplicate Charges: $${duplicateTotal.toLocaleString()}`);
+  console.log(`  - NSA Protections: $${nsaSavings.toLocaleString()}`);
+  console.log(`  - Pricing Overcharges: $${pricingOvercharge.toLocaleString()}`);
+  console.log(`  - TOTAL SAVINGS: $${total.toLocaleString()}`);
+  
+  return Math.round(total * 100) / 100;
 }
 
 // 🔧 FIX 4: Enhanced validation with robust total extraction and deduplication
