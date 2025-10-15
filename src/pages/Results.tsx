@@ -23,6 +23,7 @@ import { generateDisputePack } from "@/utils/disputePackGenerator";
 import { DisputePackCard } from "@/components/DisputePackCard";
 import { StickySummary } from "@/components/StickySummary";
 import { ComprehensiveSavings } from "@/components/ComprehensiveSavings";
+import { ItemizationAlert } from "@/components/ItemizationAlert";
 
 const Results = () => {
   const location = useLocation();
@@ -211,16 +212,12 @@ const Results = () => {
           </Card>
         </div>
 
-        {/* Banner: Data status message */}
+        {/* Critical Alert: Missing Itemization */}
         {itemizationStatus === 'missing' && (
-          <Card className="p-4 mb-8 bg-yellow-50 border-yellow-200">
-            <p className="text-sm text-yellow-900">
-              <strong>Data status:</strong> Codes missing. Savings unknown until itemized. 
-              {duplicates.length > 0 && ` ${duplicates.length} possible duplicate${duplicates.length > 1 ? 's' : ''} found.`}
-              {' '}Several charges are aggregates without CPT codes, so savings cannot be calculated yet. 
-              Follow the steps below to request an itemized bill. Then we will compute real savings.
-            </p>
-          </Card>
+          <ItemizationAlert 
+            totalBill={totalCharged}
+            callScript={callScript}
+          />
         )}
 
         {/* Decision Summary - 3 metrics */}
