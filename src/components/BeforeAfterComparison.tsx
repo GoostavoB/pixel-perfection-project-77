@@ -32,15 +32,15 @@ export const BeforeAfterComparison = ({
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-2xl font-bold text-foreground mb-1">
-            Simulador de Conta Corrigida
+            Corrected Bill Simulator
           </h2>
           <p className="text-sm text-muted-foreground">
-            Veja como seria sua conta se os erros fossem corrigidos
+            See how your bill would look if errors were corrected
           </p>
         </div>
         <Badge className="bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-200 px-4 py-2">
           <TrendingDown className="w-4 h-4 mr-2" />
-          {savingsPercentage}% de economia
+          {savingsPercentage}% savings
         </Badge>
       </div>
 
@@ -49,11 +49,11 @@ export const BeforeAfterComparison = ({
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b">
-              <th className="text-left py-3 px-2 font-semibold text-muted-foreground">Linha</th>
-              <th className="text-left py-3 px-2 font-semibold text-muted-foreground">Descrição</th>
+              <th className="text-left py-3 px-2 font-semibold text-muted-foreground">Line</th>
+              <th className="text-left py-3 px-2 font-semibold text-muted-foreground">Description</th>
               <th className="text-right py-3 px-2 font-semibold text-muted-foreground">Original</th>
-              <th className="text-right py-3 px-2 font-semibold text-muted-foreground">Corrigido</th>
-              <th className="text-right py-3 px-2 font-semibold text-muted-foreground">Diferença</th>
+              <th className="text-right py-3 px-2 font-semibold text-muted-foreground">Corrected</th>
+              <th className="text-right py-3 px-2 font-semibold text-muted-foreground">Difference</th>
             </tr>
           </thead>
           <tbody>
@@ -124,7 +124,7 @@ export const BeforeAfterComparison = ({
               ${correctedTotal.toFixed(2)}
             </span>
           </div>
-          <p className="text-xs text-muted-foreground">Total Corrigido</p>
+          <p className="text-xs text-muted-foreground">Corrected Total</p>
         </div>
 
         <div className="text-center p-4 bg-gradient-to-br from-green-100 to-green-200 dark:from-green-950 dark:to-green-900 rounded-lg">
@@ -135,7 +135,7 @@ export const BeforeAfterComparison = ({
             </span>
           </div>
           <p className="text-xs font-semibold text-green-700 dark:text-green-300">
-            Economia Total ({savingsPercentage}%)
+            Total Savings ({savingsPercentage}%)
           </p>
         </div>
       </div>
@@ -143,8 +143,8 @@ export const BeforeAfterComparison = ({
       {/* Call to Action */}
       <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
         <p className="text-sm text-blue-800 dark:text-blue-200">
-          <span className="font-semibold">💡 Próximo passo:</span> Use esta tabela como base para sua carta de contestação. 
-          Cada item corrigido está documentado com a razão da correção.
+          <span className="font-semibold">💡 Next step:</span> Use this table as the basis for your dispute letter. 
+          Each corrected item is documented with the reason for correction.
         </p>
       </div>
     </Card>

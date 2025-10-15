@@ -43,7 +43,7 @@ const ApiTokens = () => {
       setTokens(data || []);
     } catch (error: any) {
       toast({
-        title: "Erro ao carregar tokens",
+        title: "Error loading tokens",
         description: error.message,
         variant: "destructive",
       });
@@ -64,8 +64,8 @@ const ApiTokens = () => {
   const createToken = async () => {
     if (!name.trim()) {
       toast({
-        title: "Nome obrigatório",
-        description: "Por favor, forneça um nome para o token",
+        title: "Name required",
+        description: "Please provide a name for the token",
         variant: "destructive",
       });
       return;
@@ -85,8 +85,8 @@ const ApiTokens = () => {
       if (error) throw error;
 
       toast({
-        title: "Token criado",
-        description: "Copie o token agora - ele não será mostrado novamente!",
+        title: "Token created",
+        description: "Copy the token now - it will not be shown again!",
       });
 
       setName("");
@@ -95,7 +95,7 @@ const ApiTokens = () => {
       loadTokens();
     } catch (error: any) {
       toast({
-        title: "Erro ao criar token",
+        title: "Error creating token",
         description: error.message,
         variant: "destructive",
       });
@@ -103,20 +103,20 @@ const ApiTokens = () => {
   };
 
   const deleteToken = async (id: string) => {
-    if (!confirm("Tem certeza que deseja deletar este token?")) return;
+    if (!confirm("Are you sure you want to delete this token?")) return;
 
     try {
       const { error } = await supabase.from("api_tokens").delete().eq("id", id);
       if (error) throw error;
 
       toast({
-        title: "Token deletado",
-        description: "O token foi removido com sucesso",
+        title: "Token deleted",
+        description: "The token was successfully removed",
       });
       loadTokens();
     } catch (error: any) {
       toast({
-        title: "Erro ao deletar token",
+        title: "Error deleting token",
         description: error.message,
         variant: "destructive",
       });
@@ -138,8 +138,8 @@ const ApiTokens = () => {
   const copyToken = (token: string) => {
     navigator.clipboard.writeText(token);
     toast({
-      title: "Token copiado",
-      description: "O token foi copiado para a área de transferência",
+      title: "Token copied",
+      description: "The token was copied to clipboard",
     });
   };
 
@@ -153,7 +153,7 @@ const ApiTokens = () => {
       <div className="min-h-screen bg-background">
         <Header />
         <div className="container mx-auto px-4 py-16 text-center">
-          <p>Carregando...</p>
+          <p>Loading...</p>
         </div>
       </div>
     );
@@ -168,21 +168,21 @@ const ApiTokens = () => {
           <div>
             <h1 className="text-3xl font-bold text-foreground mb-2">API Tokens</h1>
             <p className="text-muted-foreground">
-              Gerencie tokens de API para integração com n8n e outras ferramentas
+              Manage API tokens for integration with n8n and other tools
             </p>
           </div>
           <Button onClick={() => setShowForm(!showForm)}>
             <Plus className="h-4 w-4 mr-2" />
-            Novo Token
+            New Token
           </Button>
         </div>
 
         {showForm && (
           <Card className="p-6 mb-6">
-            <h3 className="text-lg font-semibold mb-4">Criar Novo Token</h3>
+            <h3 className="text-lg font-semibold mb-4">Create New Token</h3>
             <div className="space-y-4">
               <div>
-                <Label htmlFor="name">Nome do Token</Label>
+                <Label htmlFor="name">Token Name</Label>
                 <Input
                   id="name"
                   value={name}
@@ -191,18 +191,18 @@ const ApiTokens = () => {
                 />
               </div>
               <div>
-                <Label htmlFor="description">Descrição (opcional)</Label>
+                <Label htmlFor="description">Description (optional)</Label>
                 <Textarea
                   id="description"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Para que este token será usado?"
+                  placeholder="What will this token be used for?"
                 />
               </div>
               <div className="flex gap-2">
-                <Button onClick={createToken}>Criar Token</Button>
+                <Button onClick={createToken}>Create Token</Button>
                 <Button variant="outline" onClick={() => setShowForm(false)}>
-                  Cancelar
+                  Cancel
                 </Button>
               </div>
             </div>
@@ -213,13 +213,13 @@ const ApiTokens = () => {
           {tokens.length === 0 ? (
             <Card className="p-12 text-center">
               <Key className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <h3 className="text-lg font-semibold mb-2">Nenhum token criado</h3>
+              <h3 className="text-lg font-semibold mb-2">No tokens created</h3>
               <p className="text-muted-foreground mb-4">
-                Crie seu primeiro token de API para integração com n8n
+                Create your first API token for n8n integration
               </p>
               <Button onClick={() => setShowForm(true)}>
                 <Plus className="h-4 w-4 mr-2" />
-                Criar Primeiro Token
+                Create First Token
               </Button>
             </Card>
           ) : (
@@ -257,12 +257,12 @@ const ApiTokens = () => {
                     </div>
 
                     <div className="flex gap-4 text-xs text-muted-foreground">
-                      <span>Criado: {new Date(token.created_at).toLocaleDateString()}</span>
+                      <span>Created: {new Date(token.created_at).toLocaleDateString()}</span>
                       {token.last_used_at && (
-                        <span>Último uso: {new Date(token.last_used_at).toLocaleDateString()}</span>
+                        <span>Last used: {new Date(token.last_used_at).toLocaleDateString()}</span>
                       )}
                       <span className={token.is_active ? "text-green-600" : "text-red-600"}>
-                        {token.is_active ? "Ativo" : "Inativo"}
+                        {token.is_active ? "Active" : "Inactive"}
                       </span>
                     </div>
                   </div>
@@ -281,25 +281,25 @@ const ApiTokens = () => {
         </div>
 
         <Card className="p-6 mt-8 bg-muted/50">
-          <h3 className="font-semibold mb-3">Como usar no n8n</h3>
+          <h3 className="font-semibold mb-3">How to use with n8n</h3>
           <div className="space-y-3 text-sm">
             <div>
-              <p className="font-medium mb-1">URL da API:</p>
+              <p className="font-medium mb-1">API URL:</p>
               <code className="bg-background p-2 rounded block">
                 https://jafaukblhxbycjzrbkeq.supabase.co/functions/v1/n8n-api
               </code>
             </div>
             
             <div>
-              <p className="font-medium mb-1">Headers obrigatórios:</p>
+              <p className="font-medium mb-1">Required headers:</p>
               <code className="bg-background p-2 rounded block">
-                X-API-Token: seu_token_aqui<br/>
+                X-API-Token: your_token_here<br/>
                 Content-Type: application/json
               </code>
             </div>
 
             <div>
-              <p className="font-medium mb-1">Exemplo (SELECT):</p>
+              <p className="font-medium mb-1">Example (SELECT):</p>
               <pre className="bg-background p-2 rounded block overflow-x-auto">
 {`{
   "action": "select",
@@ -312,12 +312,12 @@ const ApiTokens = () => {
             </div>
 
             <div>
-              <p className="font-medium mb-1">Ações:</p>
+              <p className="font-medium mb-1">Actions:</p>
               <code className="text-xs">select, insert, update, delete</code>
             </div>
 
             <div>
-              <p className="font-medium mb-1">Tabelas:</p>
+              <p className="font-medium mb-1">Tables:</p>
               <code className="text-xs">bill_analyses, analysis_results, jobs, user_form_data, dispute_letters</code>
             </div>
           </div>
