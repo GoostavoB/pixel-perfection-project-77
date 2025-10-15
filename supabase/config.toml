@@ -32,3 +32,6 @@ verify_jwt = false
 
 [functions.generate-dispute-letter]
 verify_jwt = false
+
+[functions.analyze-bill-ai]
+verify_jwt = false

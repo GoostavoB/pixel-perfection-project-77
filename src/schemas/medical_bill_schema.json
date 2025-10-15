@@ -1,0 +1,136 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["session_id", "hospital_name", "analysis_date", "charges", "summary", "ui_summary", "pdf_report_html", "dispute_letter_doc", "storage_payload"],
+  "properties": {
+    "session_id": {
+      "type": "string",
+      "pattern": "^bill_[A-Za-z0-9]{8,20}$"
+    },
+    "hospital_name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "analysis_date": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "charges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["line_number", "cpt_code", "description", "billed_amount", "issue_flag", "classification", "confidence_score"],
+        "properties": {
+          "line_number": { "type": "integer", "minimum": 1 },
+          "cpt_code": { "type": "string" },
+          "description": { "type": "string" },
+          "billed_amount": { "type": "number", "minimum": 0 },
+          "allowed_amount": { "type": ["number", "null"] },
+          "patient_responsibility": { "type": ["number", "null"] },
+          "issue_flag": {
+            "type": "object",
+            "required": ["top10_category", "explanation_for_user", "suggested_action"],
+            "properties": {
+              "top10_category": {
+                "type": "string",
+                "enum": ["Balance Billing", "Duplicate Billing", "Unbundling", "Upcoding", "Facility Fee Issues", "Services Not Rendered", "Pre-EOB Billing", "Trauma Activation Fee Issues", "Collections on Invalid Bills", "Ground Ambulance Balance Billing", "None"]
+              },
+              "explanation_for_user": { "type": "string" },
+              "suggested_action": { "type": "string" }
+            }
+          },
+          "classification": {
+            "type": "string",
+            "enum": ["High Priority", "Potential Issue", "Other"]
+          },
+          "confidence_score": {
+            "type": "number",
+            "minimum": 0.6,
+            "maximum": 1.0
+          },
+          "accuracy_label": {
+            "type": "string",
+            "enum": ["Highly Confident", "Fair", "Needs Review"]
+          },
+          "estimated_impact": { "type": ["number", "null"] }
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "required": ["high_priority_count", "potential_issues_count", "estimated_savings", "nsa_protected"],
+      "properties": {
+        "high_priority_count": { "type": "integer", "minimum": 0 },
+        "potential_issues_count": { "type": "integer", "minimum": 0 },
+        "estimated_savings": { "type": "number", "minimum": 0 },
+        "nsa_protected": { "type": "boolean" },
+        "nsa_category": { "type": ["string", "null"] },
+        "next_step": { "type": "string" }
+      }
+    },
+    "ui_summary": {
+      "type": "object",
+      "required": ["headline", "key_stats", "top_findings", "cta", "notes_for_copy"],
+      "properties": {
+        "headline": { "type": "string", "maxLength": 200 },
+        "key_stats": {
+          "type": "array",
+          "items": { "type": "string" },
+          "maxItems": 4
+        },
+        "top_findings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["title", "why_it_matters", "suggested_action"],
+            "properties": {
+              "title": { "type": "string" },
+              "why_it_matters": { "type": "string" },
+              "suggested_action": { "type": "string" }
+            }
+          },
+          "maxItems": 6
+        },
+        "cta": {
+          "type": "object",
+          "properties": {
+            "download_report": { "type": "string" },
+            "generate_letter": { "type": "string" }
+          }
+        },
+        "notes_for_copy": { "type": "string" }
+      }
+    },
+    "pdf_report_html": { "type": "string" },
+    "dispute_letter_doc": { "type": "string" },
+    "storage_payload": {
+      "type": "object",
+      "required": ["session_id", "hospital_name", "total_charged", "high_priority_count", "potential_issues_count", "estimated_savings"],
+      "properties": {
+        "session_id": { "type": "string" },
+        "hospital_name": { "type": "string" },
+        "hospital_city": { "type": ["string", "null"] },
+        "hospital_state": { "type": ["string", "null"] },
+        "service_date": { "type": ["string", "null"], "format": "date" },
+        "total_charged": { "type": "number" },
+        "high_priority_count": { "type": "integer" },
+        "potential_issues_count": { "type": "integer" },
+        "estimated_savings": { "type": "number" },
+        "issues_json": { "type": "string" },
+        "demographics": {
+          "type": ["object", "null"],
+          "properties": {
+            "birth_year": { "type": ["integer", "null"] },
+            "city": { "type": ["string", "null"] },
+            "state": { "type": ["string", "null"] }
+          }
+        }
+      }
+    },
+    "disclaimer": {
+      "type": "string",
+      "default": "This analysis is for educational purposes only and does not constitute legal, medical, or financial advice. Results are based on limited information and may not be fully accurate. We recommend consulting with a medical billing advocate, attorney, or your insurance provider before taking action. No guarantee of savings or outcomes is implied."
+    }
+  }
+}

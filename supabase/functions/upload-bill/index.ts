@@ -131,84 +131,80 @@ serve(async (req) => {
 
 async function analyzeBill(supabase: any, analysisId: string, file: File, sessionId: string) {
   try {
-    console.log('Starting n8n analysis for:', analysisId);
+    console.log('Starting Lovable AI analysis for:', analysisId);
     
-    // Send to n8n webhook for analysis
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('session_id', sessionId);
-    formData.append('file_name', file.name);
-    formData.append('analysis_id', analysisId);
-
-    console.log('Sending to n8n webhook with data:', { 
-      session_id: sessionId, 
-      file_name: file.name,
-      analysis_id: analysisId 
-    });
-
-    const n8nResponse = await fetch('https://learnlearnlearn.app.n8n.cloud/webhook/upload-bill', {
-      method: 'POST',
-      body: formData
-    });
-
-    console.log('n8n webhook response status:', n8nResponse.status);
-
-    if (!n8nResponse.ok) {
-      const errorText = await n8nResponse.text();
-      console.error('n8n webhook error:', n8nResponse.status, errorText);
-      throw new Error(`n8n webhook failed: ${n8nResponse.status}`);
-    }
-
-    // Try to parse response, but handle empty responses
-    const responseText = await n8nResponse.text();
-    console.log('n8n raw response:', responseText);
-    
-    let n8nResult;
-    if (responseText && responseText.trim()) {
-      try {
-        n8nResult = JSON.parse(responseText);
-        console.log('n8n analysis complete:', JSON.stringify(n8nResult));
-      } catch (parseError) {
-        console.warn('Could not parse n8n response as JSON:', responseText);
-        n8nResult = { success: true };
-      }
+    // Step 1: Extract text from file using vision
+    let billText = '';
+    if (file.type.includes('pdf')) {
+      billText = await extractPdfText(file);
+    } else if (file.type.includes('image')) {
+      billText = await extractImageText(file);
     } else {
-      console.warn('Empty response from n8n, assuming success');
-      n8nResult = { success: true };
+      billText = await file.text();
     }
 
-    // Map n8n results to our database schema
-    const uiSummary = n8nResult.ui_summary || {};
-    const mappedAnalysis = {
-      summary: {
-        critical_issues: uiSummary.high_priority_count || 0,
-        moderate_issues: uiSummary.potential_issues_count || 0,
-        estimated_savings: uiSummary.estimated_savings_if_corrected || 0,
-        total_overcharges: uiSummary.estimated_savings_if_corrected || 0,
-      },
-      issues: [],
-      hospital_name: n8nResult.hospital_name || uiSummary.hospital_name || '',
-      data_sources: uiSummary.data_sources_used || [],
-      tags: uiSummary.tags || [],
-      created_at: n8nResult.created_at || new Date().toISOString(),
-      email_sent: n8nResult.email_sent || false
+    console.log('Extracted text length:', billText.length);
+
+    if (!billText || billText.length < 50) {
+      throw new Error('Could not extract meaningful text from file');
+    }
+
+    // Step 2: Get user context from database
+    const { data: analysisData } = await supabase
+      .from('bill_analyses')
+      .select('user_email, user_name')
+      .eq('id', analysisId)
+      .single();
+
+    const userContext = {
+      name: analysisData?.user_name,
+      email: analysisData?.user_email,
+      sessionId: sessionId
     };
 
-    // Update with final results
-    await supabase
-      .from('bill_analyses')
-      .update({
-        status: 'completed',
-        analysis_result: mappedAnalysis,
-        critical_issues: mappedAnalysis.summary.critical_issues,
-        moderate_issues: mappedAnalysis.summary.moderate_issues,
-        estimated_savings: mappedAnalysis.summary.estimated_savings,
-        total_overcharges: mappedAnalysis.summary.total_overcharges,
-        issues: mappedAnalysis.issues
+    // Step 3: Call AI analysis function
+    const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
+    const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY');
+    
+    const aiResponse = await fetch(`${SUPABASE_URL}/functions/v1/analyze-bill-ai`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+      },
+      body: JSON.stringify({
+        analysisId,
+        billText,
+        userContext
       })
-      .eq('id', analysisId);
+    });
 
-    console.log('Analysis completed successfully for:', analysisId);
+    if (!aiResponse.ok) {
+      const errorText = await aiResponse.text();
+      console.error('AI analysis error:', aiResponse.status, errorText);
+      throw new Error(`AI analysis failed: ${aiResponse.status}`);
+    }
+
+    const aiResult = await aiResponse.json();
+    console.log('Lovable AI analysis completed successfully');
+
+    // Step 4: Optionally trigger n8n for orchestration (email, PDF generation, etc.)
+    // This is now optional - n8n can handle workflow orchestration while AI analysis stays in Lovable
+    try {
+      const formData = new FormData();
+      formData.append('session_id', sessionId);
+      formData.append('analysis_id', analysisId);
+      formData.append('analysis_complete', 'true');
+
+      await fetch('https://learnlearnlearn.app.n8n.cloud/webhook/analysis-complete', {
+        method: 'POST',
+        body: formData
+      });
+      console.log('n8n orchestration webhook triggered');
+    } catch (n8nError) {
+      console.warn('n8n webhook failed but analysis completed:', n8nError);
+    }
+
   } catch (error) {
     console.error('Error in analyzeBill:', error);
     await supabase

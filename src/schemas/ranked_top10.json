@@ -1,0 +1,64 @@
+{
+  "ranked_issues": [
+    {
+      "rank": 1,
+      "issue": "Duplicate Billing",
+      "frequency": "Most Common",
+      "context": "This is the #1 most common medical billing error, affecting millions of patients annually."
+    },
+    {
+      "rank": 2,
+      "issue": "Balance Billing",
+      "frequency": "Very Common",
+      "context": "The #2 most frequent billing dispute, especially for emergency services and surprise out-of-network care."
+    },
+    {
+      "rank": 3,
+      "issue": "Upcoding",
+      "frequency": "Very Common",
+      "context": "The #3 most common issue, where providers bill for more expensive services than actually provided."
+    },
+    {
+      "rank": 4,
+      "issue": "Unbundling",
+      "frequency": "Common",
+      "context": "The #4 most frequent billing error, billing separately for services that should be bundled together."
+    },
+    {
+      "rank": 5,
+      "issue": "Facility Fee Issues",
+      "frequency": "Common",
+      "context": "The #5 most disputed charge, with facility fees often being unexpectedly high for outpatient services."
+    },
+    {
+      "rank": 6,
+      "issue": "Pre-EOB Billing",
+      "frequency": "Common",
+      "context": "The #6 most common complaint, as many providers bill before insurance processes the claim."
+    },
+    {
+      "rank": 7,
+      "issue": "Services Not Rendered",
+      "frequency": "Occasional",
+      "context": "The #7 issue, though less frequent, this can indicate clerical errors or potential fraud."
+    },
+    {
+      "rank": 8,
+      "issue": "Trauma Activation Fee Issues",
+      "frequency": "Occasional",
+      "context": "The #8 most disputed charge, particularly controversial due to high fees for services not always needed."
+    },
+    {
+      "rank": 9,
+      "issue": "Ground Ambulance Balance Billing",
+      "frequency": "Occasional",
+      "context": "The #9 issue, increasingly common as private ambulance companies balance bill for emergency transport."
+    },
+    {
+      "rank": 10,
+      "issue": "Collections on Invalid Bills",
+      "frequency": "Less Common",
+      "context": "The #10 issue, but serious as it involves disputed or incorrect charges sent to collections."
+    }
+  ]
+}
