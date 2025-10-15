@@ -53,8 +53,12 @@ serve(async (req) => {
     const url = new URL(req.url);
     const queryFresh = url.searchParams.get('fresh') === '1' || url.searchParams.get('fresh') === 'true';
     const formFresh = (formData.get('fresh') as string) === 'true';
-    const bypassCache = !!(bypassHeader || queryFresh || formFresh);
-    console.log('[CACHE] Bypass header:', bypassHeader, '| query:', queryFresh, '| form:', formFresh, '| => willBypass:', bypassCache);
+    
+    // 🔧 TEMPORARY: Force bypass during testing to ensure new logic runs
+    const forceBypass = true; // TODO: Set to false after testing complete
+    
+    const bypassCache = forceBypass || !!(bypassHeader || queryFresh || formFresh);
+    console.log('[CACHE] Bypass header:', bypassHeader, '| query:', queryFresh, '| form:', formFresh, '| FORCE:', forceBypass, '| => willBypass:', bypassCache);
     
     // ✅ CACHE CHECK: Look for existing analysis (unless bypassed)
     if (!bypassCache) {
