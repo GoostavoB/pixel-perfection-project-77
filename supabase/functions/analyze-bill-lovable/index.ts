@@ -178,28 +178,25 @@ serve(async (req) => {
       console.warn('[FINAL] Safety clamp applied before storage.');
     }
 
-    // Store in database
+    // Store in database (upsert by pdf_hash to avoid duplicate-key errors on fresh reruns)
     const { data: dbData, error: dbError } = await supabase
       .from('bill_analyses')
-      .insert({
+      .upsert({
         session_id: sessionId,
         user_id: userId,
         file_name: file.name,
         file_type: file.type,
         file_url: publicUrl,
-        pdf_hash: pdfHash, // ✅ CACHE: Store hash for future lookups
+        pdf_hash: pdfHash, // ✅ CACHE KEY
         extracted_text: extractedContent.text,
         status: 'completed',
         analysis_result: analysisResult,
         critical_issues: analysisResult.high_priority_issues?.length || 0,
         moderate_issues: analysisResult.potential_issues?.length || 0,
-        estimated_savings: finalSavings,
+        estimated_savings: calculateSavings(analysisResult),
         issues: [...(analysisResult.high_priority_issues || []), ...(analysisResult.potential_issues || [])],
-        // Add flag if scanned PDF detected
-        ...(extractedContent.isScanned && { 
-          extracted_text: extractedContent.text + '\n\n⚠️ SCANNED PDF: For better results, consider uploading photos (JPG/PNG) of the bill pages.'
-        })
-      })
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'pdf_hash' })
       .select()
       .single();
 
