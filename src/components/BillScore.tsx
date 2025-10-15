@@ -24,9 +24,9 @@ export const BillScore = ({
   };
 
   const getScoreLabel = (score: number) => {
-    if (score >= 80) return "Boa Transparência";
-    if (score >= 60) return "Precisa Revisão";
-    return "Múltiplos Problemas";
+    if (score >= 80) return "Good Transparency";
+    if (score >= 60) return "Needs Review";
+    return "Multiple Issues";
   };
 
   const savingsPercentage = totalCharged > 0 
@@ -59,7 +59,7 @@ export const BillScore = ({
                 {criticalIssues}
               </span>
             </div>
-            <p className="text-xs text-muted-foreground">Problemas Críticos</p>
+            <p className="text-xs text-muted-foreground">Critical Issues</p>
           </div>
 
           <div className="text-center">
@@ -69,7 +69,7 @@ export const BillScore = ({
                 {moderateIssues}
               </span>
             </div>
-            <p className="text-xs text-muted-foreground">Para Revisar</p>
+            <p className="text-xs text-muted-foreground">To Review</p>
           </div>
 
           <div className="text-center">
@@ -79,7 +79,7 @@ export const BillScore = ({
                 {savingsPercentage}%
               </span>
             </div>
-            <p className="text-xs text-muted-foreground">Economia Potencial</p>
+            <p className="text-xs text-muted-foreground">Potential Savings</p>
           </div>
         </div>
 
@@ -87,10 +87,9 @@ export const BillScore = ({
         {estimatedSavings > 0 && (
           <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg p-4">
             <p className="text-sm text-green-800 dark:text-green-200">
-              <span className="font-semibold">Boa notícia!</span> Encontramos cobranças 
-              questionáveis. Se confirmadas, você pode economizar até{" "}
+              <span className="font-semibold">Good news!</span> We found questionable charges. If confirmed, you could save up to {" "}
               <span className="font-bold">${estimatedSavings.toFixed(2)}</span>. 
-              Vamos te ajudar a resolver isso passo a passo.
+              We'll help you resolve this step by step.
             </p>
           </div>
         )}

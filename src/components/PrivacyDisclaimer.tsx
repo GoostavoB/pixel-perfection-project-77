@@ -16,10 +16,9 @@ export const PrivacyDisclaimer = () => {
         <Alert className="border-yellow-300 dark:border-yellow-700">
           <AlertTriangle className="h-4 w-4 text-yellow-600" />
           <AlertDescription className="text-sm">
-            <span className="font-semibold">Aviso Legal Importante:</span> Esta análise é fornecida apenas para fins educacionais e informativos. 
-            Não constitui aconselhamento jurídico, médico ou financeiro. Os resultados são baseados em informações limitadas e podem não ser totalmente precisos. 
-            Recomendamos fortemente consultar um advogado especializado em direito médico, um defensor de cobrança médica (medical billing advocate), 
-            ou seu provedor de seguro antes de tomar qualquer ação. Nenhuma garantia de economia ou resultados é implícita ou garantida.
+            <span className="font-semibold">Important Legal Notice:</span> This analysis is provided for educational and informational purposes only.
+            It does not constitute legal, medical, or financial advice. Results are based on limited information and may not be fully accurate.
+            We strongly recommend consulting a healthcare billing advocate, an attorney, or your insurance provider before taking any action. No savings or outcomes are guaranteed.
           </AlertDescription>
         </Alert>
 
@@ -29,7 +28,7 @@ export const PrivacyDisclaimer = () => {
             <AccordionTrigger className="hover:no-underline text-sm font-semibold">
               <div className="flex items-center gap-2">
                 <Shield className="h-4 w-4 text-blue-600" />
-                Privacidade e Segurança dos Seus Dados
+                Your Data Privacy & Security
               </div>
             </AccordionTrigger>
             <AccordionContent className="text-sm space-y-3 pt-2">
@@ -37,9 +36,9 @@ export const PrivacyDisclaimer = () => {
                 <div className="flex items-start gap-2">
                   <Lock className="h-4 w-4 mt-0.5 text-green-600" />
                   <div>
-                    <p className="font-medium">Criptografia End-to-End</p>
+                    <p className="font-medium">End-to-End Encryption</p>
                     <p className="text-xs text-muted-foreground">
-                      Todos os seus arquivos e dados são criptografados durante transmissão e armazenamento
+                      Your files and data are encrypted in transit and at rest
                     </p>
                   </div>
                 </div>
@@ -47,9 +46,9 @@ export const PrivacyDisclaimer = () => {
                 <div className="flex items-start gap-2">
                   <Eye className="h-4 w-4 mt-0.5 text-blue-600" />
                   <div>
-                    <p className="font-medium">Anonimização Automática</p>
+                    <p className="font-medium">Automatic Anonymization</p>
                     <p className="text-xs text-muted-foreground">
-                      Dados pessoais identificáveis (PII) são anonimizados em análises agregadas
+                      Personally identifiable information (PII) is anonymized in aggregate analyses
                     </p>
                   </div>
                 </div>
@@ -57,9 +56,9 @@ export const PrivacyDisclaimer = () => {
                 <div className="flex items-start gap-2">
                   <FileText className="h-4 w-4 mt-0.5 text-purple-600" />
                   <div>
-                    <p className="font-medium">Conformidade HIPAA</p>
+                    <p className="font-medium">HIPAA-Aligned Practices</p>
                     <p className="text-xs text-muted-foreground">
-                      Seguimos práticas compatíveis com HIPAA para proteção de informações de saúde
+                      We follow practices aligned with HIPAA to protect health information
                     </p>
                   </div>
                 </div>
@@ -67,16 +66,16 @@ export const PrivacyDisclaimer = () => {
 
               <div className="bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded p-3 mt-3">
                 <p className="text-xs">
-                  <span className="font-semibold">Como Usamos Seus Dados:</span>
+                  <span className="font-semibold">How We Use Your Data:</span>
                   <br />
-                  • Análise de cobrança médica (propósito principal)
+                  • Medical billing analysis (primary purpose)
                   <br />
-                  • Melhoria de algoritmos de detecção (dados anonimizados)
+                  • Improving detection algorithms (anonymized data)
                   <br />
-                  • Benchmarking regional de preços (agregado, sem PII)
+                  • Regional price benchmarking (aggregated, no PII)
                   <br />
                   <br />
-                  <span className="font-semibold">NÃO compartilhamos:</span> Seus dados identificáveis nunca são vendidos ou compartilhados com terceiros sem seu consentimento explícito.
+                  <span className="font-semibold">We DO NOT share:</span> Your identifiable data is never sold or shared with third parties without your explicit consent.
                 </p>
               </div>
             </AccordionContent>
@@ -86,21 +85,21 @@ export const PrivacyDisclaimer = () => {
             <AccordionTrigger className="hover:no-underline text-sm font-semibold">
               <div className="flex items-center gap-2">
                 <FileText className="h-4 w-4 text-orange-600" />
-                Retenção e Exclusão de Dados
+                Data Retention & Deletion
               </div>
             </AccordionTrigger>
             <AccordionContent className="text-sm space-y-2 pt-2">
               <p>
-                <span className="font-medium">Período de Retenção:</span> Seus documentos e análises são armazenados por 24 horas por padrão para contas não autenticadas.
-                Usuários registrados podem acessar análises anteriores.
+                <span className="font-medium">Retention Period:</span> Your documents and analyses are stored for 24 hours by default for non-authenticated accounts.
+                Registered users may access previous analyses.
               </p>
               <p>
-                <span className="font-medium">Direito de Exclusão:</span> Você pode solicitar a exclusão completa de seus dados a qualquer momento entrando em contato conosco.
-                Cumprimos com GDPR, CCPA e outras regulamentações de privacidade aplicáveis.
+                <span className="font-medium">Right to Deletion:</span> You can request complete deletion of your data at any time by contacting us.
+                We comply with GDPR, CCPA, and other applicable privacy regulations.
               </p>
               <div className="bg-muted/50 p-2 rounded mt-2">
                 <p className="text-xs text-muted-foreground">
-                  Para solicitar exclusão de dados: contato@hospitalbillchecker.com
+                  To request data deletion: contact@hospitalbillchecker.com
                 </p>
               </div>
             </AccordionContent>
@@ -110,21 +109,20 @@ export const PrivacyDisclaimer = () => {
             <AccordionTrigger className="hover:no-underline text-sm font-semibold">
               <div className="flex items-center gap-2">
                 <AlertTriangle className="h-4 w-4 text-yellow-600" />
-                Limitações e Precisão da Análise
+                Analysis Limitations & Accuracy
               </div>
             </AccordionTrigger>
             <AccordionContent className="text-sm space-y-2 pt-2">
-              <p className="font-medium">Nossa análise é limitada por:</p>
+              <p className="font-medium">Our analysis may be limited by:</p>
               <ul className="list-disc list-inside space-y-1 text-muted-foreground ml-2">
-                <li>Qualidade e completude dos documentos fornecidos</li>
-                <li>Ausência de contexto clínico completo</li>
-                <li>Variações regionais em práticas de cobrança</li>
-                <li>Contratos específicos entre provedores e seguros</li>
-                <li>Algoritmos de IA podem ter falsos positivos/negativos</li>
+                <li>Quality and completeness of provided documents</li>
+                <li>Lack of full clinical context</li>
+                <li>Regional variations in billing practices</li>
+                <li>Specific contracts between providers and insurers</li>
+                <li>AI algorithms may produce false positives/negatives</li>
               </ul>
               <p className="text-xs text-muted-foreground mt-2">
-                <span className="font-semibold">Importante:</span> Pontuações de confiança (🟢 🟠 🔴) indicam o nível de certeza da análise, 
-                mas não substituem revisão profissional. Sempre verifique achados críticos com especialistas.
+                <span className="font-semibold">Important:</span> Confidence scores (🟢 🟠 🔴) indicate certainty levels but do not replace professional review. Always verify critical findings with experts.
               </p>
             </AccordionContent>
           </AccordionItem>
@@ -135,10 +133,10 @@ export const PrivacyDisclaimer = () => {
           <div className="flex items-start gap-2">
             <Lock className="h-3 w-3 mt-0.5" />
             <div>
-              <p className="font-medium mb-1">Rastreabilidade e Integridade</p>
+              <p className="font-medium mb-1">Traceability & Integrity</p>
               <p>
-                Cada análise recebe um hash criptográfico único para garantir integridade dos dados e prevenir manipulação. 
-                Isso permite rastreamento auditável de todas as análises geradas.
+                Each analysis receives a unique cryptographic hash to ensure data integrity and prevent tampering.
+                This enables auditable tracking of all generated analyses.
               </p>
             </div>
           </div>

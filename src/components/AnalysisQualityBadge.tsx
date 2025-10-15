@@ -26,26 +26,24 @@ export const AnalysisQualityBadge = ({
       <AlertDescription>
         <div className="space-y-2">
           <p className="font-semibold text-sm">
-            📊 Análise em Modo Simplificado
+            📊 Simplified Analysis Mode
           </p>
           <p className="text-xs text-muted-foreground">
-            Esta análise foi gerada com uma versão anterior do sistema. 
-            Para obter análise completa com todas as novas funcionalidades 
-            (auditoria clínica, simulador de conta corrigida, explicações interativas), 
-            faça upload novamente da sua conta médica.
+            This analysis was generated with an earlier system version. To get the full analysis with all new features
+            (clinical audit, corrected bill simulator, interactive explanations), please re-upload your medical bill.
           </p>
           <div className="flex flex-wrap gap-2 mt-2">
             <Badge variant={hasDetailedIssues ? "default" : "secondary"} className="text-xs">
               {hasDetailedIssues ? <CheckCircle className="w-3 h-3 mr-1" /> : <Info className="w-3 h-3 mr-1" />}
-              {hasDetailedIssues ? "Issues Detalhados ✓" : "Issues Básicos"}
+              {hasDetailedIssues ? "Detailed Issues ✓" : "Basic Issues"}
             </Badge>
             <Badge variant={hasSavingsCalculation ? "default" : "secondary"} className="text-xs">
               {hasSavingsCalculation ? <CheckCircle className="w-3 h-3 mr-1" /> : <Info className="w-3 h-3 mr-1" />}
-              {hasSavingsCalculation ? "Cálculo de Savings ✓" : "Sem Cálculo de Savings"}
+              {hasSavingsCalculation ? "Savings Calculation ✓" : "No Savings Calculation"}
             </Badge>
             <Badge variant={hasConfidenceScores ? "default" : "secondary"} className="text-xs">
               {hasConfidenceScores ? <CheckCircle className="w-3 h-3 mr-1" /> : <Info className="w-3 h-3 mr-1" />}
-              {hasConfidenceScores ? "Scores de Confiança ✓" : "Sem Scores de Confiança"}
+              {hasConfidenceScores ? "Confidence Scores ✓" : "No Confidence Scores"}
             </Badge>
           </div>
         </div>

@@ -190,9 +190,11 @@ export class PDFGenerator {
       filename: filename,
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: { 
-        scale: 2, 
+        scale: 2,
         useCORS: true,
-        logging: false 
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        logging: false,
       },
       jsPDF: { 
         unit: 'mm', 
@@ -210,6 +212,8 @@ export class PDFGenerator {
     document.body.appendChild(container);
     
     try {
+      // Ensure layout is painted before capture to avoid blank pages
+      await new Promise((r) => setTimeout(r, 120));
       await (window as any).html2pdf().set(opt).from(container).save();
     } finally {
       document.body.removeChild(container);
