@@ -52,8 +52,8 @@ const App = () => (
           <Route path="/upload" element={<AuthGuard><Upload /></AuthGuard>} />
           <Route path="/processing" element={<AuthGuard><Processing /></AuthGuard>} />
           <Route path="/form" element={<AuthGuard><UserForm /></AuthGuard>} />
-          <Route path="/results" element={<AuthGuard><NewResults /></AuthGuard>} />
-          <Route path="/results-old" element={<AuthGuard><Results /></AuthGuard>} />
+          <Route path="/results" element={<AuthGuard><Results /></AuthGuard>} />
+          <Route path="/results-old" element={<AuthGuard><NewResults /></AuthGuard>} />
           <Route path="/dispute-letter" element={<AuthGuard><DisputeLetter /></AuthGuard>} />
           <Route path="/generate-letter" element={<AuthGuard><GenerateLetter /></AuthGuard>} />
           <Route path="/blog" element={<Blog />} />

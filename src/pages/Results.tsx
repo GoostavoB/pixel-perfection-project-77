@@ -52,12 +52,8 @@ const Results = () => {
     day: 'numeric' 
   });
 
-  // Parse analysis_result if exists
-  const analysisResult = analysis.analysis_result || {};
-  const analysisJson = analysisResult.analysis_json || analysisResult || {};
-  
   // Parse ui_summary - try multiple locations
-  let uiSummary = analysisResult.ui_summary || analysis.ui_summary || {};
+  let uiSummary = analysis.ui_summary || {};
   if (typeof uiSummary === 'string') {
     try {
       uiSummary = JSON.parse(uiSummary);
@@ -67,13 +63,38 @@ const Results = () => {
     }
   }
   
-  const fullAnalysis = analysisJson.charges || [];
+  // Parse full_analysis from analysis (string or object)
+  const fullAnalysisData = (() => {
+    try {
+      if (typeof analysis.full_analysis === 'string') return JSON.parse(analysis.full_analysis);
+      return analysis.full_analysis || {};
+    } catch {
+      return {};
+    }
+  })();
 
+  // Normalize issues list from full_analysis
+  const issues = [
+    ...(fullAnalysisData.high_priority_issues || []),
+    ...(fullAnalysisData.potential_issues || []),
+  ].map((it: any) => ({
+    category: it.type || it.category,
+    description: it.line_description || it.description,
+    finding: it.explanation_for_user || it.finding,
+    impact: it.billed_amount != null ? `$${Number(it.billed_amount).toFixed(2)}` : (it.impact || '$0'),
+    cpt_code: it.cpt_code || 'N/A',
+    suggested_action: it.suggested_action,
+    confidence_score: it.confidence_score,
+    accuracy_label: it.confidence_score != null
+      ? (it.confidence_score >= 0.95 ? 'Alta Confiança' : it.confidence_score >= 0.8 ? 'Confiança Moderada' : 'Requer Revisão')
+      : undefined,
+  }));
+  
   // Extract values with fallbacks
-  const criticalIssues = analysis.critical_issues || analysisJson.summary?.high_priority_count || 0;
-  const moderateIssues = analysis.moderate_issues || analysisJson.summary?.potential_issues_count || 0;
-  const estimatedSavings = analysis.estimated_savings || analysisJson.summary?.estimated_savings || 0;
-  const totalCharged = analysis.total_charged || 2380; // fallback
+  const criticalIssues = uiSummary.high_priority_count ?? (fullAnalysisData.high_priority_issues?.length ?? 0);
+  const moderateIssues = uiSummary.potential_issues_count ?? (fullAnalysisData.potential_issues?.length ?? 0);
+  const estimatedSavings = uiSummary.estimated_savings_if_corrected ?? (fullAnalysisData.estimated_savings ?? 0);
+  const totalCharged = analysis.total_charged ?? 2380; // fallback
   const hospitalName = analysis.hospital_name || 'Hospital';
   const emailSent = analysis.email_sent || false;
 
