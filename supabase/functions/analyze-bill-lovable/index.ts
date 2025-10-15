@@ -442,11 +442,21 @@ CRITICAL FRAUD DETECTION RULES:
 - Mismatched specialty (cardiologist billing neurosurgery code) = upcoding risk
 
 ANALYSIS STRATEGY:
-1. **Extract ALL charges** - even from aggregated categories
-2. **Pattern detection** - look for duplicates, unbundling, excessive markups
-3. **Benchmark aggressively** - use Medicare + regional adjustment as "fair" baseline
-4. **Calculate realistic savings** - conservative estimates (what patient can actually negotiate)
-5. **Actionable advice** - specific steps to dispute each overcharge
+1. **FIRST: Find TOTAL BILL AMOUNT** - Look for "TOTAL ADEUDADO", "BALANCE DUE", "AMOUNT OWED", "TOTAL CHARGES"
+2. **Extract ALL charges** - even from aggregated categories
+3. **Pattern detection** - look for duplicates, unbundling, excessive markups
+4. **Benchmark aggressively** - use Medicare + regional adjustment as "fair" baseline
+5. **Calculate realistic savings** - conservative estimates (what patient can actually negotiate)
+6. **MANDATORY VALIDATION**: Sum of all overcharge_amount values MUST be ≤ total_bill_amount
+7. **Actionable advice** - specific steps to dispute each overcharge
+
+🚨 **CRITICAL MATH VALIDATION**:
+- NEVER have total_potential_savings > total_bill_amount (impossible!)
+- If your calculated overcharges sum > 70% of bill total, you're likely making errors:
+  * Double-counting charges
+  * Using wrong Medicare benchmarks
+  * Counting aggregate categories AND their sub-items (counts twice)
+- SANITY CHECK: Review each overcharge_amount - is it reasonable?
 
 LANGUAGE REQUIREMENTS:
 - ALL responses in English
@@ -574,13 +584,15 @@ Return your analysis in this EXACT JSON structure:
                     cpt_code: { type: 'string' },
                     line_description: { type: 'string' },
                     billed_amount: { type: 'number' },
+                    overcharge_amount: { type: 'number' },
                     explanation_for_user: { type: 'string' },
                     suggested_action: { type: 'string' },
                     confidence_score: { type: 'number' }
                   },
-                  required: ['type', 'cpt_code', 'line_description', 'billed_amount', 'explanation_for_user', 'suggested_action', 'confidence_score']
+                  required: ['type', 'cpt_code', 'line_description', 'billed_amount', 'overcharge_amount', 'explanation_for_user', 'suggested_action', 'confidence_score']
                 }
               },
+              total_bill_amount: { type: 'number' },
               potential_issues: {
                 type: 'array',
                 items: {
@@ -598,7 +610,7 @@ Return your analysis in this EXACT JSON structure:
                     suggested_action: { type: 'string' },
                     confidence_score: { type: 'number' }
                   },
-                  required: ['type', 'cpt_code', 'line_description', 'billed_amount', 'explanation_for_user', 'suggested_action', 'confidence_score']
+                  required: ['type', 'cpt_code', 'line_description', 'billed_amount', 'overcharge_amount', 'explanation_for_user', 'suggested_action', 'confidence_score']
                 }
               },
               data_sources: {
@@ -632,13 +644,16 @@ Return your analysis in this EXACT JSON structure:
   console.log('Tool call present:', !!toolCall, 'Function args:', toolCall?.function?.arguments?.slice(0, 200));
   
   if (toolCall?.function?.arguments) {
-    const analysis = JSON.parse(toolCall.function.arguments);
+    let analysis = JSON.parse(toolCall.function.arguments);
     console.log('Parsed analysis:', {
       high_priority: analysis.high_priority_issues?.length || 0,
       potential: analysis.potential_issues?.length || 0,
       data_sources: analysis.data_sources?.length || 0,
       tags: analysis.tags?.length || 0
     });
+    
+    // ✅ VALIDATE: Ensure savings don't exceed bill total
+    analysis = validateAnalysis(analysis);
     
     // If extraction failed and we got no issues, add a note
     if (extractedContent.isScanned && 
@@ -664,11 +679,46 @@ Return your analysis in this EXACT JSON structure:
 }
 
 function calculateSavings(analysis: any): number {
+  // ✅ FIXED: Sum overcharge_amount (savings), NOT billed_amount (charges)
   const highPriorityTotal = (analysis.high_priority_issues || [])
-    .reduce((sum: number, issue: any) => sum + (issue.billed_amount || 0), 0);
+    .reduce((sum: number, issue: any) => sum + (issue.overcharge_amount || 0), 0);
   
   const potentialTotal = (analysis.potential_issues || [])
-    .reduce((sum: number, issue: any) => sum + (issue.billed_amount || 0), 0);
+    .reduce((sum: number, issue: any) => sum + (issue.overcharge_amount || 0), 0);
   
   return highPriorityTotal + potentialTotal;
+}
+
+// ✅ NEW: Validate that savings don't exceed bill total
+function validateAnalysis(analysis: any): any {
+  const totalBill = analysis.total_bill_amount || 0;
+  const calculatedSavings = calculateSavings(analysis);
+  
+  console.log('Validation check:', {
+    totalBill,
+    calculatedSavings,
+    reported: analysis.total_potential_savings,
+    isValid: calculatedSavings <= totalBill
+  });
+  
+  // If savings exceed bill total, proportionally reduce all overcharges
+  if (calculatedSavings > totalBill) {
+    console.warn('⚠️ VALIDATION FAILED: Savings exceed bill total. Reducing proportionally...');
+    const reductionFactor = (totalBill * 0.9) / calculatedSavings; // Cap at 90% of bill
+    
+    analysis.high_priority_issues = (analysis.high_priority_issues || []).map((issue: any) => ({
+      ...issue,
+      overcharge_amount: Math.round((issue.overcharge_amount || 0) * reductionFactor * 100) / 100
+    }));
+    
+    analysis.potential_issues = (analysis.potential_issues || []).map((issue: any) => ({
+      ...issue,
+      overcharge_amount: Math.round((issue.overcharge_amount || 0) * reductionFactor * 100) / 100
+    }));
+    
+    analysis.total_potential_savings = calculateSavings(analysis);
+    analysis.tags = [...(analysis.tags || []), 'validation_adjusted'];
+  }
+  
+  return analysis;
 }
