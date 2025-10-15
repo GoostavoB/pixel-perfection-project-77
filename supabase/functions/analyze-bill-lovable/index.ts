@@ -65,11 +65,22 @@ serve(async (req) => {
     const analysisResult = await analyzeBillWithAI(textContent, lovableApiKey, supabase);
     console.log('AI analysis complete');
 
+    // Get user ID from auth header
+    const authHeader = req.headers.get('Authorization');
+    let userId = null;
+    if (authHeader) {
+      const token = authHeader.replace('Bearer ', '');
+      const { data: { user } } = await supabase.auth.getUser(token);
+      userId = user?.id;
+    }
+    console.log('User ID:', userId);
+
     // Store in database
     const { data: dbData, error: dbError } = await supabase
       .from('bill_analyses')
       .insert({
         session_id: sessionId,
+        user_id: userId,
         file_name: file.name,
         file_type: file.type,
         file_url: publicUrl,
