@@ -745,6 +745,15 @@ Return your analysis in this EXACT JSON structure:
     // 🔧 FIX 5: UNCONDITIONAL validation with text extraction fallback
     analysis = validateAnalysis(analysis, extractedText);
     
+    // 🔧 NEW: Server-side assertions before DB insert
+    try {
+      assertAnalysis(analysis);
+      console.log('[ASSERT] ✅ Analysis passed all validation checks');
+    } catch (error) {
+      console.error('[ASSERT] ❌ Analysis failed validation:', error);
+      throw new Error(`Invalid analysis: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+    
     // If extraction failed and we got no issues, add a note
     if (extractedContent.isScanned && 
         (!analysis.high_priority_issues?.length) && 
@@ -766,6 +775,73 @@ Return your analysis in this EXACT JSON structure:
   // Fallback if no tool call
   console.error('No tool call in AI response, full response:', JSON.stringify(data));
   throw new Error('No structured analysis returned from AI');
+}
+
+// 🔧 NEW: Numeric hygiene helper
+function isNum(x: any): boolean {
+  return typeof x === 'number' && Number.isFinite(x);
+}
+
+// 🔧 NEW: Coerce string numbers with currency/commas
+function toNum(x: any): number {
+  if (isNum(x)) return x;
+  const cleaned = String(x).replace(/[$,\s]/g, '');
+  const n = Number(cleaned);
+  return Number.isFinite(n) ? n : 0;
+}
+
+// 🔧 NEW: Server-side assertion before DB insert
+function assertAnalysis(a: any): any {
+  // Validate total bill amount
+  if (!isNum(a.total_bill_amount) || a.total_bill_amount <= 0) {
+    throw new Error(`Invalid total_bill_amount: ${a.total_bill_amount}`);
+  }
+  
+  const allIssues = [...(a.high_priority_issues || []), ...(a.potential_issues || [])];
+  
+  // Validate each issue
+  for (const i of allIssues) {
+    if (!isNum(i.billed_amount)) {
+      throw new Error(`Issue billed_amount not numeric: ${i.billed_amount}`);
+    }
+    if (!isNum(i.overcharge_amount)) {
+      throw new Error(`Issue overcharge_amount not numeric after sanitize: ${i.overcharge_amount}`);
+    }
+    if (i.overcharge_amount < 0) {
+      throw new Error(`Negative overcharge_amount after sanitize: ${i.overcharge_amount}`);
+    }
+    if (i.overcharge_amount > i.billed_amount * 0.7) {
+      throw new Error(`overcharge_amount ${i.overcharge_amount} exceeds 70% guard (billed: ${i.billed_amount})`);
+    }
+  }
+  
+  // Validate total doesn't exceed bill
+  const sum = allIssues.reduce((s, i) => s + toNum(i.overcharge_amount), 0);
+  if (sum > a.total_bill_amount) {
+    throw new Error(`Sum of overcharges (${sum}) exceeds total_bill_amount (${a.total_bill_amount})`);
+  }
+  
+  // Set correct total
+  a.total_potential_savings = sum;
+  
+  return a;
+}
+
+// 🔧 NEW: Strip parent-child double counting
+function stripParentChildDoubleCount(issues: any[]): any[] {
+  const parents = new Set(
+    issues.filter(i => i.is_parent).map(i => i.line_description)
+  );
+  
+  const filtered = issues.filter(i => 
+    !(i.parent_description && parents.has(i.parent_description))
+  );
+  
+  if (filtered.length < issues.length) {
+    console.log(`[HIERARCHY] Removed ${issues.length - filtered.length} child items with parent present`);
+  }
+  
+  return filtered;
 }
 
 // 🔧 FIX 2: Extract bill total from raw text (fallback if AI fails)
@@ -870,8 +946,13 @@ function validateAnalysis(analysis: any, extractedText: string): any {
   const originalHighCount = analysis.high_priority_issues?.length || 0;
   const originalPotentialCount = analysis.potential_issues?.length || 0;
   
-  analysis.high_priority_issues = deduplicateLineItems(analysis.high_priority_issues || []);
-  analysis.potential_issues = deduplicateLineItems(analysis.potential_issues || []);
+  // Step 1: Strip parent-child double counting
+  analysis.high_priority_issues = stripParentChildDoubleCount(analysis.high_priority_issues || []);
+  analysis.potential_issues = stripParentChildDoubleCount(analysis.potential_issues || []);
+  
+  // Step 2: Deduplicate exact matches
+  analysis.high_priority_issues = deduplicateLineItems(analysis.high_priority_issues);
+  analysis.potential_issues = deduplicateLineItems(analysis.potential_issues);
   
   if (originalHighCount !== analysis.high_priority_issues.length || 
       originalPotentialCount !== analysis.potential_issues.length) {
