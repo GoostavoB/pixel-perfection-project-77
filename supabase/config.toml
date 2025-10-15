@@ -35,3 +35,12 @@ verify_jwt = false
 
 [functions.explain-cpt]
 verify_jwt = false
+
+[functions.import-pricing-csv]
+verify_jwt = false
+
+[functions.fetch-cms-pricing]
+verify_jwt = false
+
+[functions.upload-bill]
+verify_jwt = false
