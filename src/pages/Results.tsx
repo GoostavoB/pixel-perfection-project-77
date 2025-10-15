@@ -1,4 +1,10 @@
-import { AlertCircle, Calendar, Loader2, Mail, ArrowRight } from "lucide-react";
+import { AlertCircle, Calendar, Loader2, Mail, ArrowRight, Info } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -223,9 +229,11 @@ const Results = () => {
           <Card className="p-6 text-center">
             <p className="text-sm text-muted-foreground mb-1">Findings</p>
             <p className="text-3xl font-bold text-foreground">{hi.length + pi.length}</p>
-            <p className="text-xs text-muted-foreground mt-1">lines to review</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              We found {hi.length + pi.length} line{(hi.length + pi.length) !== 1 ? 's' : ''} with potential issues
+            </p>
           </Card>
-          <Card className="p-6 text-center">
+          <Card className="p-6 text-center relative">
             <p className="text-sm text-muted-foreground mb-1">Potential Savings</p>
             <p className="text-3xl font-bold text-primary">
               {estimatedSavings > 0 && itemizationStatus !== 'missing'
@@ -235,11 +243,28 @@ const Results = () => {
             <p className="text-xs text-muted-foreground mt-1">
               {itemizationStatus === 'missing' ? 'needs codes' : 'estimated'}
             </p>
+            {itemizationStatus === 'missing' && (
+              <div className="mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-900 text-left">
+                <strong>Note:</strong> Please request an itemized bill from the hospital to calculate accurate savings.
+              </div>
+            )}
           </Card>
           <Card className="p-6 text-center">
-            <p className="text-sm text-muted-foreground mb-1">Confidence</p>
+            <div className="flex items-center justify-center gap-2 mb-1">
+              <p className="text-sm text-muted-foreground">Confidence</p>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="w-4 h-4 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <p className="text-sm">"Mixed" means we have varying confidence levels across different findings - some are highly confident (clear overcharges), while others need more information. Check individual badges for details.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
             <p className="text-3xl font-bold text-foreground">Mixed</p>
-            <p className="text-xs text-muted-foreground mt-1">see badges below</p>
+            <p className="text-xs text-muted-foreground mt-1">see badges below for details</p>
           </Card>
         </div>
 
