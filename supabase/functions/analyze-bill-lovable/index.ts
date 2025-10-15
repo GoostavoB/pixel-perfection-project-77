@@ -1363,12 +1363,29 @@ function computeFrontendFields(analysis: any): any {
 function calculateSavings(analysis: any): number {
   console.log('[CALC] Starting production savings calculation...');
   
-  // Extract charges from analysis
-  const charges = analysis.charges || [];
+  // Extract charges from BOTH charges array AND issues
+  let charges = analysis.charges || [];
+  
+  // ✅ FIX: If no charges array, build from issues
   if (charges.length === 0) {
-    console.log('[CALC] No charges found');
+    console.log('[CALC] No charges array found - building from issues');
+    const allIssues = [...(analysis.high_priority_issues || []), ...(analysis.potential_issues || [])];
+    charges = allIssues.map((issue: any) => ({
+      cpt_code: issue.cpt_code || 'N/A',
+      revenue_code: issue.revenue_code,
+      description: issue.line_description || issue.explanation_for_user,
+      charge_amount: issue.billed_amount || 0,
+      units: issue.units || 1,
+      overcharge_amount: issue.overcharge_amount || 0
+    }));
+  }
+  
+  if (charges.length === 0) {
+    console.log('[CALC] No charges or issues found');
     return 0;
   }
+
+  console.log(`[CALC] Processing ${charges.length} line items`);
 
   // Convert charges to BillLine format
   const lines: BillLine[] = charges.map((charge: any, idx: number) => ({
@@ -1376,7 +1393,7 @@ function calculateSavings(analysis: any): number {
     cpt_or_hcpcs: charge.cpt_code,
     revenue_code: charge.revenue_code,
     description: charge.description || '',
-    billed_amount: Number(charge.charge_amount) || 0,
+    billed_amount: Number(charge.charge_amount || charge.billed_amount) || 0,
     quantity: Number(charge.units) || 1,
     patient_cost_share_charged: 0, // Not available in basic analysis
     expected_in_network_cost_share: 0, // Not available
@@ -1387,23 +1404,31 @@ function calculateSavings(analysis: any): number {
   const nsa_flags = new Map<string, NSAFlag>();
   
   [...(analysis.high_priority_issues || []), ...(analysis.potential_issues || [])].forEach((issue: any, idx: number) => {
-    if (issue.issue_type === 'nsa_violation' && issue.evidence?.citation) {
-      const line_id = `line_${idx}`; // Match to line by index (simplified)
+    if (issue.type === 'nsa_violation' || issue.issue_type === 'nsa_violation') {
+      const line_id = `line_${idx}`;
       nsa_flags.set(line_id, {
         violation: true,
-        type: issue.evidence.citation,
-        clause_refs: [issue.evidence.citation]
+        type: issue.evidence?.citation || '149.110',
+        clause_refs: [issue.evidence?.citation || '149.110']
       });
     }
   });
 
-  // Build baseline sources from available data
+  // Build baseline sources - use existing overcharge_amount from AI as baseline difference
   const baseline_sources = new Map<string, BaselineSource>();
   charges.forEach((charge: any, idx: number) => {
     const line_id = `line_${idx}`;
+    const billed = Number(charge.charge_amount || charge.billed_amount) || 0;
+    const overcharge = Number(charge.overcharge_amount) || 0;
+    
+    // If AI provided an overcharge, derive the baseline
+    let estimated_baseline = billed;
+    if (overcharge > 0 && overcharge < billed) {
+      estimated_baseline = billed - overcharge;
+    }
+    
     baseline_sources.set(line_id, {
-      // We don't have these sources yet, but the engine will use billed_amount as fallback
-      plan_allowed: undefined,
+      plan_allowed: estimated_baseline > 0 ? estimated_baseline : undefined,
       medicare_allowed: undefined,
       regional_benchmark: undefined,
       chargemaster_median: undefined
