@@ -70,15 +70,15 @@ Same code repeated across lines with units that sum to a simple total and a line
 - **Blood product plus admin**: Verify product codes match admin codes; each unit should have corresponding admin time.
 
 ### Pharmacy Aggregates
-- **Multiple "Pharmacy - General Classification" lines**: When bill shows repeated pharmacy categories (General, IV Solutions, Drugs Incident to Radiology) without itemization, flag as P2 and request daily detail with NDCs, quantities, and dates for each line.
-- **Pharmacy daily totals**: Multiple pharmacy subcategory charges may be legitimate daily totals by category. Classify as P2 only if amounts or descriptions suggest duplication. Request itemized pharmacy detail with dates and NDCs.
-- **Missing drug codes**: Generic "pharmacy" charges without NDC, drug name, or quantity. Flag P2 and request complete itemization.
+- **Multiple "Pharmacy - General Classification" lines**: ⚠️ **SUSPICIOUS BILLING**: When you see multiple pharmacy charges without medication details, this format is commonly used to hide duplicate charges and inflated drug prices. **What's at stake**: Hospitals mark up medications 500-1000% above retail prices, and aggregate billing makes it impossible to verify if you're being charged twice for the same medication. **Action required**: Request a complete itemized pharmacy bill showing: drug name, NDC code, dosage, quantity dispensed, administration date and time, and unit price for each medication. Compare prices to GoodRx or retail pharmacy costs.
+- **Pharmacy daily totals**: 🔍 **VERIFY NEEDED**: Multiple pharmacy category charges (General, IV Solutions, Drugs) across different days may be legitimate daily totals, BUT without seeing the actual medications, you cannot verify accuracy. **Why this matters**: Each vague category could contain duplicate drug charges or medications you never received. **What to request**: Daily pharmacy detail listing every medication by NDC code, with dates, quantities, and prices. Cross-reference with your medical administration record (MAR) to confirm you actually received each drug.
+- **Missing drug codes**: 🚨 **RED FLAG**: Generic "pharmacy" charges without any medication names, NDC codes, or quantities. **The problem**: This violates billing standards and makes it impossible to verify legitimacy. Hospitals use this format to bill whatever they want without accountability. **Immediate action**: Demand complete itemization with drug names, NDC codes, dosages, administration dates, and unit prices. Without this detail, you should dispute the entire pharmacy charge as unverifiable.
 
 ### Room, Observation, Daily Fees
 More than one daily room or observation charge for a single calendar day without transfer or midnight crossover.
 
 ### Supplies
-Generic supply codes or tray fees repeated with identical description and price the same day.
+🚨 **COMMON FRAUD PATTERN**: Generic "Supplies" charges without itemization are one of the most common sources of overbilling. **The scam**: Hospitals charge $50 for a $2 bandage or bill the same surgical tray twice under vague "supply" categories. **Money at risk**: Supply markups average 400-600%, and duplicate billing is extremely common when details are hidden. **What you must demand**: Itemized supply list showing: exact item description, manufacturer/product code if applicable, quantity used, unit price, date used, and procedure it was used for. Compare prices to retail medical supply websites. Without this detail, supplies charges should be considered disputed and unverifiable.
 
 ## Valid Repeats (Not Duplicates)
 - Professional vs facility bills for the same encounter when tax IDs differ
