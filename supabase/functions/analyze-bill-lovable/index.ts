@@ -178,16 +178,26 @@ serve(async (req) => {
       console.warn('[FINAL] Safety clamp applied before storage.');
     }
 
-    // Store in database (upsert by pdf_hash to avoid duplicate-key errors on fresh reruns)
+    // Store in database (purge old by hash to avoid unique constraint issues, then insert)
+    try {
+      const { error: delErr } = await supabase
+        .from('bill_analyses')
+        .delete()
+        .eq('pdf_hash', pdfHash);
+      if (delErr) console.warn('[STORE] Cache purge warning:', delErr.message);
+    } catch (e) {
+      console.warn('[STORE] Cache purge exception (ignored):', e instanceof Error ? e.message : e);
+    }
+
     const { data: dbData, error: dbError } = await supabase
       .from('bill_analyses')
-      .upsert({
+      .insert({
         session_id: sessionId,
         user_id: userId,
         file_name: file.name,
         file_type: file.type,
         file_url: publicUrl,
-        pdf_hash: pdfHash, // ✅ CACHE KEY
+        pdf_hash: pdfHash,
         extracted_text: extractedContent.text,
         status: 'completed',
         analysis_result: analysisResult,
@@ -196,7 +206,7 @@ serve(async (req) => {
         estimated_savings: calculateSavings(analysisResult),
         issues: [...(analysisResult.high_priority_issues || []), ...(analysisResult.potential_issues || [])],
         updated_at: new Date().toISOString(),
-      }, { onConflict: 'pdf_hash' })
+      })
       .select()
       .single();
 
