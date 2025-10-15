@@ -199,7 +199,18 @@ async function extractTextFromFile(buffer: ArrayBuffer, mimeType: string): Promi
     // For images (JPG, PNG, WEBP), convert to base64 for vision API
     if (mimeType.startsWith('image/')) {
       const bytes = new Uint8Array(buffer);
-      const base64 = btoa(String.fromCharCode(...bytes));
+      // Safe base64 encoding without large spreads
+      let binary = '';
+      const chunkSize = 0x8000; // 32KB chunks
+      for (let i = 0; i < bytes.length; i += chunkSize) {
+        const chunk = bytes.subarray(i, i + chunkSize);
+        let chunkStr = '';
+        for (let j = 0; j < chunk.length; j++) {
+          chunkStr += String.fromCharCode(chunk[j]);
+        }
+        binary += chunkStr;
+      }
+      const base64 = btoa(binary);
       return {
         text: `Medical bill image received. File size: ${buffer.byteLength} bytes. Using vision analysis.`,
         imageData: `data:${mimeType};base64,${base64}`
