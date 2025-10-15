@@ -73,13 +73,13 @@ export const BillScore = ({
           </div>
 
           <div className="text-center">
-            <div className="flex items-center justify-center gap-2 mb-1">
-              <TrendingDown className="h-4 w-4 text-green-500" />
-              <span className="text-2xl font-bold text-green-600">
+            <div className="flex flex-col items-center justify-center gap-1 mb-1">
+              <TrendingDown className="h-6 w-6 text-green-500" />
+              <span className="text-5xl font-bold text-green-600">
                 {savingsPercentage}%
               </span>
             </div>
-            <p className="text-xs text-muted-foreground">Potential Savings</p>
+            <p className="text-sm font-semibold text-muted-foreground">Potential Savings</p>
           </div>
         </div>
 
