@@ -73,22 +73,31 @@ export const BillScore = ({
           </div>
 
           <div className="text-center">
-            <div className="flex flex-col items-center justify-center gap-1 mb-1">
-              <TrendingDown className="h-6 w-6 text-green-500" />
-              <span className="text-5xl font-bold text-green-600">
+            <div className="flex items-center justify-center gap-2 mb-1">
+              <TrendingDown className="h-4 w-4 text-green-500" />
+              <span className="text-2xl font-bold text-green-600">
                 {savingsPercentage}%
               </span>
             </div>
-            <p className="text-sm font-semibold text-muted-foreground">Potential Savings</p>
+            <p className="text-xs text-muted-foreground">Potential Savings</p>
           </div>
         </div>
 
         {/* Mensagem empática */}
         {estimatedSavings > 0 && (
           <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg p-4">
-            <p className="text-sm text-green-800 dark:text-green-200">
-              <span className="font-semibold">Good news!</span> We found questionable charges. If confirmed, you could save up to {" "}
-              <span className="font-bold">${estimatedSavings.toFixed(2)}</span>. 
+            <p className="text-sm text-green-800 dark:text-green-200 mb-3">
+              <span className="font-semibold">Good news!</span> We found questionable charges.
+            </p>
+            <div className="text-center mb-3">
+              <div className="text-5xl font-bold text-green-600 dark:text-green-400">
+                ${estimatedSavings.toFixed(2)}
+              </div>
+              <p className="text-xs text-green-700 dark:text-green-300 mt-1 font-medium">
+                Potential Savings if Confirmed
+              </p>
+            </div>
+            <p className="text-sm text-green-800 dark:text-green-200 text-center">
               We'll help you resolve this step by step.
             </p>
           </div>
