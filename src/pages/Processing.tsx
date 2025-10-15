@@ -27,6 +27,7 @@ const Processing = () => {
   const [progress, setProgress] = useState(0);
   const [currentFact, setCurrentFact] = useState(0);
   const [status, setStatus] = useState("Uploading bill...");
+  const [isAnalyzing, setIsAnalyzing] = useState(true);
 
   useEffect(() => {
     if (!file) {
@@ -42,8 +43,23 @@ const Processing = () => {
       setCurrentFact((prev) => (prev + 1) % facts.length);
     }, 5000);
 
-    return () => clearInterval(factInterval);
-  }, [file]);
+    // Continuous progress animation to show activity
+    const progressInterval = setInterval(() => {
+      setProgress((prev) => {
+        if (!isAnalyzing) return prev;
+        // Keep progressing slowly between 20-90% to show activity
+        if (prev < 90) {
+          return Math.min(prev + 0.5, 90);
+        }
+        return prev;
+      });
+    }, 200);
+
+    return () => {
+      clearInterval(factInterval);
+      clearInterval(progressInterval);
+    };
+  }, [file, isAnalyzing]);
 
   const startAnalysis = async () => {
     if (!file) return;
@@ -81,6 +97,7 @@ const Processing = () => {
 
       setProgress(100);
       setStatus("Complete!");
+      setIsAnalyzing(false);
 
       // Navigate to results
       setTimeout(() => {
@@ -94,6 +111,7 @@ const Processing = () => {
 
     } catch (error) {
       console.error('Analysis error:', error);
+      setIsAnalyzing(false);
       toast({
         title: "Analysis failed",
         description: error instanceof Error ? error.message : "Please try again",
@@ -124,10 +142,10 @@ const Processing = () => {
           <Progress value={progress} className="mb-6" />
 
           <div className="bg-muted rounded-lg p-6 mb-6">
-            <p className="text-sm text-foreground">
-              💡 <strong>Did you know?</strong>
+            <p className="text-base font-semibold text-foreground mb-3">
+              💡 Did you know?
             </p>
-            <p className="text-sm text-muted-foreground mt-2 animate-fade-in">
+            <p className="text-lg text-foreground leading-relaxed animate-fade-in">
               {facts[currentFact]}
             </p>
           </div>
