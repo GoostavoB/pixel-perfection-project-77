@@ -96,7 +96,9 @@ const Processing = () => {
       }
 
       // Guard: ensure we have valid analysis_result before navigating
-      if (data.status !== 'ready' || !data.analysis_result) {
+      const statusVal = String(data.status || '').toLowerCase();
+      const isReady = statusVal === 'ready' || statusVal === 'completed' || statusVal === 'done';
+      if (!isReady || !data.analysis_result) {
         throw new Error('Analysis result is incomplete or failed');
       }
 
