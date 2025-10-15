@@ -64,6 +64,16 @@ Same code repeated across lines with units that sum to a simple total and a line
 - Same NDC, dose, route, and time window billed twice
 - Two initial infusion hours for the same drug episode
 
+### Blood and Transfusion Services
+- **Multiple "Administration, Processing, and Storage" charges**: Two or more lines for blood administration/processing without clear differentiation by product codes (P90xx), CPT codes (36430, 96365-96376), units transfused, or time periods. Flag as P2 and request MAR, product codes, units transfused, and CPT/HCPCS codes.
+- **Repeated blood handling fees**: Multiple venipuncture or handling fees for single transfusion episode.
+- **Blood product plus admin**: Verify product codes match admin codes; each unit should have corresponding admin time.
+
+### Pharmacy Aggregates
+- **Multiple "Pharmacy - General Classification" lines**: When bill shows repeated pharmacy categories (General, IV Solutions, Drugs Incident to Radiology) without itemization, flag as P2 and request daily detail with NDCs, quantities, and dates for each line.
+- **Pharmacy daily totals**: Multiple pharmacy subcategory charges may be legitimate daily totals by category. Classify as P2 only if amounts or descriptions suggest duplication. Request itemized pharmacy detail with dates and NDCs.
+- **Missing drug codes**: Generic "pharmacy" charges without NDC, drug name, or quantity. Flag P2 and request complete itemization.
+
 ### Room, Observation, Daily Fees
 More than one daily room or observation charge for a single calendar day without transfer or midnight crossover.
 
@@ -129,10 +139,29 @@ Similar lines are valid due to different tax IDs, bilateral coding, or documente
 - **Low**: A justifying modifier is present and evidence is thin
 
 ## What to Request When Data is Missing
-- Itemized bill with codes, modifiers, units, revenue codes, NDCs
+
+### General Itemization
+- Full itemized bill with for each line: date, CPT or HCPCS, modifiers, units, revenue code, department, provider NPI or tax ID, and price
 - Clinical notes, order sheets, radiology timestamps
-- Medication administration record
-- EOB or 835 remittance notes
+- EOB or 835 remittance notes with any "duplicate" denial reasons
+
+### Blood Services Specific
+- Medication administration record (MAR) showing number of units transfused and times
+- Product codes (P90xx series) for each blood product
+- CPT codes: 36430 for transfusion, or 96365-96376 for infusions
+- Units transfused and corresponding admin codes for each line
+- **Targeted question**: "Please confirm why [X] lines for 'Administration, Processing, and Storage for Blood and Blood Components' appear for the same hospitalization. Provide CPT/HCPCS, revenue codes, units, and supporting MAR entries for each line."
+
+### Pharmacy Specific
+- Daily pharmacy detail or NDCs and quantities for each medication
+- Dates of administration for multi-day admissions
+- Breakdown of aggregated categories (e.g., "Pharmacy - General Classification")
+- **Targeted question**: "Please provide the itemized pharmacy detail for the admission dates to validate quantities and avoid double counting."
+
+### Labs Specific
+- List of CPT codes to check for panel plus components
+- Timestamps for same-day repeat tests
+- Reflex testing documentation if applicable
 
 ## Plain-Language Messages per Flag
 
@@ -145,6 +174,12 @@ Similar lines are valid due to different tax IDs, bilateral coding, or documente
 ### P2 Likely Duplicate
 "This looks duplicated, but the bill lacks timestamps or notes. Please provide documentation or correct the charge."
 
+### P2 Blood Services
+"Two lines for 'Administration, Processing, and Storage for Blood and Blood Components.' Could be separate services or units, or could be admin time plus product handling. Needs CPT/HCPCS or revenue codes and units to confirm."
+
+### P2 Pharmacy Aggregates
+"Multiple 'Pharmacy - General Classification' lines. Likely daily pharmacy totals by category. Not a duplicate by itself. Verify dates and units with itemized detail."
+
 ### P3 Needs Review
 "A repeat is present with modifier [code]. Please provide records that show a distinct session, site, or medical need."
 
@@ -154,7 +189,9 @@ Similar lines are valid due to different tax IDs, bilateral coding, or documente
 ## Dispute Text Generator Rules
 - For P1 duplicates, cite date, code, provider, lack of modifier, and absence of documentation. Ask for removal and corrected bill.
 - For P1 panel unbundling, cite the panel and list components. Ask to remove components or the panel.
-- For P2, request timestamps, second orders, or notes.
+- For P2 general, request timestamps, second orders, or notes.
+- For P2 blood services, request: "Please confirm why [X] lines for 'Administration, Processing, and Storage for Blood and Blood Components' appear for the same hospitalization. Provide CPT/HCPCS, revenue codes, units, and supporting MAR entries for each line."
+- For P2 pharmacy aggregates, request: "Please provide the itemized pharmacy detail for the admission dates to validate quantities and avoid double counting."
 - For P3, request proof that supports the modifier used.
 
 ## Examples
