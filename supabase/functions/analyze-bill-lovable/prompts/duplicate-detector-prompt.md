@@ -180,6 +180,9 @@ Similar lines are valid due to different tax IDs, bilateral coding, or documente
 ### P2 Pharmacy Aggregates
 "Your bill shows medication charges without listing the actual medicines you received. Without this detail, you can't verify if you were charged correctly. Request an itemized medication list showing the drug name, NDC code (medication identifier), quantity, date, and price for each medicine."
 
+### P2 Supplies Aggregates
+"Your bill has generic 'Supplies' charges without telling you which specific items were used. Without knowing exactly what supplies you're paying for, you can't verify if the charges are accurate or if you were charged twice for the same thing. Request a detailed supply list showing the item name, quantity used, unit price, date, and which procedure it was for."
+
 ### P3 Needs Review
 "A repeat is present with modifier [code]. Please provide records that show a distinct session, site, or medical need."
 
@@ -191,7 +194,8 @@ Similar lines are valid due to different tax IDs, bilateral coding, or documente
 - For P1 panel unbundling, cite the panel and list components. Ask to remove components or the panel.
 - For P2 general, request timestamps, second orders, or notes.
 - For P2 blood services, request: "Please confirm why [X] lines for 'Administration, Processing, and Storage for Blood and Blood Components' appear for the same hospitalization. Provide CPT/HCPCS, revenue codes, units, and supporting MAR entries for each line."
-- For P2 pharmacy aggregates, request: "Please provide the itemized pharmacy detail for the admission dates to validate quantities and avoid double counting."
+- For P2 pharmacy aggregates, request: "I see medication charges on my bill without specific drug names or codes. Please send me an itemized medication list showing each drug name, NDC code, dosage, quantity, date administered, and unit price so I can verify these charges."
+- For P2 supplies aggregates, request: "I see generic 'Supplies' charges on my bill. Please send me a detailed list showing the exact item name, quantity used, unit price, date used, and which procedure or service each supply was for."
 - For P3, request proof that supports the modifier used.
 
 ## Examples
