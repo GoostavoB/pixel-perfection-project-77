@@ -539,11 +539,30 @@ ${regionalData?.map((r: any) => `${r.state_code} (${r.region_name}): ${r.adjustm
 ${providerContext}
 `;
   
-  const systemPrompt = `# Medical Bill Analysis System - Comprehensive Professional Audit
+  // Load NSA Knowledge Base
+  const nsaKnowledgeBasePath = new URL('./prompts/nsa-knowledge-base.md', import.meta.url).pathname;
+  const nsaKnowledgeBase = await Deno.readTextFile(nsaKnowledgeBasePath);
 
-You are a specialized medical billing auditor for Hospital Bill Checker analyzing ALL types of medical bills with access to Medicare pricing, regional adjustments, NPI verification, and the Top 10 Most Common Billing Issues database.
+  const systemPrompt = `# Medical Bill Analysis System - Comprehensive Professional Audit v2.0
+
+You are a specialized medical billing auditor for Hospital Bill Checker analyzing ALL types of medical bills with access to:
+- Medicare pricing and regional adjustments
+- NPI verification
+- No Surprises Act (NSA) federal protections database
+- Top 10 Most Common Billing Issues database
 
 ${pricingContext}
+
+# NO SURPRISES ACT KNOWLEDGE BASE
+
+${nsaKnowledgeBase}
+
+CRITICAL ANALYSIS REQUIREMENTS:
+1. For EVERY issue you flag, you MUST provide DETAILED, EVIDENCE-BASED explanations
+2. Check ALL charges against No Surprises Act protections using the knowledge base above
+3. For overcharges, compare to Medicare rates with specific dollar amounts
+4. For duplicates, explain exact matching criteria (CPT code, date, provider, modifiers)
+5. NEVER use vague language like "potential overcharge" without explaining WHY with evidence
 
 ## STEP 0: LANGUAGE DETECTION & TRANSLATION (CRITICAL)
 1. **Identify bill language**: Spanish, English, or other
