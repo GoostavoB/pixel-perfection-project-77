@@ -13,6 +13,9 @@ import { BillScore } from "@/components/BillScore";
 import { MedicalGlossary } from "@/components/MedicalGlossary";
 import { KnowYourRights } from "@/components/KnowYourRights";
 import { ConfidenceBadge } from "@/components/ConfidenceBadge";
+import { BeforeAfterComparison } from "@/components/BeforeAfterComparison";
+import { CPTExplainer } from "@/components/CPTExplainer";
+import { PrivacyDisclaimer } from "@/components/PrivacyDisclaimer";
 
 const Results = () => {
   const location = useLocation();
@@ -190,6 +193,14 @@ const Results = () => {
                             label={issue.accuracy_label}
                           />
                         )}
+                        {issue.cpt_code && issue.cpt_code !== "N/A" && (
+                          <CPTExplainer
+                            cptCode={issue.cpt_code}
+                            description={issue.description || issue.finding}
+                            chargedAmount={parseFloat(issue.impact?.replace(/[^0-9.]/g, '') || '0')}
+                            category={issue.category}
+                          />
+                        )}
                       </div>
                       <p className="text-sm text-muted-foreground mb-2">
                         {issue.details || issue.finding}
@@ -213,6 +224,31 @@ const Results = () => {
               ))}
             </div>
           </Card>
+        )}
+
+        {/* Before/After Comparison Simulator */}
+        {(analysis.issues || []).length > 0 && estimatedSavings > 0 && (
+          <div className="mb-6">
+            <BeforeAfterComparison
+              charges={(analysis.issues || []).map((issue: any, idx: number) => {
+                const chargedAmount = parseFloat(issue.impact?.replace(/[^0-9.]/g, '') || '0');
+                const isDuplicate = issue.category?.toLowerCase().includes('duplicate');
+                const isRemovable = issue.category?.toLowerCase().includes('not rendered') || isDuplicate;
+                
+                return {
+                  line: idx + 1,
+                  description: issue.description || issue.finding,
+                  original: chargedAmount,
+                  corrected: isRemovable ? 0 : chargedAmount * 0.4, // Conservative estimate
+                  difference: isRemovable ? chargedAmount : chargedAmount * 0.6,
+                  reason: issue.category
+                };
+              })}
+              originalTotal={totalCharged}
+              correctedTotal={totalCharged - estimatedSavings}
+              totalSavings={estimatedSavings}
+            />
+          </div>
         )}
 
         {hospitalName && (
@@ -345,6 +381,11 @@ const Results = () => {
               </Button>
             </Link>
           </Card>
+        </div>
+
+        {/* Privacy & Security Disclaimer */}
+        <div className="mb-6">
+          <PrivacyDisclaimer />
         </div>
       </main>
     </div>

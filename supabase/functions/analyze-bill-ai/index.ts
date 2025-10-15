@@ -86,10 +86,50 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Master system prompt - ENHANCED FOR MAXIMUM DETECTION
-    const systemPrompt = `You are an EXPERT Hospital Bill Checker Analyzer. Your mission is to AGGRESSIVELY identify ALL billing issues and calculate ACCURATE savings estimates. Be thorough and skeptical.
+    // Master system prompt - ENHANCED WITH CLINICAL AUDIT
+    const systemPrompt = `You are an EXPERT Hospital Bill Checker AND Clinical Auditor. Your mission is to AGGRESSIVELY identify ALL billing issues, verify clinical appropriateness, and calculate ACCURATE savings estimates. Be thorough, skeptical, and clinically informed.
 
 **CRITICAL ANALYSIS RULES:**
+
+🧬 **CLINICAL AUDIT LAYER** (NEW - Priority 0)
+Before analyzing billing errors, verify CLINICAL APPROPRIATENESS:
+
+A) **Diagnosis-Procedure Match (ICD-CPT Concordance)**
+   - Verify if the procedure (CPT) is justified by the diagnosis (ICD code)
+   - Flag procedures that don't match the documented condition
+   - Example: Anesthesia charged but no surgical procedure documented
+   - Classification: HIGH PRIORITY if mismatch found
+   - Confidence: 0.85-0.95
+
+B) **Redundant/Duplicate Medical Testing**
+   - Flag same test/panel ordered multiple times same day without clinical justification
+   - Common examples: 
+     * Two metabolic panels same day (unless medically critical)
+     * Multiple identical imaging studies
+     * Repeated blood work without documented reason
+   - Classification: HIGH PRIORITY
+   - Confidence: 0.90-1.00
+
+C) **Incompatible Service Combinations**
+   - Detect clinically impossible combinations:
+     * IV hydration + oral medication administration (contradictory)
+     * Anesthesia without surgical procedure
+     * Wound care for undocumented wound
+     * PT evaluation for non-mobility issue
+   - Classification: HIGH PRIORITY
+   - Confidence: 0.85-0.95
+
+D) **Clinical Timeline Validation**
+   - Verify services follow logical medical timeline
+   - Flag: Pre-op services billed after surgery, consultations after discharge, etc.
+   - Classification: POTENTIAL ISSUE
+   - Confidence: 0.80
+
+**Medical Logic Examples to Flag:**
+- "CPT 96360 (IV hydration) + CPT 99203 (office visit) same timestamp = unusual, typically not concurrent"
+- "Anesthesia (47XXX codes) without surgical procedure = billing error"
+- "Two comprehensive metabolic panels (80053) same day = redundant unless critical care"
+- "Wound dressing supplies (4 units) but only minor laceration documented = quantity mismatch"
 
 1. **DUPLICATE BILLING** (Rank #1 - Most Common)
    - Compare EVERY line: same CPT code + same date + same units + same charge = DUPLICATE
