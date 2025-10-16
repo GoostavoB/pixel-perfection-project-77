@@ -1,9 +1,37 @@
 import { DisputePack, IssueBlock } from '@/types/disputePack';
 
 export const generateDisputePack = (analysis: any): DisputePack => {
+  console.log('🔍 Generating dispute pack from analysis:', analysis);
+  
   const a = analysis.full_analysis || analysis;
+  console.log('📋 Processing analysis data:', { 
+    hospital_name: a.hospital_name,
+    provider_name: a.provider_name, 
+    facility_name: a.facility_name,
+    date_of_service: a.date_of_service,
+    service_date: a.service_date,
+    total_bill_amount: a.total_bill_amount,
+    total_charged: a.total_charged,
+    charges: a.charges?.length,
+    line_items: a.line_items?.length,
+    cpt_codes: a.cpt_codes?.length,
+    tags: a.tags
+  });
   
   const issueBlocks: IssueBlock[] = [];
+  
+  // Extract provider name from multiple possible fields
+  const providerName = a.hospital_name || a.provider_name || a.facility_name || a.provider || 'Provider';
+  
+  // Extract service dates from multiple possible fields
+  const serviceDates = a.date_of_service || a.service_date || a.dates || a.service_dates || 'unknown';
+  
+  // Extract bill total from multiple possible fields
+  const billTotal = parseFloat(a.total_bill_amount || a.total_charged || a.bill_total || a.total_amount || a.billed_amount || 0);
+  
+  // Extract charges/line items from multiple possible locations
+  const charges = a.charges || a.line_items || a.cpt_codes || [];
+  console.log('💰 Extracted charges:', charges);
   
   // Determine NSA status
   const nsaReview = a.duplicate_findings?.nsa_review || a.nsa_review || {};
@@ -33,56 +61,75 @@ export const generateDisputePack = (analysis: any): DisputePack => {
   }
   
   // Process pharmacy charges
-  const pharmacyCharges = (a.charges || []).filter((c: any) => 
-    c.description?.toLowerCase().includes('pharmacy') || 
-    c.line_description?.toLowerCase().includes('pharmacy')
-  );
+  const pharmacyCharges = charges.filter((c: any) => {
+    const desc = (c.description || c.line_description || c.service_description || '').toLowerCase();
+    return desc.includes('pharmacy') || desc.includes('medication') || desc.includes('drug');
+  });
   
   if (pharmacyCharges.length > 0) {
     const totalAmount = pharmacyCharges.reduce((sum: number, c: any) => 
-      sum + (parseFloat(c.charge_amount || c.billed_amount || 0)), 0
+      sum + (parseFloat(c.charge_amount || c.billed_amount || c.amount || c.price || 0)), 0
     );
     
     issueBlocks.push({
       issue_type: 'pharmacy_itemization',
       title: 'Pharmacy aggregates need NDC detail',
       amount: totalAmount,
-      lines_in_question: pharmacyCharges.map((c: any) => c.description || c.line_description),
+      lines_in_question: pharmacyCharges.map((c: any) => 
+        c.description || c.line_description || c.service_description || 'Pharmacy charge'
+      ),
       why_flagged: 'Aggregate lines lack NDC, dose, quantity, dates.',
       data_requested: ['NDC', 'Drug name', 'Dose', 'Quantity', 'Administration date'],
-      dispute_paragraph: 'The pharmacy charges listed lack item details. Please provide NDC codes, drug names, doses, quantities, and dates, mapped to each pharmacy line.'
+      dispute_paragraph: `The pharmacy charges totaling $${totalAmount.toFixed(2)} lack item details. Please provide NDC codes, drug names, doses, quantities, and dates, mapped to each pharmacy line.`
     });
   }
   
-  // Check for missing itemization
-  const missingCodes = (a.charges || []).filter((c: any) => !c.cpt_code || c.cpt_code === 'N/A');
-  if (missingCodes.length > 0) {
+  // Check for missing itemization - check tags first, then charges
+  const tags = Array.isArray(a.tags) ? a.tags : [];
+  const needsItemization = tags.some((t: any) => {
+    const tagStr = typeof t === 'string' ? t : t?.tag || t?.name || '';
+    return tagStr.toLowerCase().includes('itemization');
+  });
+  
+  const missingCodes = charges.filter((c: any) => !c.cpt_code || c.cpt_code === 'N/A' || c.cpt_code === '');
+  
+  if (needsItemization || missingCodes.length > 0) {
+    const missingAmount = missingCodes.reduce((sum: number, c: any) => 
+      sum + (parseFloat(c.charge_amount || c.billed_amount || c.amount || c.price || 0)), 0
+    );
+    
+    const lineDescriptions = missingCodes.length > 0 
+      ? missingCodes.slice(0, 5).map((c: any) => 
+          c.description || c.line_description || c.service_description || 'Unlabeled charge'
+        )
+      : ['Multiple aggregate lines across various categories'];
+    
     issueBlocks.push({
       issue_type: 'itemization',
-      title: 'Global itemization request',
-      amount: null,
-      lines_in_question: ['Multiple aggregate lines across various categories'],
+      title: 'Complete itemization required',
+      amount: missingAmount > 0 ? missingAmount : null,
+      lines_in_question: lineDescriptions,
       why_flagged: 'Summary bill without CPT or HCPCS codes.',
       data_requested: ['CPT or HCPCS', 'Modifiers', 'Units', 'Revenue codes', 'Provider NPI or tax ID'],
-      dispute_paragraph: `Many lines are aggregate categories without CPT or HCPCS codes. Please provide a complete itemized bill for ${a.date_of_service || 'the service dates'} with codes, modifiers, units, revenue codes, and provider NPI or tax ID.`
+      dispute_paragraph: `This bill contains ${missingCodes.length > 0 ? missingCodes.length : 'multiple'} aggregate line items without CPT or HCPCS codes${missingAmount > 0 ? ` totaling $${missingAmount.toFixed(2)}` : ''}. Please provide a complete itemized bill for ${serviceDates} with CPT/HCPCS codes, modifiers, units, revenue codes, and provider NPI or tax ID for each line item.`
     });
   }
   
-  // NSA request
-  const hasER = (a.charges || []).some((c: any) => 
-    c.description?.toLowerCase().includes('emergency') || 
-    c.line_description?.toLowerCase().includes('emergency')
-  );
+  // NSA request - check for emergency room charges
+  const hasER = charges.some((c: any) => {
+    const desc = (c.description || c.line_description || c.service_description || '').toLowerCase();
+    return desc.includes('emergency') || desc.includes('er ') || desc.includes('ed ');
+  });
   
-  if (hasER || a.nsa_protected) {
+  if (hasER || a.nsa_protected || nsaStatus === 'yes') {
     issueBlocks.push({
       issue_type: 'nsa_request',
-      title: 'NSA protections and network status',
+      title: 'No Surprises Act protections and network status',
       amount: null,
-      lines_in_question: ['Emergency services and provider network status'],
-      why_flagged: 'ER charge present or NSA scenario detected. Network status unknown.',
+      lines_in_question: hasER ? ['Emergency room services'] : ['Out-of-network services'],
+      why_flagged: hasER ? 'Emergency care detected. Network status unknown.' : 'Potential NSA scenario detected.',
       data_requested: ['Facility network status', 'Clinician network status', 'Notice and consent forms'],
-      dispute_paragraph: `Please confirm network status for the facility and all clinicians for ${a.date_of_service || 'these dates'} and provide any notice and consent forms. If emergency care or out-of-network ancillary services occurred at an in-network facility, I will pay only in-network cost-sharing under the No Surprises Act.`
+      dispute_paragraph: `Please confirm the network status of the facility and all treating clinicians for services on ${serviceDates}. Provide any notice and consent forms that were signed. Under the No Surprises Act, if this was emergency care or involved out-of-network ancillary providers at an in-network facility, I am only responsible for in-network cost-sharing amounts.`
     });
   }
   
@@ -104,16 +151,27 @@ export const generateDisputePack = (analysis: any): DisputePack => {
     checklist.push('Network status and any consent forms');
   }
   
+  const reportId = `HBC-${providerName.substring(0, 3).toUpperCase()}-${new Date().getFullYear()}-${(a.session_id || a.id || 'XXXX').substring(0, 4)}`;
+  
+  console.log('✅ Generated dispute pack:', {
+    report_id: reportId,
+    provider_name: providerName,
+    service_dates: serviceDates,
+    bill_total: billTotal,
+    issue_blocks_count: issueBlocks.length,
+    issue_types: issueBlocks.map(b => b.issue_type)
+  });
+  
   return {
-    report_id: `HBC-${a.hospital_name?.substring(0, 3).toUpperCase() || 'XXX'}-${new Date().getFullYear()}-${a.session_id?.substring(0, 4) || 'XXXX'}`,
-    patient_name: a.patient_name || null,
-    account_id: a.account_number || null,
-    provider_name: a.hospital_name || 'Provider',
-    service_dates: a.date_of_service || 'unknown',
-    bill_total: parseFloat(a.total_bill_amount || a.total_charged || 0),
-    current_balance: parseFloat(a.total_bill_amount || a.total_charged || 0),
-    payer_name: a.insurance_company || null,
-    eob_present: a.has_eob ? 'yes' : 'no',
+    report_id: reportId,
+    patient_name: a.patient_name || a.name || null,
+    account_id: a.account_number || a.account_id || null,
+    provider_name: providerName,
+    service_dates: serviceDates,
+    bill_total: billTotal,
+    current_balance: billTotal,
+    payer_name: a.insurance_company || a.payer_name || a.insurer || null,
+    eob_present: a.has_eob || a.eob_present ? 'yes' : 'no',
     nsa_likely: nsaStatus,
     issue_blocks: issueBlocks,
     checklist,
