@@ -21,7 +21,6 @@ import { ActionPlanCard } from "@/components/ActionPlanCard";
 import { WhatIfCalculator } from "@/components/WhatIfCalculator";
 import { generateDisputePack } from "@/utils/disputePackGenerator";
 import { DisputePackCard } from "@/components/DisputePackCard";
-import { StickySummary } from "@/components/StickySummary";
 import { ComprehensiveSavings } from "@/components/ComprehensiveSavings";
 import { ItemizationAlert } from "@/components/ItemizationAlert";
 import { MedicalBillingGlossary } from "@/components/MedicalBillingGlossary";
@@ -313,20 +312,9 @@ const Results = () => {
     setSelectedReductions(totalReduction);
   };
 
-  const estimatedNewTotal = totalCharged - selectedReductions;
-  const savingsPercentage = totalCharged > 0 ? (selectedReductions / totalCharged) * 100 : 0;
-
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      
-      {/* Sticky Summary */}
-      <StickySummary 
-        currentTotal={totalCharged}
-        selectedReductions={selectedReductions}
-        estimatedNewTotal={estimatedNewTotal}
-        savingsPercentage={savingsPercentage}
-      />
       
       <main className="container mx-auto px-4 py-8 max-w-7xl">
         {/* Page Header */}
