@@ -1078,6 +1078,10 @@ Return your analysis in this EXACT JSON structure (ALL fields REQUIRED):
     backfillMissingAmounts(analysis, Number(analysis.total_bill_amount) || 0);
     console.log('[BACKFILL] ✅ Backfill logic applied');
     
+    // ⚡ PHASE 2C: Enrich issues with real-time fair prices
+    await enrichIssuesWithFairPrices(analysis);
+    console.log('[ENRICH] ✅ Issues enriched with fair price data');
+    
     // Step 5: Add version metadata
     analysis.analysis_version = ANALYSIS_VERSION;
     analysis.prompt_version = PROMPT_VERSION;
@@ -1456,6 +1460,127 @@ function backfillMissingAmounts(analysis: any, totalBilled: number): void {
   
   const populated = analysis.charges.filter((c: any) => c.billed_amount > 0).length;
   console.log(`[BACKFILL] Result: ${populated}/${analysis.charges.length} charges have billed_amount (backfilled: ${backfilled})`);
+}
+
+// ⚡ PHASE 2C: Enrich issues with real-time fair prices from CMS APIs
+async function enrichIssuesWithFairPrices(analysis: any): Promise<void> {
+  console.log('[ENRICH] === Enriching issues with fair price data ===');
+  
+  const allIssues = [
+    ...(analysis.high_priority_issues || []),
+    ...(analysis.potential_issues || [])
+  ];
+  
+  if (allIssues.length === 0) {
+    console.log('[ENRICH] No issues to enrich');
+    return;
+  }
+  
+  // Extract unique CPT codes from issues
+  const cptCodes = Array.from(new Set(
+    allIssues
+      .map((issue: any) => issue.cpt_code)
+      .filter((code: string) => code && code !== 'N/A' && /^\d{5}$/.test(code))
+  )) as string[];
+  
+  if (cptCodes.length === 0) {
+    console.log('[ENRICH] No valid CPT codes found in issues');
+    return;
+  }
+  
+  console.log(`[ENRICH] Found ${cptCodes.length} unique CPT codes to fetch fair prices for`);
+  
+  try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const enrichClient = createClient(supabaseUrl, supabaseKey);
+    
+    // Fetch fair prices from our API
+    const { data: fairPricesData, error: fairPricesError } = await enrichClient.functions.invoke('fetch-fair-prices', {
+      body: {
+        cptCodes,
+        state: analysis.hospital_state || 'National',
+        forceRefresh: false
+      }
+    });
+    
+    if (fairPricesError) {
+      console.error('[ENRICH] Error fetching fair prices:', fairPricesError);
+      return;
+    }
+    
+    if (!fairPricesData?.results) {
+      console.log('[ENRICH] No fair price results returned');
+      return;
+    }
+    
+    console.log(`[ENRICH] ✓ Received ${fairPricesData.results.length} fair price results`);
+    
+    // Create a map for quick lookup
+    const fairPriceMap = new Map<string, any>();
+    fairPricesData.results.forEach((fp: any) => {
+      fairPriceMap.set(fp.cpt_code, fp);
+    });
+    
+    // Enrich each issue with fair price data
+    let enrichedCount = 0;
+    
+    const enrichIssue = (issue: any) => {
+      const cptCode = issue.cpt_code;
+      if (!cptCode || cptCode === 'N/A') return issue;
+      
+      const fairPrice = fairPriceMap.get(cptCode);
+      if (!fairPrice) return issue;
+      
+      // Add fair price metadata
+      issue.fair_price = fairPrice.fair_price;
+      issue.fair_price_confidence = fairPrice.confidence;
+      issue.fair_price_source = fairPrice.source;
+      
+      // Update medicare_benchmark with real data
+      if (fairPrice.medicare_rate && fairPrice.medicare_rate > 0) {
+        issue.medicare_benchmark = fairPrice.medicare_rate;
+      }
+      
+      // Update reasonable_rate to match fair_price (150% of Medicare)
+      issue.reasonable_rate = fairPrice.fair_price;
+      
+      // Recalculate overcharge_amount if we have better data
+      if (issue.billed_amount && fairPrice.fair_price) {
+        const newOvercharge = Math.max(0, issue.billed_amount - fairPrice.fair_price);
+        if (newOvercharge > 0) {
+          issue.overcharge_amount = newOvercharge;
+        }
+      }
+      
+      enrichedCount++;
+      console.log(`[ENRICH] ✓ Enriched ${cptCode}: Fair=$${fairPrice.fair_price}, Medicare=$${fairPrice.medicare_rate}, Confidence=${fairPrice.confidence}`);
+      
+      return issue;
+    };
+    
+    // Enrich high priority issues
+    if (analysis.high_priority_issues) {
+      analysis.high_priority_issues = analysis.high_priority_issues.map(enrichIssue);
+    }
+    
+    // Enrich potential issues
+    if (analysis.potential_issues) {
+      analysis.potential_issues = analysis.potential_issues.map(enrichIssue);
+    }
+    
+    console.log(`[ENRICH] ✅ Enriched ${enrichedCount} issues with fair price data`);
+    
+    // Add metadata to analysis
+    if (!analysis.data_sources) analysis.data_sources = [];
+    if (enrichedCount > 0 && !analysis.data_sources.includes('CMS Fair Pricing API')) {
+      analysis.data_sources.push('CMS Fair Pricing API');
+    }
+    
+  } catch (error) {
+    console.error('[ENRICH] Failed to enrich issues with fair prices:', error);
+    // Don't throw - enrichment is optional enhancement
+  }
 }
 
 // ✅ NEW: Production-ready savings calculation using multi-source baseline
