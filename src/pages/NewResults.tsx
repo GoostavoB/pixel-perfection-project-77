@@ -185,17 +185,22 @@ const NewResults = () => {
           <Separator className="my-4" />
         </div>
 
-        {/* Cache Notice - Show if analysis is cached */}
-        {fullAnalysis.cached && (
+        {/* Re-analyze Notice - Show if savings are $0 or analysis is cached */}
+        {(fullAnalysis.cached || estimatedSavings === 0) && (
           <Card className="mb-6 p-6 border-l-4 border-l-warning shadow-card bg-warning/5">
             <div className="flex items-start gap-4">
               <div className="p-2 bg-warning/10 rounded">
                 <AlertTriangle className="w-5 h-5 text-warning" />
               </div>
               <div className="flex-1">
-                <h2 className="text-lg font-bold text-foreground mb-1">Cached Analysis Detected</h2>
+                <h2 className="text-lg font-bold text-foreground mb-1">
+                  {fullAnalysis.cached ? 'Cached Analysis Detected' : 'Enhanced Estimation Available'}
+                </h2>
                 <p className="text-sm text-muted-foreground mb-3">
-                  You're viewing cached results from a previous analysis. Recent improvements to our estimation engine may provide more accurate savings calculations.
+                  {fullAnalysis.cached 
+                    ? "You're viewing cached results from a previous analysis. Recent improvements to our estimation engine may provide more accurate savings calculations."
+                    : "Your bill shows $0 savings because it lacks CPT codes. Our new estimation engine can now calculate potential savings using category-based benchmarks, even without itemization."
+                  }
                 </p>
                 <Button
                   variant="outline"
