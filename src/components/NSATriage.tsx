@@ -1,8 +1,9 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Shield, Mail, ExternalLink } from "lucide-react";
+import { Shield, Mail, ExternalLink, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useState } from "react";
 
 interface NSATriageProps {
   applies: "protected" | "not-protected" | "unknown";
@@ -13,17 +14,25 @@ interface NSATriageProps {
 
 export const NSATriage = ({ applies, scenarios, missingData, prelimAssessment }: NSATriageProps) => {
   const { toast } = useToast();
+  const [copied, setCopied] = useState(false);
 
   const handleGenerateEmail = () => {
-    const subject = encodeURIComponent("Request for Network Status and NSA Documentation");
-    const body = encodeURIComponent(
+    const emailText = 
+      `Subject: Request for Network Status and NSA Documentation\n\n` +
       `Dear Billing Department,\n\n` +
       `I am requesting the following information to determine No Surprises Act (NSA) protections for my recent medical bill:\n\n` +
       missingData.map(item => `• ${item}`).join('\n') +
       `\n\nPlease provide this information within 30 days as required by federal law.\n\n` +
-      `Thank you,`
-    );
-    window.location.href = `mailto:?subject=${subject}&body=${body}`;
+      `Thank you,`;
+    
+    navigator.clipboard.writeText(emailText);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+    
+    toast({
+      title: "Copied!",
+      description: "Email text copied to clipboard",
+    });
   };
 
   const handleFileComplaint = () => {
@@ -105,9 +114,19 @@ export const NSATriage = ({ applies, scenarios, missingData, prelimAssessment }:
             size="sm"
             variant="outline"
             onClick={handleGenerateEmail}
+            className="transition-all"
           >
-            <Mail className="w-4 h-4 mr-1" />
-            Request NSA info
+            {copied ? (
+              <>
+                <Check className="w-4 h-4 mr-1 animate-scale-in text-green-600" />
+                <span className="text-green-600 font-semibold">Copied!</span>
+              </>
+            ) : (
+              <>
+                <Mail className="w-4 h-4 mr-1" />
+                Copy NSA Request Email
+              </>
+            )}
           </Button>
         )}
         {applies === "protected" && (
