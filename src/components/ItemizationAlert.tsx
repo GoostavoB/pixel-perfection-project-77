@@ -15,15 +15,10 @@ export const ItemizationAlert = ({ totalBill, callScript }: ItemizationAlertProp
 
   return (
     <Card className="border-4 border-warning bg-warning/10 p-8 mb-8">
-      <div className="flex items-start gap-6">
-        <div className="p-4 bg-warning/20 rounded-full flex-shrink-0">
-          <AlertTriangle className="h-12 w-12 text-warning" />
-        </div>
-        
-        <div className="flex-1">
-          <h2 className="text-3xl font-bold mb-4 text-foreground">
-            ⚠️ CRITICAL: Request an Itemized Bill First
-          </h2>
+      <div className="w-full">
+        <h2 className="text-3xl font-bold mb-4 text-foreground text-center">
+          ⚠️ CRITICAL: Request an Itemized Bill First
+        </h2>
           
           <div className="space-y-4 mb-6">
             <Alert className="bg-destructive/10 border-destructive/30">
@@ -100,7 +95,6 @@ export const ItemizationAlert = ({ totalBill, callScript }: ItemizationAlertProp
             </AlertDescription>
           </Alert>
         </div>
-      </div>
     </Card>
   );
 };
