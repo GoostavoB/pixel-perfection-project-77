@@ -7,6 +7,7 @@ import { generateBillingEmail, generateInsuranceEmail } from "@/utils/disputePac
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useState } from "react";
+import html2pdf from "html2pdf.js";
 
 interface DisputePackCardProps {
   disputePack: DisputePack;
@@ -52,29 +53,36 @@ export const DisputePackCard = ({ disputePack, sessionId, fallbackSavings, itemi
         throw error;
       }
 
-      if (!data) {
-        throw new Error('No data returned from edge function');
+      if (!data || !data.html_content) {
+        throw new Error('No HTML content returned from edge function');
       }
 
-      // Download the HTML file
-      if (data.html_content) {
-        const blob = new Blob([data.html_content], { type: 'text/html' });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = data.filename || `dispute-pack-${disputePack.report_id}.html`;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-        
-        toast({
-          title: "Success!",
-          description: "Dispute pack downloaded. You can print this to PDF from your browser.",
-        });
-      } else {
-        throw new Error('No HTML content in response');
-      }
+      // Create a temporary div to hold the HTML
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = data.html_content;
+      tempDiv.style.position = 'absolute';
+      tempDiv.style.left = '-9999px';
+      document.body.appendChild(tempDiv);
+
+      // Configure PDF options
+      const opt = {
+        margin: [0.5, 0.5, 0.5, 0.5],
+        filename: `dispute-pack-${disputePack.report_id}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+      };
+
+      // Generate and download PDF
+      await html2pdf().set(opt).from(tempDiv).save();
+      
+      // Clean up
+      document.body.removeChild(tempDiv);
+      
+      toast({
+        title: "Success!",
+        description: "PDF dispute pack downloaded successfully.",
+      });
     } catch (error) {
       console.error("Error generating dispute pack:", error);
       toast({
@@ -266,8 +274,8 @@ export const DisputePackCard = ({ disputePack, sessionId, fallbackSavings, itemi
               <>Generating...</>
             ) : (
               <>
-                <FileText className="w-4 h-4 mr-2" />
-                Download HTML
+                <Download className="w-4 h-4 mr-2" />
+                Download PDF
               </>
             )}
           </Button>
