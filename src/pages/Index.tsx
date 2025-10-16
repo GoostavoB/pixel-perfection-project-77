@@ -39,11 +39,6 @@ const Index = () => {
               Upload Your Bill - It's Free
             </Button>
           </Link>
-          <Link to="/results" className="w-full">
-            <Button size="lg" variant="outline" className="text-base px-8 py-4 w-full">
-              View Sample Report
-            </Button>
-          </Link>
         </div>
 
         <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto animate-scale-in">

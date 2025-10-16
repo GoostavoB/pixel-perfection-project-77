@@ -54,11 +54,6 @@ const Header = () => {
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
           <Link to="/" className="flex items-center gap-3 group">
-            <img 
-              src={logo} 
-              alt="Hospital Bill Checker" 
-              className="h-12 w-auto group-hover:scale-105 transition-transform"
-            />
             <span className="text-xl font-bold text-foreground group-hover:text-primary transition-colors">
               Hospital Bill Checker
             </span>
