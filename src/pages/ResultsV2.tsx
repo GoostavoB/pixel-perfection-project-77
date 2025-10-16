@@ -11,7 +11,6 @@ import { useToast } from "@/hooks/use-toast";
 import { ChargeMapTable } from "@/components/ChargeMapTable";
 import { StatusPills } from "@/components/StatusPills";
 import { DuplicatesHighlight } from "@/components/DuplicatesHighlight";
-import { NSATriage } from "@/components/NSATriage";
 import { ActionPlanCard } from "@/components/ActionPlanCard";
 import { WhatIfCalculator } from "@/components/WhatIfCalculator";
 import { FriendlyIssueCard } from "@/components/FriendlyIssueCard";
@@ -210,9 +209,6 @@ const ResultsV2 = () => {
 
         {chargeCategories.length > 0 && <div className="mb-8"><ChargeMapTable charges={chargeCategories} totalBill={totalCharged} /></div>}
         {duplicates.length > 0 && <div className="mb-8"><DuplicatesHighlight duplicates={duplicates} /></div>}
-        <div className="mb-8">
-          <NSATriage applies={nsaApplies} scenarios={nsaReview.scenarios || []} missingData={nsaReview.missing_for_nsa || []} prelimAssessment={nsaReview.prelim_assessment || 'Unable to determine.'} />
-        </div>
 
         {/* Dispute Pack */}
         <div className="mb-8">

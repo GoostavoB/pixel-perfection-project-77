@@ -16,7 +16,6 @@ import { useToast } from "@/hooks/use-toast";
 import { ChargeMapTable } from "@/components/ChargeMapTable";
 import { StatusPills } from "@/components/StatusPills";
 import { DuplicatesHighlight } from "@/components/DuplicatesHighlight";
-import { NSATriage } from "@/components/NSATriage";
 import { ActionPlanCard } from "@/components/ActionPlanCard";
 import { WhatIfCalculator } from "@/components/WhatIfCalculator";
 import { generateDisputePack } from "@/utils/disputePackGenerator";
@@ -519,16 +518,6 @@ const Results = () => {
             <DuplicatesHighlight duplicates={duplicates} />
           </div>
         )}
-
-        {/* NSA Triage - Early and simple */}
-        <div className="mb-8">
-          <NSATriage 
-            applies={nsaApplies}
-            scenarios={nsaReview.scenarios || []}
-            missingData={nsaReview.missing_for_nsa || []}
-            prelimAssessment={nsaReview.prelim_assessment || 'Unable to determine NSA protection without additional information.'}
-          />
-        </div>
 
         {/* Dispute Pack */}
         <div className="mb-8">
