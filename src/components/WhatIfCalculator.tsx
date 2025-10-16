@@ -34,7 +34,7 @@ export const WhatIfCalculator = ({ items, currentTotal, hasEOB, onSelectionsChan
 
   const totalReduction = items
     .filter(item => selectedItems.has(item.id))
-    .reduce((sum, item) => sum + item.estimatedReduction, 0);
+    .reduce((sum, item) => sum + (item.estimatedReduction || 0), 0);
 
   const newTotal = currentTotal - totalReduction;
   const savingsPercentage = currentTotal > 0 ? (totalReduction / currentTotal) * 100 : 0;
@@ -86,12 +86,12 @@ export const WhatIfCalculator = ({ items, currentTotal, hasEOB, onSelectionsChan
                     </p>
                   )}
                   <p className="text-xs text-muted-foreground mt-1">
-                    Current: ${item.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    Current: ${(item.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </p>
                 </div>
                 <div className="text-right ml-4">
                   <p className="text-sm font-semibold text-green-700">
-                    -${item.estimatedReduction.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    -${(item.estimatedReduction || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </p>
                   <p className="text-xs text-muted-foreground">Savings</p>
                 </div>
