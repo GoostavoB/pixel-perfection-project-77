@@ -91,6 +91,28 @@ export const ComprehensiveSavings = ({ savings, computedIssuesCount, totalBilled
   const fallbackSavings = (!hasSavings && totalBilled > 0) 
     ? calculateFallbackSavings(totalBilled, tags)
     : null;
+  
+  // Distribute fallback savings across confidence bands if needed
+  const fallbackConfidenceBands = fallbackSavings ? {
+    high_confidence: Math.round(fallbackSavings.low * 0.4),
+    medium_confidence: Math.round(fallbackSavings.low * 0.35),
+    low_confidence: Math.round(fallbackSavings.low * 0.25)
+  } : null;
+  
+  // Create synthetic top drivers from tags if needed
+  const fallbackTopDrivers = fallbackSavings && tags.length > 0 ? tags.slice(0, 3).map((tag, idx) => {
+    const estimatedAmount = idx === 0 
+      ? Math.round(fallbackSavings.high * 0.35)
+      : idx === 1 
+        ? Math.round(fallbackSavings.high * 0.30)
+        : Math.round(fallbackSavings.high * 0.25);
+    return {
+      cpt_code: 'AGGREGATED',
+      description: tag,
+      amount: estimatedAmount,
+      category: 'overcharge' as const
+    };
+  }) : null;
 
   const colorMap = {
     green: { bg: 'bg-success/10', border: 'border-success/20', text: 'text-success' },
@@ -180,12 +202,25 @@ export const ComprehensiveSavings = ({ savings, computedIssuesCount, totalBilled
             {/* Issue Ratio Badge */}
             <div className="flex items-center gap-2 mb-4">
               <Badge variant="outline" className={`${colorMap[color].text} ${colorMap[color].border}`}>
-                {(issue_ratio * 100).toFixed(0)}% of bill has issues
+                {fallbackSavings 
+                  ? `${total_lines > 0 ? '100' : '0'}% of bill has issues`
+                  : `${(issue_ratio * 100).toFixed(0)}% of bill has issues`
+                }
               </Badge>
               <span className="text-sm text-muted-foreground">
-                ({displayIssuesCount} of {total_lines} line items)
+                ({fallbackSavings ? total_lines : displayIssuesCount} of {total_lines} line items)
               </span>
             </div>
+            
+            {/* Non-itemized disclaimer */}
+            {fallbackSavings && (
+              <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <p className="text-xs text-yellow-900">
+                  <strong>⚠️ Important:</strong> Bills/reports of non-itemized bills are <strong>less likely to be accurate</strong>. 
+                  This is a conservative estimate based on typical overcharge patterns. Request an itemized bill for precise calculations.
+                </p>
+              </div>
+            )}
 
             <p className="text-sm text-muted-foreground">
               These savings calculations prevent double-counting by processing NSA violations first, then duplicates, then overcharges.
@@ -251,6 +286,11 @@ export const ComprehensiveSavings = ({ savings, computedIssuesCount, totalBilled
       {/* Confidence Bands */}
       <Card className="p-6">
         <h3 className="text-lg font-bold mb-4">Confidence Breakdown</h3>
+        {fallbackSavings && (
+          <div className="mb-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-900">
+            <strong>Estimated ranges:</strong> Based on category analysis. Request itemized bill for exact amounts.
+          </div>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="p-4 border rounded-lg">
             <div className="flex items-center gap-2 mb-2">
@@ -258,10 +298,10 @@ export const ComprehensiveSavings = ({ savings, computedIssuesCount, totalBilled
               <span className="font-semibold text-sm">High Confidence</span>
             </div>
             <p className="text-2xl font-bold">
-              ${confidence_bands.high_confidence.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              ${(fallbackConfidenceBands?.high_confidence || confidence_bands.high_confidence).toLocaleString('en-US', { minimumFractionDigits: 2 })}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              ≥80% certainty
+              {fallbackSavings ? 'estimated' : '≥80% certainty'}
             </p>
           </div>
 
@@ -271,10 +311,10 @@ export const ComprehensiveSavings = ({ savings, computedIssuesCount, totalBilled
               <span className="font-semibold text-sm">Medium Confidence</span>
             </div>
             <p className="text-2xl font-bold">
-              ${confidence_bands.medium_confidence.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              ${(fallbackConfidenceBands?.medium_confidence || confidence_bands.medium_confidence).toLocaleString('en-US', { minimumFractionDigits: 2 })}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              50-80% certainty
+              {fallbackSavings ? 'estimated' : '50-80% certainty'}
             </p>
           </div>
 
@@ -284,21 +324,26 @@ export const ComprehensiveSavings = ({ savings, computedIssuesCount, totalBilled
               <span className="font-semibold text-sm">Low Confidence</span>
             </div>
             <p className="text-2xl font-bold">
-              ${confidence_bands.low_confidence.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              ${(fallbackConfidenceBands?.low_confidence || confidence_bands.low_confidence).toLocaleString('en-US', { minimumFractionDigits: 2 })}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              &lt;50% certainty
+              {fallbackSavings ? 'estimated' : '<50% certainty'}
             </p>
           </div>
         </div>
       </Card>
 
       {/* Top 3 Drivers */}
-      {top_drivers && top_drivers.length > 0 && (
+      {((top_drivers && top_drivers.length > 0) || fallbackTopDrivers) && (
         <Card className="p-6">
           <h3 className="text-lg font-bold mb-4">Top 3 Savings Opportunities</h3>
+          {fallbackTopDrivers && (
+            <div className="mb-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-900">
+              <strong>Estimated opportunities:</strong> Based on bill categories. Request itemized bill for specific line items.
+            </div>
+          )}
           <div className="space-y-3">
-            {top_drivers.map((driver, idx) => {
+            {(fallbackTopDrivers || top_drivers).map((driver, idx) => {
               const categoryInfo = categoryLabels[driver.category];
               const CategoryIcon = categoryInfo.icon;
               
@@ -322,6 +367,9 @@ export const ComprehensiveSavings = ({ savings, computedIssuesCount, totalBilled
                     <p className="text-lg font-bold text-success">
                       ${driver.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                     </p>
+                    {fallbackTopDrivers && (
+                      <p className="text-xs text-muted-foreground">estimated</p>
+                    )}
                   </div>
                 </div>
               );

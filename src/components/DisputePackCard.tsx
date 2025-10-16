@@ -11,9 +11,11 @@ import { useState } from "react";
 interface DisputePackCardProps {
   disputePack: DisputePack;
   sessionId: string;
+  fallbackSavings?: { low: number; high: number } | null;
+  itemizationStatus?: string;
 }
 
-export const DisputePackCard = ({ disputePack, sessionId }: DisputePackCardProps) => {
+export const DisputePackCard = ({ disputePack, sessionId, fallbackSavings, itemizationStatus }: DisputePackCardProps) => {
   const { toast } = useToast();
   const [isGenerating, setIsGenerating] = useState(false);
 
@@ -112,8 +114,16 @@ export const DisputePackCard = ({ disputePack, sessionId }: DisputePackCardProps
         <div>
           <p className="text-xs text-muted-foreground mb-1">Issues Amount</p>
           <p className="text-sm font-semibold text-destructive">
-            ${totalAmount > 0 ? totalAmount.toFixed(2) : 'Pending itemization'}
+            {totalAmount > 0 
+              ? `$${totalAmount.toFixed(2)}`
+              : fallbackSavings 
+                ? `$${fallbackSavings.low.toLocaleString()} - $${fallbackSavings.high.toLocaleString()}`
+                : 'Pending itemization'
+            }
           </p>
+          {fallbackSavings && totalAmount === 0 && (
+            <p className="text-xs text-muted-foreground mt-1">estimated range</p>
+          )}
         </div>
       </div>
 

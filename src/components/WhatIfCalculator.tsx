@@ -17,10 +17,27 @@ interface WhatIfCalculatorProps {
   currentTotal: number;
   hasEOB: boolean;
   onSelectionsChange?: (totalReduction: number, selectedCount: number) => void;
+  fallbackSavings?: { low: number; high: number } | null;
 }
 
-export const WhatIfCalculator = ({ items, currentTotal, hasEOB, onSelectionsChange }: WhatIfCalculatorProps) => {
+export const WhatIfCalculator = ({ items, currentTotal, hasEOB, onSelectionsChange, fallbackSavings }: WhatIfCalculatorProps) => {
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+  
+  // Distribute fallback savings proportionally if items have $0 savings
+  const itemsWithFallbackSavings = items.map((item, idx) => {
+    if (item.estimatedReduction > 0 || !fallbackSavings) {
+      return item;
+    }
+    // Distribute fallback proportionally to item amounts
+    const totalItemAmount = items.reduce((sum, i) => sum + i.amount, 0);
+    const proportion = totalItemAmount > 0 ? item.amount / totalItemAmount : 1 / items.length;
+    const estimatedReduction = Math.round(fallbackSavings.low * proportion);
+    
+    return {
+      ...item,
+      estimatedReduction
+    };
+  });
 
   const handleToggle = (id: string) => {
     const newSelected = new Set(selectedItems);
@@ -32,7 +49,7 @@ export const WhatIfCalculator = ({ items, currentTotal, hasEOB, onSelectionsChan
     setSelectedItems(newSelected);
   };
 
-  const totalReduction = items
+  const totalReduction = itemsWithFallbackSavings
     .filter(item => selectedItems.has(item.id))
     .reduce((sum, item) => sum + (item.estimatedReduction || 0), 0);
 
@@ -63,9 +80,18 @@ export const WhatIfCalculator = ({ items, currentTotal, hasEOB, onSelectionsChan
           <strong>Estimated savings values are projections based on detected issues.</strong> {!hasEOB && 'Upload EOB for verified results.'}
         </p>
       </div>
+      
+      {fallbackSavings && (
+        <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <p className="text-xs text-yellow-900">
+            <strong>⚠️ Conservative estimates:</strong> Savings distributed proportionally based on typical patterns. 
+            Bills/reports of non-itemized bills are less likely to be accurate.
+          </p>
+        </div>
+      )}
 
       <div className="space-y-3 mb-6">
-        {items.map((item) => (
+        {itemsWithFallbackSavings.map((item) => (
           <div
             key={item.id}
             className="flex items-start gap-3 p-3 bg-white rounded-lg border border-green-200 hover:border-green-300 transition-colors"

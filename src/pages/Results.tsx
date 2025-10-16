@@ -300,12 +300,29 @@ const Results = () => {
           </Card>
         </div>
 
-        {/* Critical Alert: Missing Itemization */}
+        {/* Critical Alert: Missing Itemization - MOST PROMINENT CTA */}
         {itemizationStatus === 'missing' && (
-          <ItemizationAlert 
-            totalBill={totalCharged}
-            callScript={callScript}
-          />
+          <div className="mb-8">
+            <Card className="p-8 bg-gradient-to-br from-yellow-50 to-orange-50 border-2 border-yellow-400 shadow-lg">
+              <div className="text-center mb-6">
+                <AlertCircle className="w-16 h-16 text-yellow-600 mx-auto mb-4" />
+                <h2 className="text-3xl font-bold text-yellow-900 mb-3">🚨 #1 Priority Action Required</h2>
+                <p className="text-lg text-yellow-800 mb-4">
+                  <strong>Your bill is not itemized.</strong> This significantly limits the accuracy of our analysis.
+                </p>
+                <div className="p-4 bg-yellow-100 border border-yellow-300 rounded-lg mb-6">
+                  <p className="text-sm text-yellow-900">
+                    <strong>⚠️ Important:</strong> Bills/reports of non-itemized bills are <strong>less likely to be accurate</strong>. 
+                    Our estimates are conservative and based on typical patterns. For precise calculations, you MUST request an itemized bill.
+                  </p>
+                </div>
+              </div>
+              <ItemizationAlert 
+                totalBill={totalCharged}
+                callScript={callScript}
+              />
+            </Card>
+          </div>
         )}
 
         {/* Decision Summary - 3 metrics */}
@@ -433,7 +450,12 @@ const Results = () => {
 
         {/* Dispute Pack */}
         <div className="mb-8">
-          <DisputePackCard disputePack={disputePack} sessionId={sessionId || ''} />
+          <DisputePackCard 
+            disputePack={disputePack} 
+            sessionId={sessionId || ''}
+            fallbackSavings={fallbackSavings}
+            itemizationStatus={itemizationStatus}
+          />
         </div>
 
         {/* Action Plan - Strong, specific */}
@@ -467,6 +489,7 @@ const Results = () => {
               currentTotal={totalCharged}
               hasEOB={!!a.has_eob}
               onSelectionsChange={handleSelectionsChange}
+              fallbackSavings={fallbackSavings}
             />
           </div>
         )}
