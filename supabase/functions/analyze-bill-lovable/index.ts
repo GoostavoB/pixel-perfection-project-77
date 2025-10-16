@@ -575,10 +575,6 @@ ${regionalData?.map((r: any) => `${r.state_code} (${r.region_name}): ${r.adjustm
 ${providerContext}
 `;
   
-  // Load NSA Knowledge Base
-  const nsaKnowledgeBasePath = new URL('./prompts/nsa-knowledge-base.md', import.meta.url).pathname;
-  const nsaKnowledgeBase = await Deno.readTextFile(nsaKnowledgeBasePath);
-
   const systemPrompt = `# Medical Bill Analysis System - Comprehensive Professional Audit v2.0
 
 You are a specialized medical billing auditor for Hospital Bill Checker analyzing ALL types of medical bills with access to:
@@ -589,9 +585,14 @@ You are a specialized medical billing auditor for Hospital Bill Checker analyzin
 
 ${pricingContext}
 
-# NO SURPRISES ACT KNOWLEDGE BASE
+# NO SURPRISES ACT PROTECTIONS
 
-${nsaKnowledgeBase}
+Use No Surprises Act rules to detect:
+- Emergency balance billing violations
+- Out-of-network ancillary provider violations at in-network facilities
+- Missing notice-and-consent documentation
+- Air ambulance balance billing
+- Good Faith Estimate discrepancies
 
 CRITICAL ANALYSIS REQUIREMENTS:
 1. For EVERY issue you flag, you MUST provide DETAILED, EVIDENCE-BASED explanations
@@ -1095,8 +1096,8 @@ Return your analysis in this EXACT JSON structure (ALL fields REQUIRED):
 }
 
 // 🔧 VALIDATION: Constants for versioned caching
-const ANALYSIS_VERSION = "2.0.2";
-const PROMPT_VERSION = "pv-2025-10-15-3";
+const ANALYSIS_VERSION = "2.0.3";
+const PROMPT_VERSION = "pv-2025-10-15-4";
 const MODEL_ID = "gemini-2.5-flash";
 const SCHEMA_VERSION = "ai-output-v3";
 
