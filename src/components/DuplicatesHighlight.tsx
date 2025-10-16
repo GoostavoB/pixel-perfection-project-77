@@ -1,6 +1,5 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Copy, Mail, ClipboardCopy } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -33,19 +32,6 @@ export const DuplicatesHighlight = ({ duplicates }: DuplicatesHighlightProps) =>
     window.location.href = `mailto:?subject=${subject}&body=${body}`;
   };
 
-  const getConfidenceBadge = (confidence: string) => {
-    switch (confidence) {
-      case "high":
-        return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">Needs verification</Badge>;
-      case "medium":
-        return <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">Likely issue</Badge>;
-      case "low":
-        return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">Worth checking</Badge>;
-      default:
-        return null;
-    }
-  };
-
   if (duplicates.length === 0) return null;
 
   const totalAmount = duplicates.reduce((sum, dup) => sum + dup.amount, 0);
@@ -74,7 +60,6 @@ export const DuplicatesHighlight = ({ duplicates }: DuplicatesHighlightProps) =>
             <div className="flex items-start justify-between mb-2">
               <div className="flex-1">
                 <h3 className="font-semibold text-foreground mb-1">{duplicate.description}</h3>
-                {getConfidenceBadge(duplicate.confidence)}
               </div>
               <div className="text-right ml-4">
                 <div className="text-lg font-bold text-orange-700">
