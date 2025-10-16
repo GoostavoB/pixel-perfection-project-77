@@ -1,7 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Mail, Download, Copy } from "lucide-react";
+import { FileText, Mail, Download, Copy, Check } from "lucide-react";
 import { DisputePack } from "@/types/disputePack";
 import { generateBillingEmail, generateInsuranceEmail } from "@/utils/disputePackGenerator";
 import { useToast } from "@/hooks/use-toast";
@@ -19,10 +19,13 @@ interface DisputePackCardProps {
 export const DisputePackCard = ({ disputePack, sessionId, fallbackSavings, itemizationStatus }: DisputePackCardProps) => {
   const { toast } = useToast();
   const [isGenerating, setIsGenerating] = useState(false);
+  const [copiedButton, setCopiedButton] = useState<'billing' | 'insurance' | null>(null);
 
   const handleCopyBillingEmail = () => {
     const email = generateBillingEmail(disputePack);
     navigator.clipboard.writeText(email);
+    setCopiedButton('billing');
+    setTimeout(() => setCopiedButton(null), 2000);
     toast({
       title: "Copied!",
       description: "Billing email copied to clipboard",
@@ -32,6 +35,8 @@ export const DisputePackCard = ({ disputePack, sessionId, fallbackSavings, itemi
   const handleCopyInsuranceEmail = () => {
     const email = generateInsuranceEmail(disputePack);
     navigator.clipboard.writeText(email);
+    setCopiedButton('insurance');
+    setTimeout(() => setCopiedButton(null), 2000);
     toast({
       title: "Copied!",
       description: "Insurance email copied to clipboard",
@@ -248,18 +253,36 @@ export const DisputePackCard = ({ disputePack, sessionId, fallbackSavings, itemi
           <Button
             variant="outline"
             onClick={handleCopyBillingEmail}
-            className="w-full"
+            className="w-full transition-all"
           >
-            <Mail className="w-4 h-4 mr-2" />
-            Copy Email to Billing
+            {copiedButton === 'billing' ? (
+              <>
+                <Check className="w-4 h-4 mr-2 animate-scale-in text-green-600" />
+                <span className="text-green-600 font-semibold">Copied to Clipboard!</span>
+              </>
+            ) : (
+              <>
+                <Mail className="w-4 h-4 mr-2" />
+                Copy Email to Billing
+              </>
+            )}
           </Button>
           <Button
             variant="outline"
             onClick={handleCopyInsuranceEmail}
-            className="w-full"
+            className="w-full transition-all"
           >
-            <Mail className="w-4 h-4 mr-2" />
-            Copy Email to Insurance
+            {copiedButton === 'insurance' ? (
+              <>
+                <Check className="w-4 h-4 mr-2 animate-scale-in text-green-600" />
+                <span className="text-green-600 font-semibold">Copied to Clipboard!</span>
+              </>
+            ) : (
+              <>
+                <Mail className="w-4 h-4 mr-2" />
+                Copy Email to Insurance
+              </>
+            )}
           </Button>
         </div>
         
