@@ -381,8 +381,22 @@ const Results = () => {
                   <TooltipTrigger asChild>
                     <Info className="w-4 h-4 text-muted-foreground cursor-help" />
                   </TooltipTrigger>
-                  <TooltipContent className="max-w-xs">
-                    <p className="text-sm">"Mixed" means we have varying confidence levels across different findings - some are highly confident (clear overcharges), while others need more information. Check individual badges for details.</p>
+                  <TooltipContent className="max-w-md">
+                    <div className="space-y-2 text-sm">
+                      <p className="font-semibold">What is Confidence?</p>
+                      <p>Confidence measures how certain we are that each identified issue is a genuine billing error based on the available data.</p>
+                      
+                      <p className="font-semibold mt-2">Why "Mixed"?</p>
+                      <p>Your bill has different types of issues with varying confidence levels:</p>
+                      <ul className="list-disc pl-4 space-y-1">
+                        <li><strong>High Confidence:</strong> Clear overcharges, duplicate charges, or NSA violations with strong evidence</li>
+                        <li><strong>Medium Confidence:</strong> Probable issues that need verification</li>
+                        <li><strong>Low Confidence:</strong> Potential issues requiring itemized details to confirm</li>
+                      </ul>
+                      
+                      <p className="font-semibold mt-2">What This Means:</p>
+                      <p>Some disputes will be straightforward, while others may need additional documentation. Check the detailed breakdown below to see confidence levels for each issue.</p>
+                    </div>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
