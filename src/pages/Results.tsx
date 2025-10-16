@@ -264,9 +264,9 @@ const Results = () => {
           <Separator className="my-4" />
         </div>
 
-        {/* Top Section: Provider info and Status */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          <Card className="lg:col-span-2 p-6">
+        {/* Top Section: Provider info and Total Bill Amount */}
+        <div className="mb-8">
+          <Card className="p-6">
             <div className="flex justify-between items-start gap-4">
               <div>
                 <p className="text-sm font-semibold text-muted-foreground uppercase mb-2">Provider</p>
@@ -283,7 +283,6 @@ const Results = () => {
               </div>
             </div>
           </Card>
-
         </div>
 
         {/* Critical Alert: Missing Itemization - MOST PROMINENT CTA */}
