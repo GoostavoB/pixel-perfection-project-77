@@ -201,12 +201,25 @@ export const ComprehensiveSavings = ({ savings, computedIssuesCount, totalBilled
 
             {/* Issue Ratio Badge */}
             <div className="flex items-center gap-2 mb-4">
-              <Badge variant="outline" className={`${colorMap[color].text} ${colorMap[color].border}`}>
-                {fallbackSavings 
-                  ? `${total_lines > 0 ? '100' : '0'}% of bill has issues`
-                  : `${(issue_ratio * 100).toFixed(0)}% of bill has issues`
+              {(() => {
+                const percentageValue = fallbackSavings 
+                  ? (total_lines > 0 ? 100 : 0)
+                  : (issue_ratio * 100);
+                
+                // Determine badge color based on percentage
+                let badgeClasses = "bg-green-50 text-green-700 border-green-200";
+                if (percentageValue >= 10.1) {
+                  badgeClasses = "bg-red-50 text-red-700 border-red-200";
+                } else if (percentageValue >= 0.01) {
+                  badgeClasses = "bg-orange-50 text-orange-700 border-orange-200";
                 }
-              </Badge>
+                
+                return (
+                  <Badge variant="outline" className={badgeClasses}>
+                    {percentageValue.toFixed(0)}% of bill has issues
+                  </Badge>
+                );
+              })()}
               <span className="text-sm text-muted-foreground">
                 ({fallbackSavings ? total_lines : displayIssuesCount} of {total_lines} line items)
               </span>

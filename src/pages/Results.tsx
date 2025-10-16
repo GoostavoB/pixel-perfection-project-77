@@ -284,20 +284,6 @@ const Results = () => {
             </div>
           </Card>
 
-          <Card className="p-6">
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase mb-3">Data Status</h3>
-            <StatusPills itemizationStatus={itemizationStatus} nsaStatus={nsaApplies} duplicatesCount={duplicates.length} />
-            <div className="mt-4 space-y-2">
-              <p className="text-sm text-foreground">
-                {itemizationStatus === 'complete' && '✓ Complete itemization available'}
-                {itemizationStatus === 'partial' && '⚠ Partial itemization - request complete codes'}
-                {itemizationStatus === 'missing' && '✗ Codes missing - savings unknown until itemized'}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Hover over each badge above to learn what it means and how it affects your analysis.
-              </p>
-            </div>
-          </Card>
         </div>
 
         {/* Critical Alert: Missing Itemization - MOST PROMINENT CTA */}
