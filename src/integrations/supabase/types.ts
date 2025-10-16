@@ -513,12 +513,51 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      pricing_analytics_summary: {
+        Row: {
+          avg_medicare_rate: number | null
+          codes_with_descriptions: number | null
+          last_cache_update: string | null
+          recently_updated: number | null
+          total_cached_codes: number | null
+          updated_last_month: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       cleanup_expired_sessions: {
         Args: Record<PropertyKey, never>
         Returns: undefined
+      }
+      get_performance_trends: {
+        Args: { hours_back?: number }
+        Returns: {
+          avg_cache_hit_rate: number
+          avg_response_time: number
+          time_bucket: string
+          total_codes_processed: number
+          total_requests: number
+        }[]
+      }
+      get_pricing_coverage_stats: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          cached_codes: number
+          coverage_percent: number
+          specialty: string
+          total_codes: number
+        }[]
+      }
+      get_trending_cpt_codes: {
+        Args: { days_back?: number }
+        Returns: {
+          avg_charged: number
+          cpt_code: string
+          description: string
+          medicare_rate: number
+          usage_count: number
+        }[]
       }
       validate_api_token: {
         Args: { token_value: string }
