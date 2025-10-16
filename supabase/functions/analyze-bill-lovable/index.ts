@@ -1764,8 +1764,61 @@ async function calculateSavings(analysis: any): Promise<number> {
   // Store detailed savings in analysis for frontend use
   (analysis as any)._savings_details = savings_result;
 
+  // 🔧 NEW: Rebuild what-if calculator items with correct savings
+  rebuildWhatIfItemsFromSavingsEngine(analysis);
+
   // Return likely total (weighted by confidence)
   return savings_result.total_potential_savings_likely;
+}
+
+// 🔧 NEW: Rebuild what-if calculator items using savings engine results
+function rebuildWhatIfItemsFromSavingsEngine(analysis: any): void {
+  const savingsDetails = (analysis as any)._savings_details;
+  if (!savingsDetails || !savingsDetails.line_details) {
+    console.warn('[REBUILD] No savings engine details available - keeping original what_if items');
+    return;
+  }
+  
+  console.log('[REBUILD] Rebuilding what_if_calculator_items from savings engine...');
+  
+  const newWhatIfItems: any[] = [];
+  const high_priority = analysis.high_priority_issues || [];
+  const potential = analysis.potential_issues || [];
+  
+  // Map line_id to issue for quick lookup
+  const issueMap = new Map<string, any>();
+  [...high_priority, ...potential].forEach((issue, idx) => {
+    const lineId = issue.line_id || `line_${idx}`;
+    issueMap.set(lineId, issue);
+  });
+  
+  // Rebuild items from savings engine line_details
+  savingsDetails.line_details.forEach((lineDetail: any) => {
+    const issue = issueMap.get(lineDetail.line_id);
+    if (!issue) return;
+    
+    const totalLineSavings = lineDetail.total_line_savings || 0;
+    const confidence = lineDetail.confidence || 0.8;
+    
+    // Only include items with savings > 0
+    if (totalLineSavings <= 0) return;
+    
+    // Determine if high or potential based on confidence
+    const isHighPriority = confidence >= 0.8;
+    const idPrefix = isHighPriority ? 'high' : 'potential';
+    
+    newWhatIfItems.push({
+      id: `${idPrefix}-${lineDetail.line_id}`,
+      description: issue.line_description || issue.explanation_for_user || 'Billing issue',
+      amount: issue.billed_amount || 0,
+      estimated_reduction: Math.round(totalLineSavings * 100) / 100,
+      reason: issue.reason || issue.explanation_for_user || 'Potential overcharge'
+    });
+  });
+  
+  analysis.what_if_calculator_items = newWhatIfItems;
+  
+  console.log(`[REBUILD] Rebuilt ${newWhatIfItems.length} what-if items with correct savings`);
 }
 
 // 🔧 FIX 4: Enhanced validation with robust total extraction and deduplication
