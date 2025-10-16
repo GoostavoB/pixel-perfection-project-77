@@ -35,6 +35,7 @@ import GenerateLetter from "./pages/GenerateLetter";
 import FAQ from "./pages/FAQ";
 import NotFound from "./pages/NotFound";
 import ApiTokens from "./pages/ApiTokens";
+import CacheAdmin from "./pages/CacheAdmin";
 
 // Query client for React Query
 const queryClient = new QueryClient();
@@ -77,6 +78,7 @@ const App = () => (
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/scoreboard" element={<AuthGuard><Scoreboard /></AuthGuard>} />
           <Route path="/api-tokens" element={<AuthGuard><ApiTokens /></AuthGuard>} />
+          <Route path="/cache-admin" element={<AuthGuard><CacheAdmin /></AuthGuard>} />
           <Route path="/faq" element={<FAQ />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

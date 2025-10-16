@@ -41,108 +41,106 @@ serve(async (req) => {
 
     const results: FairPriceResult[] = [];
     const CACHE_DURATION_DAYS = 30;
-
+    
+    // ⚡ PHASE 3A: BATCH cache lookup for performance
+    console.log('[CACHE] Checking cache for all codes at once...');
+    const cacheDate = new Date();
+    cacheDate.setDate(cacheDate.getDate() - CACHE_DURATION_DAYS);
+    
+    let cachedRecords: any[] = [];
+    
+    if (!forceRefresh) {
+      const { data: batchCached } = await supabase
+        .from('medicare_prices')
+        .select('*')
+        .in('cpt_code', cptCodes)
+        .gte('created_at', cacheDate.toISOString());
+      
+      cachedRecords = batchCached || [];
+      console.log(`[CACHE] ✓ Found ${cachedRecords.length}/${cptCodes.length} codes in cache`);
+    }
+    
+    // Create map for quick lookup
+    const cacheMap = new Map<string, any>();
+    cachedRecords.forEach(record => {
+      cacheMap.set(record.cpt_code, record);
+    });
+    
+    // Separate cached vs uncached codes
+    const uncachedCodes: string[] = [];
+    const cachedResults: FairPriceResult[] = [];
+    
     for (const cptCode of cptCodes) {
-      let pricingData: FairPriceResult | null = null;
-      let fromCache = false;
-
-      // Check cache first (unless forceRefresh is true)
-      if (!forceRefresh) {
-        const cacheDate = new Date();
-        cacheDate.setDate(cacheDate.getDate() - CACHE_DURATION_DAYS);
+      const cached = cacheMap.get(cptCode);
+      
+      if (cached) {
+        // Build result from cache
+        const medicareRate = cached.medicare_facility_rate || 0;
+        const fairPrice = medicareRate * 1.5;
         
-        const { data: cached } = await supabase
-          .from('medicare_prices')
-          .select('*')
-          .eq('cpt_code', cptCode)
-          .gte('created_at', cacheDate.toISOString())
-          .maybeSingle();
+        cachedResults.push({
+          cpt_code: cptCode,
+          description: cached.description || 'Medical procedure',
+          fair_price: fairPrice,
+          fair_price_range: {
+            min: medicareRate * 0.8,
+            max: medicareRate * 2.5,
+            recommended: fairPrice
+          },
+          medicare_rate: medicareRate,
+          confidence: 'high',
+          source: 'Cached Medicare Rate',
+          cached: true
+        });
+      } else {
+        uncachedCodes.push(cptCode);
+      }
+    }
+    
+    console.log(`[CACHE] Using ${cachedResults.length} cached, fetching ${uncachedCodes.length} from API`);
+    results.push(...cachedResults);
 
-        if (cached) {
-          console.log(`✓ Using cached data for CPT ${cptCode}`);
-          fromCache = true;
+    // ⚡ PHASE 3A: Fetch uncached codes from API (if any)
+    for (const cptCode of uncachedCodes) {
+      let pricingData: FairPriceResult | null = null;
+      console.log(`⟳ Fetching fresh data from CMS APIs for CPT ${cptCode}...`);
+      
+      try {
+        const fetchResponse = await supabase.functions.invoke('fetch-cms-pricing', {
+          body: {
+            cptCodes: [cptCode],
+            fetchFromAPI: true
+          }
+        });
+
+        if (fetchResponse.data?.results?.[0] && !fetchResponse.data.results[0].not_found) {
+          const apiResult = fetchResponse.data.results[0];
+          const medicareRate = apiResult.medicare_facility_rate || 0;
           
-          // Calculate fair price range based on Medicare rate
-          const medicareRate = cached.medicare_facility_rate || 0;
-          const fairPrice = medicareRate * 1.5; // 150% of Medicare (typical fair market)
+          // Extract fair price range from API metadata if available
+          const apiMetadata = apiResult.api_metadata || {};
+          const fairPriceRange = apiMetadata.fair_price_range || {
+            min: medicareRate * 0.8,
+            max: medicareRate * 2.5,
+            recommended: medicareRate * 1.5
+          };
           
           pricingData = {
             cpt_code: cptCode,
-            description: cached.description || 'Medical procedure',
-            fair_price: fairPrice,
-            fair_price_range: {
-              min: medicareRate * 0.8,     // 80% of Medicare (absolute minimum)
-              max: medicareRate * 2.5,     // 250% of Medicare (high but reasonable)
-              recommended: fairPrice        // 150% of Medicare
-            },
+            description: apiResult.description || 'Medical procedure',
+            fair_price: fairPriceRange.recommended,
+            fair_price_range: fairPriceRange,
             medicare_rate: medicareRate,
-            confidence: 'high',
-            source: 'Cached Medicare Rate',
-            cached: true
+            confidence: apiMetadata.confidence || 'medium',
+            source: apiMetadata.source || 'CMS API',
+            cached: false
           };
-        }
-      }
-
-      // If not in cache or forceRefresh, fetch from CMS APIs
-      if (!pricingData) {
-        console.log(`⟳ Fetching fresh data from CMS APIs for CPT ${cptCode}...`);
-        
-        try {
-          const fetchResponse = await supabase.functions.invoke('fetch-cms-pricing', {
-            body: {
-              cptCodes: [cptCode],
-              fetchFromAPI: true
-            }
-          });
-
-          if (fetchResponse.data?.results?.[0] && !fetchResponse.data.results[0].not_found) {
-            const apiResult = fetchResponse.data.results[0];
-            const medicareRate = apiResult.medicare_facility_rate || 0;
-            
-            // Extract fair price range from API metadata if available
-            const apiMetadata = apiResult.api_metadata || {};
-            const fairPriceRange = apiMetadata.fair_price_range || {
-              min: medicareRate * 0.8,
-              max: medicareRate * 2.5,
-              recommended: medicareRate * 1.5
-            };
-            
-            pricingData = {
-              cpt_code: cptCode,
-              description: apiResult.description || 'Medical procedure',
-              fair_price: fairPriceRange.recommended,
-              fair_price_range: fairPriceRange,
-              medicare_rate: medicareRate,
-              confidence: apiMetadata.confidence || 'medium',
-              source: apiMetadata.source || 'CMS API',
-              cached: false
-            };
-            
-            console.log(`✓ Fetched fresh data for CPT ${cptCode} from ${pricingData.source}`);
-          } else {
-            console.log(`✗ No data found for CPT ${cptCode}`);
-            
-            // Use conservative estimate based on category
-            const estimatedRate = estimateRateFromCPT(cptCode);
-            pricingData = {
-              cpt_code: cptCode,
-              description: 'Medical procedure (estimated)',
-              fair_price: estimatedRate * 1.5,
-              fair_price_range: {
-                min: estimatedRate * 0.8,
-                max: estimatedRate * 2.5,
-                recommended: estimatedRate * 1.5
-              },
-              medicare_rate: estimatedRate,
-              confidence: 'low',
-              source: 'Estimated (CPT pattern)',
-              cached: false
-            };
-          }
-        } catch (apiError) {
-          console.error(`Error fetching from API for CPT ${cptCode}:`, apiError);
           
-          // Fallback to estimation
+          console.log(`✓ Fetched fresh data for CPT ${cptCode} from ${pricingData.source}`);
+        } else {
+          console.log(`✗ No data found for CPT ${cptCode}`);
+          
+          // Use conservative estimate based on category
           const estimatedRate = estimateRateFromCPT(cptCode);
           pricingData = {
             cpt_code: cptCode,
@@ -155,10 +153,29 @@ serve(async (req) => {
             },
             medicare_rate: estimatedRate,
             confidence: 'low',
-            source: 'Estimated (API error)',
+            source: 'Estimated (CPT pattern)',
             cached: false
           };
         }
+      } catch (apiError) {
+        console.error(`Error fetching from API for CPT ${cptCode}:`, apiError);
+        
+        // Fallback to estimation
+        const estimatedRate = estimateRateFromCPT(cptCode);
+        pricingData = {
+          cpt_code: cptCode,
+          description: 'Medical procedure (estimated)',
+          fair_price: estimatedRate * 1.5,
+          fair_price_range: {
+            min: estimatedRate * 0.8,
+            max: estimatedRate * 2.5,
+            recommended: estimatedRate * 1.5
+          },
+          medicare_rate: estimatedRate,
+          confidence: 'low',
+          source: 'Estimated (API error)',
+          cached: false
+        };
       }
 
       if (pricingData) {
