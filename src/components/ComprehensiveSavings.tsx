@@ -309,6 +309,17 @@ export const ComprehensiveSavings = ({ savings, computedIssuesCount, totalBilled
             <div className="flex items-center gap-2 mb-2">
               <CheckCircle2 className="w-5 h-5 text-success" />
               <span className="font-semibold text-sm">High Confidence</span>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="w-4 h-4 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <p className="text-sm font-semibold mb-1">Why High Confidence?</p>
+                    <p className="text-xs">Clear overcharges with solid evidence from multiple pricing sources (CMS Medicare + Fair Health), exact CPT code matches, or confirmed duplicates/NSA violations.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
             <p className="text-2xl font-bold">
               ${(fallbackConfidenceBands?.high_confidence || confidence_bands.high_confidence).toLocaleString('en-US', { minimumFractionDigits: 2 })}
@@ -322,6 +333,17 @@ export const ComprehensiveSavings = ({ savings, computedIssuesCount, totalBilled
             <div className="flex items-center gap-2 mb-2">
               <AlertTriangle className="w-5 h-5 text-warning" />
               <span className="font-semibold text-sm">Medium Confidence</span>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="w-4 h-4 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <p className="text-sm font-semibold mb-1">Why Medium Confidence?</p>
+                    <p className="text-xs">Probable issues based on similar procedures, regional estimates, or patterns that need verification but lack complete documentation.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
             <p className="text-2xl font-bold">
               ${(fallbackConfidenceBands?.medium_confidence || confidence_bands.medium_confidence).toLocaleString('en-US', { minimumFractionDigits: 2 })}
@@ -335,6 +357,17 @@ export const ComprehensiveSavings = ({ savings, computedIssuesCount, totalBilled
             <div className="flex items-center gap-2 mb-2">
               <AlertCircle className="w-5 h-5 text-muted-foreground" />
               <span className="font-semibold text-sm">Low Confidence</span>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="w-4 h-4 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <p className="text-sm font-semibold mb-1">Why Low Confidence?</p>
+                    <p className="text-xs">Potential issues requiring additional itemization or documentation to confirm, often based on national averages or incomplete data.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
             <p className="text-2xl font-bold">
               ${(fallbackConfidenceBands?.low_confidence || confidence_bands.low_confidence).toLocaleString('en-US', { minimumFractionDigits: 2 })}
