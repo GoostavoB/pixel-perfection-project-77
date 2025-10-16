@@ -393,7 +393,12 @@ const Results = () => {
         {/* Comprehensive Savings Display */}
         {savingsTotals && (
           <div className="mb-8">
-            <ComprehensiveSavings savings={savingsTotals} computedIssuesCount={Math.max(recommendations.length || 0, itemsWithIssues.length || 0)} />
+            <ComprehensiveSavings 
+              savings={savingsTotals} 
+              computedIssuesCount={Math.max(recommendations.length || 0, itemsWithIssues.length || 0)}
+              totalBilled={totalCharged}
+              tags={tags}
+            />
           </div>
         )}
 
