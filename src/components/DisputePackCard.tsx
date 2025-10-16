@@ -42,7 +42,7 @@ export const DisputePackCard = ({ disputePack, sessionId, fallbackSavings, itemi
     try {
       console.log('Requesting dispute pack PDF generation...');
       const { data, error } = await supabase.functions.invoke('generate-dispute-pack-pdf', {
-        body: { disputePack, sessionId }
+        body: { disputePack, sessionId, format: 'html' }
       });
 
       console.log('Response from edge function:', { data, error });
@@ -81,6 +81,57 @@ export const DisputePackCard = ({ disputePack, sessionId, fallbackSavings, itemi
         variant: "destructive",
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to generate dispute pack",
+      });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleDownloadWord = async () => {
+    setIsGenerating(true);
+    try {
+      console.log('Requesting Word document generation...');
+      const { data, error } = await supabase.functions.invoke('generate-dispute-pack-pdf', {
+        body: { disputePack, sessionId, format: 'docx' }
+      });
+
+      if (error) {
+        console.error('Edge function error:', error);
+        throw error;
+      }
+
+      if (!data || !data.docx_base64) {
+        throw new Error('No Word document data returned');
+      }
+
+      // Convert base64 to blob and download
+      const byteCharacters = atob(data.docx_base64);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+      
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `dispute-pack-${disputePack.report_id}.docx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      toast({
+        title: "Success!",
+        description: "Word document downloaded. You can now edit it as needed.",
+      });
+    } catch (error) {
+      console.error("Error generating Word document:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to generate Word document",
       });
     } finally {
       setIsGenerating(false);
@@ -184,37 +235,57 @@ export const DisputePackCard = ({ disputePack, sessionId, fallbackSavings, itemi
       </div>
 
       {/* Action Buttons */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <Button
-          variant="outline"
-          onClick={handleCopyBillingEmail}
-          className="w-full"
-        >
-          <Mail className="w-4 h-4 mr-2" />
-          Copy Email to Billing
-        </Button>
-        <Button
-          variant="outline"
-          onClick={handleCopyInsuranceEmail}
-          className="w-full"
-        >
-          <Mail className="w-4 h-4 mr-2" />
-          Copy Email to Insurance
-        </Button>
-        <Button
-          onClick={handleDownloadPDF}
-          disabled={isGenerating}
-          className="w-full bg-blue-600 hover:bg-blue-700"
-        >
-          {isGenerating ? (
-            <>Generating...</>
-          ) : (
-            <>
-              <Download className="w-4 h-4 mr-2" />
-              Download PDF Pack
-            </>
-          )}
-        </Button>
+      <div className="space-y-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <Button
+            variant="outline"
+            onClick={handleCopyBillingEmail}
+            className="w-full"
+          >
+            <Mail className="w-4 h-4 mr-2" />
+            Copy Email to Billing
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleCopyInsuranceEmail}
+            className="w-full"
+          >
+            <Mail className="w-4 h-4 mr-2" />
+            Copy Email to Insurance
+          </Button>
+        </div>
+        
+        <div className="grid grid-cols-2 gap-3">
+          <Button
+            onClick={handleDownloadPDF}
+            disabled={isGenerating}
+            variant="outline"
+            className="w-full"
+          >
+            {isGenerating ? (
+              <>Generating...</>
+            ) : (
+              <>
+                <FileText className="w-4 h-4 mr-2" />
+                Download HTML
+              </>
+            )}
+          </Button>
+          <Button
+            onClick={handleDownloadWord}
+            disabled={isGenerating}
+            className="w-full bg-blue-600 hover:bg-blue-700"
+          >
+            {isGenerating ? (
+              <>Generating...</>
+            ) : (
+              <>
+                <Download className="w-4 h-4 mr-2" />
+                Download Word
+              </>
+            )}
+          </Button>
+        </div>
       </div>
 
       {disputePack.eob_present === 'no' && (

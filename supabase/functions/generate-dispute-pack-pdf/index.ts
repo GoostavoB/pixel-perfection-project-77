@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } from "https://esm.sh/docx@8.5.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,36 +12,53 @@ serve(async (req) => {
   }
 
   try {
-    const { disputePack, sessionId } = await req.json();
+    const { disputePack, sessionId, format = 'html' } = await req.json();
 
     if (!disputePack) {
       throw new Error('Dispute pack data is required');
     }
 
-    console.log('Generating dispute pack PDF for:', disputePack.report_id);
+    console.log('Generating dispute pack for:', disputePack.report_id, 'format:', format);
 
-    // Generate HTML for PDF
-    const html = generateDisputePackHTML(disputePack);
+    if (format === 'docx') {
+      // Generate Word document
+      const doc = generateDisputePackWord(disputePack);
+      const buffer = await Packer.toBuffer(doc);
+      const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
 
-    // Convert HTML to data URL for download
-    const htmlBlob = new Blob([html], { type: 'text/html' });
-    const dataUrl = `data:text/html;charset=utf-8,${encodeURIComponent(html)}`;
+      console.log('Dispute pack Word document generated successfully');
 
-    console.log('Dispute pack HTML generated successfully');
+      return new Response(
+        JSON.stringify({
+          success: true,
+          docx_base64: base64,
+          filename: `dispute-pack-${disputePack.report_id}.docx`,
+          message: 'Dispute pack Word document generated successfully'
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    } else {
+      // Generate HTML
+      const html = generateDisputePackHTML(disputePack);
+      const dataUrl = `data:text/html;charset=utf-8,${encodeURIComponent(html)}`;
 
-    // Return both HTML content and a data URL for immediate download
-    return new Response(
-      JSON.stringify({
-        success: true,
-        html_content: html,
-        pdf_url: dataUrl,
-        filename: `dispute-pack-${disputePack.report_id}.html`,
-        message: 'Dispute pack generated successfully'
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      }
-    );
+      console.log('Dispute pack HTML generated successfully');
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          html_content: html,
+          pdf_url: dataUrl,
+          filename: `dispute-pack-${disputePack.report_id}.html`,
+          message: 'Dispute pack generated successfully'
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      );
+    }
   } catch (error) {
     console.error('Error in generate-dispute-pack-pdf:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
@@ -142,4 +159,221 @@ function generateDisputePackHTML(pack: any): string {
     </body>
     </html>
   `;
+}
+
+function generateDisputePackWord(pack: any): Document {
+  const sections = [];
+
+  // Title
+  sections.push(
+    new Paragraph({
+      text: "Medical Bill Dispute Package",
+      heading: HeadingLevel.HEADING_1,
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 400 }
+    })
+  );
+
+  // Report ID and date
+  sections.push(
+    new Paragraph({
+      children: [
+        new TextRun({ text: "Report ID: ", bold: true }),
+        new TextRun(pack.report_id)
+      ],
+      spacing: { after: 100 }
+    })
+  );
+
+  sections.push(
+    new Paragraph({
+      children: [
+        new TextRun({ text: "Generated: ", bold: true }),
+        new TextRun(new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }))
+      ],
+      spacing: { after: 400 }
+    })
+  );
+
+  // Bill Summary Section
+  sections.push(
+    new Paragraph({
+      text: "Bill Summary",
+      heading: HeadingLevel.HEADING_2,
+      spacing: { before: 400, after: 200 }
+    })
+  );
+
+  const summaryItems = [
+    { label: "Provider", value: pack.provider_name },
+    { label: "Service Dates", value: pack.service_dates },
+    { label: "Bill Total", value: `$${pack.bill_total.toFixed(2)}` }
+  ];
+
+  if (pack.patient_name) summaryItems.unshift({ label: "Patient", value: pack.patient_name });
+  if (pack.account_id) summaryItems.push({ label: "Account ID", value: pack.account_id });
+  if (pack.payer_name) summaryItems.push({ label: "Insurance", value: pack.payer_name });
+
+  summaryItems.forEach(item => {
+    sections.push(
+      new Paragraph({
+        children: [
+          new TextRun({ text: `${item.label}: `, bold: true }),
+          new TextRun(item.value)
+        ],
+        spacing: { after: 100 }
+      })
+    );
+  });
+
+  // Issues Identified Section
+  if (pack.issue_blocks && pack.issue_blocks.length > 0) {
+    sections.push(
+      new Paragraph({
+        text: "Issues Identified",
+        heading: HeadingLevel.HEADING_2,
+        spacing: { before: 400, after: 200 }
+      })
+    );
+
+    pack.issue_blocks.forEach((issue: any, index: number) => {
+      sections.push(
+        new Paragraph({
+          text: `Issue ${index + 1}: ${issue.title}`,
+          heading: HeadingLevel.HEADING_3,
+          spacing: { before: 300, after: 150 }
+        })
+      );
+
+      if (issue.amount) {
+        sections.push(
+          new Paragraph({
+            children: [
+              new TextRun({ text: "Amount: ", bold: true }),
+              new TextRun(`$${issue.amount.toFixed(2)}`)
+            ],
+            spacing: { after: 100 }
+          })
+        );
+      }
+
+      sections.push(
+        new Paragraph({
+          children: [
+            new TextRun({ text: "Why Flagged: ", bold: true }),
+            new TextRun(issue.why_flagged)
+          ],
+          spacing: { after: 100 }
+        })
+      );
+
+      sections.push(
+        new Paragraph({
+          children: [
+            new TextRun({ text: "Lines in Question:", bold: true })
+          ],
+          spacing: { before: 100, after: 50 }
+        })
+      );
+
+      issue.lines_in_question.forEach((line: string) => {
+        sections.push(
+          new Paragraph({
+            text: `• ${line}`,
+            spacing: { after: 50 }
+          })
+        );
+      });
+
+      sections.push(
+        new Paragraph({
+          children: [
+            new TextRun({ text: "Documentation Requested:", bold: true })
+          ],
+          spacing: { before: 100, after: 50 }
+        })
+      );
+
+      issue.data_requested.forEach((item: string) => {
+        sections.push(
+          new Paragraph({
+            text: `• ${item}`,
+            spacing: { after: 50 }
+          })
+        );
+      });
+
+      sections.push(
+        new Paragraph({
+          children: [
+            new TextRun({ text: "Dispute Paragraph:", bold: true })
+          ],
+          spacing: { before: 200, after: 100 }
+        })
+      );
+
+      sections.push(
+        new Paragraph({
+          text: issue.dispute_paragraph,
+          spacing: { after: 300 }
+        })
+      );
+    });
+  }
+
+  // Required Documentation Section
+  if (pack.checklist && pack.checklist.length > 0) {
+    sections.push(
+      new Paragraph({
+        text: "Required Documentation",
+        heading: HeadingLevel.HEADING_2,
+        spacing: { before: 400, after: 200 }
+      })
+    );
+
+    pack.checklist.forEach((item: string) => {
+      sections.push(
+        new Paragraph({
+          text: `• ${item}`,
+          spacing: { after: 100 }
+        })
+      );
+    });
+  }
+
+  // Attachments Requested Section
+  if (pack.attachments_requested && pack.attachments_requested.length > 0) {
+    sections.push(
+      new Paragraph({
+        text: "Requested Attachments",
+        heading: HeadingLevel.HEADING_2,
+        spacing: { before: 400, after: 200 }
+      })
+    );
+
+    pack.attachments_requested.forEach((item: string) => {
+      sections.push(
+        new Paragraph({
+          text: `• ${item}`,
+          spacing: { after: 100 }
+        })
+      );
+    });
+  }
+
+  // Footer
+  sections.push(
+    new Paragraph({
+      text: "This dispute pack was generated by Hospital Bill Checker. Please review all information for accuracy before submitting to billing departments or insurance providers.",
+      spacing: { before: 600 },
+      alignment: AlignmentType.CENTER
+    })
+  );
+
+  return new Document({
+    sections: [{
+      properties: {},
+      children: sections
+    }]
+  });
 }
