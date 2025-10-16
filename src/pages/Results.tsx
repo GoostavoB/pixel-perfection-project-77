@@ -1,4 +1,4 @@
-import { AlertCircle, Calendar, Loader2, Mail, ArrowRight, Info } from "lucide-react";
+import { AlertCircle, Calendar, Loader2, Mail, ArrowRight, Info, Download } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -252,18 +252,56 @@ const Results = () => {
     return generateDisputePack({ ...fullAnalysis, session_id: sessionId });
   }, [fullAnalysis, sessionId]);
 
-  const handleEmailReport = async () => {
+  const handleDownloadFullReport = async () => {
     setIsGeneratingPDF(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        toast({ variant: "destructive", title: "Authentication Required" });
-        return;
+      console.log('Generating comprehensive Word report...');
+      const { data, error } = await supabase.functions.invoke('generate-comprehensive-report', {
+        body: { 
+          analysis: fullAnalysis,
+          sessionId,
+          duplicates,
+          nsaReview,
+          savingsTotals,
+          itemizationStatus
+        }
+      });
+
+      if (error) throw error;
+      
+      if (!data || !data.docx_base64) {
+        throw new Error('No Word document data returned');
       }
-      await supabase.functions.invoke('generate-pdf-report', { body: { sessionId: analysis.session_id } });
-      toast({ title: "Success!", description: "Report sent to your email" });
+
+      // Convert base64 to blob and download
+      const byteCharacters = atob(data.docx_base64);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+      
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `full-report-${hospitalName.replace(/\s+/g, '-')}-${new Date().toISOString().split('T')[0]}.docx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast({ 
+        title: "Success!", 
+        description: "Comprehensive report downloaded successfully" 
+      });
     } catch (error) {
-      toast({ variant: "destructive", title: "Error", description: "Failed to send report" });
+      console.error('Error generating report:', error);
+      toast({ 
+        variant: "destructive", 
+        title: "Error", 
+        description: "Failed to generate report" 
+      });
     } finally {
       setIsGeneratingPDF(false);
     }
@@ -586,8 +624,8 @@ const Results = () => {
           <Card className="p-6 text-center">
             <h3 className="text-lg font-bold mb-2">Download Full Report</h3>
             <p className="text-sm text-muted-foreground mb-4">Get your comprehensive analysis with all details</p>
-            <Button size="lg" onClick={handleEmailReport} disabled={isGeneratingPDF} className="w-full">
-              {isGeneratingPDF ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Sending...</> : <><Mail className="mr-2 w-5 h-5" />Email Report</>}
+            <Button size="lg" onClick={handleDownloadFullReport} disabled={isGeneratingPDF} className="w-full">
+              {isGeneratingPDF ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Generating...</> : <><Download className="mr-2 w-5 h-5" />Download Word Report</>}
             </Button>
           </Card>
           <Card className="p-6 text-center">
