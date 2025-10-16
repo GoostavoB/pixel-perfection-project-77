@@ -177,12 +177,14 @@ serve(async (req) => {
     const analysisResult = await analyzeBillWithAI(extractedContent, lovableApiKey, supabase);
     console.log('AI analysis complete - validated and ready for storage');
     
-    // Run duplicate detection as complementary analysis
-    const duplicateFindings = await detectDuplicateCharges(extractedContent, analysisResult, lovableApiKey);
-    console.log('Duplicate detection complete:', {
-      total_flags: duplicateFindings.flags?.length || 0,
-      suspect_amount: duplicateFindings.totals?.suspect_amount || 0
-    });
+    // ✅ NEW: Run rule-based duplicate detection (R1-R7)
+    console.log('[DUPLICATE DETECTION] === Running Rule-Based Detection (R1-R7) ===');
+    const duplicateFindings = await runRuleBasedDuplicateDetection(analysisResult);
+    console.log('[DUPLICATE DETECTION] === Complete ===');
+    console.log('[DUPLICATE DETECTION] Total flags:', duplicateFindings.flags?.length || 0);
+    console.log('[DUPLICATE DETECTION] P1 (definite):', duplicateFindings.flags?.filter((f: any) => f.category === 'P1').length || 0);
+    console.log('[DUPLICATE DETECTION] P2 (likely):', duplicateFindings.flags?.filter((f: any) => f.category === 'P2').length || 0);
+    console.log('[DUPLICATE DETECTION] Suspect amount: $' + (duplicateFindings.totals?.suspect_amount || 0).toFixed(2));
     
     // Integrate duplicate findings into main analysis
     analysisResult.duplicate_findings = duplicateFindings;
@@ -1917,7 +1919,64 @@ async function validateAnalysis(analysis: any, extractedText: string): Promise<a
   return analysis;
 }
 
-// Duplicate Charge Detection
+// ✅ NEW: Rule-based duplicate detection using R1-R7
+async function runRuleBasedDuplicateDetection(analysisResult: any) {
+  console.log('[R1-R7] Running rule-based duplicate detection...');
+  
+  // Extract bill lines from analysis result
+  const billLines = (analysisResult.charges || []).map((charge: any, idx: number) => ({
+    line_id: `line_${idx + 1}`,
+    date_of_service: charge.date_of_service || analysisResult.date_of_service,
+    cpt_or_hcpcs: charge.cpt_code !== 'N/A' ? charge.cpt_code : undefined,
+    revenue_code: charge.revenue_code,
+    description: charge.description,
+    billed_amount: charge.charge_amount || charge.billed_amount || 0,
+    quantity: charge.units || 1,
+    provider_id_ref: charge.provider_npi || 'UNKNOWN'
+  }));
+  
+  if (billLines.length === 0) {
+    console.warn('[R1-R7] No bill lines found in analysis result');
+    return {
+      flags: [],
+      totals: { suspect_lines: 0, suspect_amount: 0 }
+    };
+  }
+  
+  // Import and run duplicate detection rules
+  const { detectAllDuplicates } = await import('./duplicate-rules.ts');
+  const duplicateMatches = detectAllDuplicates(billLines);
+  
+  console.log(`[R1-R7] Detected ${duplicateMatches.length} duplicate matches`);
+  
+  // Convert to expected format
+  const flags = duplicateMatches.map((match: any) => ({
+    category: match.category,
+    reason: match.reason,
+    evidence: {
+      line_ids: match.line_ids,
+      date_of_service: match.evidence?.date || 'unknown',
+      codes: match.evidence?.codes || [],
+      prices: match.evidence?.prices || [],
+      provider_group: match.evidence?.provider || null
+    },
+    confidence: match.confidence >= 0.8 ? 'high' : match.confidence >= 0.5 ? 'medium' : 'low',
+    recommended_action: `Request removal of duplicate charge (${match.rule_type})`,
+    dispute_text: match.reason
+  }));
+  
+  const suspectAmount = duplicateMatches.reduce((sum: number, m: any) => sum + (m.potential_savings || 0), 0);
+  
+  return {
+    flags,
+    totals: {
+      suspect_lines: duplicateMatches.length,
+      suspect_amount: Math.round(suspectAmount * 100) / 100
+    }
+  };
+}
+
+// Duplicate Charge Detection (legacy - kept for backwards compatibility)
 async function detectDuplicateCharges(
   extractedContent: {text: string, imageData?: string},
   mainAnalysis: any,

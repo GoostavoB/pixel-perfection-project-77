@@ -232,63 +232,40 @@ export function computeNSASavings(
 }
 
 /**
- * Find duplicate clusters using similarity matching
+ * Find duplicate using rule-based detection (R1-R7)
+ * Uses strict matching: (Date, CPT, Provider_NPI, Units, round(Billed,2))
  */
-export function findDuplicateClusters(lines: BillLine[]): Array<[BillLine, BillLine, number]> {
-  const buckets = new Map<string, BillLine[]>();
-
-  // Group by CPT + revenue code + date
-  for (const line of lines) {
-    const key = `${line.cpt_or_hcpcs || 'N/A'}_${line.revenue_code || 'N/A'}_${line.date_of_service || 'N/A'}`;
-    if (!buckets.has(key)) {
-      buckets.set(key, []);
-    }
-    buckets.get(key)!.push(line);
-  }
-
+export function findDuplicatesUsingRules(lines: BillLine[]): Array<[BillLine, BillLine, number]> {
   const pairs: Array<[BillLine, BillLine, number]> = [];
-
-  // For each bucket, find similar pairs
-  for (const [key, group] of buckets.entries()) {
-    if (group.length < 2) continue;
-
-    for (let i = 0; i < group.length; i++) {
-      for (let j = i + 1; j < group.length; j++) {
+  
+  // Group by strict key: Date + CPT + Provider + rounded Billed
+  const duplicateMap = new Map<string, BillLine[]>();
+  
+  for (const line of lines) {
+    const roundedBilled = Math.round((line.billed_amount || 0) * 100) / 100;
+    const units = line.quantity || line.units || 1;
+    const key = `${line.date_of_service || 'N/A'}_${line.cpt_or_hcpcs || 'N/A'}_${line.provider_id_ref || 'N/A'}_${units}_${roundedBilled}`;
+    
+    if (!duplicateMap.has(key)) {
+      duplicateMap.set(key, []);
+    }
+    duplicateMap.get(key)!.push(line);
+  }
+  
+  // Find exact duplicates (groups with 2+ items)
+  for (const [key, group] of duplicateMap.entries()) {
+    if (group.length >= 2) {
+      // All items in group are exact duplicates
+      for (let i = 0; i < group.length - 1; i++) {
         const lj = group[i];
-        const lk = group[j];
-
-        // IMPROVED: Check for exact description match first (100% duplicate)
-        const exactMatch = lj.description.toLowerCase().trim() === lk.description.toLowerCase().trim();
-        
-        // IMPROVED: Check if description contains duplicate markers
-        const hasDuplicateMarker = 
-          lj.description.toLowerCase().includes('(duplicate') ||
-          lj.description.toLowerCase().includes('duplicate entry') ||
-          lk.description.toLowerCase().includes('(duplicate') ||
-          lk.description.toLowerCase().includes('duplicate entry');
-        
-        // IMPROVED: Lowered threshold from 0.9 to 0.75 for better duplicate catching
-        const desc_sim = jaccardSimilarity(lj.description, lk.description);
-        const similarityThreshold = exactMatch ? 1.0 : (hasDuplicateMarker ? 0.85 : 0.75);
-        
-        if (!exactMatch && desc_sim < similarityThreshold) continue;
-
-        // IMPROVED: For exact matches or duplicate markers, skip price check
-        if (!exactMatch && !hasDuplicateMarker) {
-          // Check unit price similarity (within 20%)
-          const uj = lj.billed_amount / Math.max(1, lj.quantity || lj.units || 1);
-          const uk = lk.billed_amount / Math.max(1, lk.quantity || lk.units || 1);
-          const price_diff = Math.abs(uj - uk) / Math.max(uj, uk);
-          if (price_diff > 0.2) continue;
-        }
-
-        // Valid duplicate candidate
-        const savings = computeDuplicateSavings(lj, lk);
+        const lk = group[i + 1];
+        const savings = lj.billed_amount; // Full billed amount as savings
         pairs.push([lj, lk, savings]);
       }
     }
   }
-
+  
+  console.log(`[DUPLICATE DETECTION] Found ${pairs.length} exact duplicate pairs using strict matching`);
   return pairs;
 }
 
@@ -399,8 +376,8 @@ export function analyzeBillSavings(
 ): SavingsTotals {
   const line_savings: LineSavings[] = [];
   
-  // Step 1: Find duplicate clusters
-  const duplicate_pairs = findDuplicateClusters(lines);
+  // Step 1: Find duplicate clusters using strict rule-based detection
+  const duplicate_pairs = findDuplicatesUsingRules(lines);
   const duplicate_allocation = new Map<string, number>();
   
   for (const [lj, lk, savings] of duplicate_pairs) {
@@ -415,6 +392,10 @@ export function analyzeBillSavings(
   let total_duplicate = 0;
   let total_overcharge = 0;
   let total_weighted = 0;
+  let duplicateCount = 0;
+  let overchargeCount = 0;
+
+  console.log(`[SAVINGS ENGINE] Processing ${lines.length} lines...`);
 
   for (const line of lines) {
     const sources = baseline_sources.get(line.line_id) || {};
@@ -429,10 +410,21 @@ export function analyzeBillSavings(
     // Duplicate savings (priority 2)
     const dup_savings = duplicate_allocation.get(line.line_id) || 0;
 
-    // Overcharge savings (priority 3)
+    // Overcharge savings (priority 3) - ONLY flag if ratio ≥ 2.5×
     const remaining = Math.max(0, line.billed_amount - nsa_savings - dup_savings);
-    const overcharge_raw = Math.max(0, line.billed_amount - baseline);
-    const overcharge_savings = Math.min(overcharge_raw, remaining);
+    const overcharge_ratio = baseline > 0 ? line.billed_amount / baseline : 0;
+    
+    let overcharge_savings = 0;
+    if (overcharge_ratio >= 2.5) {
+      // Only count overcharge if billed is 2.5x or more above baseline
+      const overcharge_raw = Math.max(0, line.billed_amount - baseline);
+      overcharge_savings = Math.min(overcharge_raw, remaining);
+      overchargeCount++;
+    }
+    
+    if (dup_savings > 0) {
+      duplicateCount++;
+    }
 
     // Confidence
     const confidence = computeConfidence(line, sources, nsa_flag, confidence_adjustment);
@@ -461,6 +453,13 @@ export function analyzeBillSavings(
     });
   }
 
+  // ✅ LOG DETECTION RESULTS (matching ChatGPT output)
+  console.log(`[SAVINGS ENGINE] === Detection Results ===`);
+  console.log(`[SAVINGS ENGINE] Duplicates: ${duplicateCount} lines → $${total_duplicate.toFixed(2)}`);
+  console.log(`[SAVINGS ENGINE] Overcharges (≥2.5× ratio): ${overchargeCount} lines → $${total_overcharge.toFixed(2)}`);
+  console.log(`[SAVINGS ENGINE] NSA violations: $${total_nsa.toFixed(2)}`);
+  console.log(`[SAVINGS ENGINE] Total potential savings: $${(total_nsa + total_duplicate + total_overcharge).toFixed(2)}`);
+  
   // Step 3: Cap at total billed
   const gross_total = total_nsa + total_duplicate + total_overcharge;
   const capped_gross = Math.min(gross_total, total_billed);

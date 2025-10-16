@@ -26,7 +26,10 @@
           "cpt_code": { "type": "string" },
           "description": { "type": "string" },
           "billed_amount": { "type": "number", "minimum": 0 },
-          "allowed_amount": { "type": ["number", "null"] },
+          "allowed_amount": { 
+            "type": ["number", "null"],
+            "description": "CRITICAL: Extract from 'Allowed', 'Plan Allowed', 'Insurance Allowed', or 'Contracted Rate' column if present. Set to null (not 0) if not shown on bill."
+          },
           "patient_responsibility": { "type": ["number", "null"] },
           "issue_flag": {
             "type": "object",
