@@ -9,6 +9,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { pdfGenerator } from '@/utils/pdfGenerator';
+import { PricingInsightsCard } from '@/components/PricingInsightsCard';
 
 const NewResults = () => {
   const location = useLocation();
@@ -95,6 +96,59 @@ const NewResults = () => {
   const fallbackSavings = (estimatedSavings === 0 && (uiSummary.total_billed || 0) > 0) 
     ? calculateFallbackSavings(uiSummary.total_billed || 0, tags)
     : null;
+
+  // ⚡ PHASE 2B: Calculate pricing insights from analysis
+  const calculatePricingInsights = () => {
+    const allIssues = [
+      ...(fullAnalysis.high_priority_issues || []),
+      ...(fullAnalysis.potential_issues || [])
+    ];
+    
+    const codesWithFairPrices = allIssues.filter((issue: any) => 
+      issue.fair_price && issue.fair_price > 0
+    );
+    
+    const highConfidence = codesWithFairPrices.filter((issue: any) => 
+      issue.fair_price_confidence === 'high'
+    ).length;
+    
+    const mediumConfidence = codesWithFairPrices.filter((issue: any) => 
+      issue.fair_price_confidence === 'medium'
+    ).length;
+    
+    const lowConfidence = codesWithFairPrices.filter((issue: any) => 
+      issue.fair_price_confidence === 'low'
+    ).length;
+    
+    const totalOvercharges = codesWithFairPrices.reduce((sum: number, issue: any) => 
+      sum + Math.max(0, issue.billed_amount - issue.fair_price), 
+      0
+    );
+    
+    const averageMarkup = codesWithFairPrices.length > 0
+      ? Math.round(
+          codesWithFairPrices.reduce((sum: number, issue: any) => {
+            if (issue.medicare_benchmark && issue.medicare_benchmark > 0) {
+              return sum + ((issue.billed_amount / issue.medicare_benchmark - 1) * 100);
+            }
+            return sum;
+          }, 0) / codesWithFairPrices.length
+        )
+      : 0;
+    
+    return {
+      totalCodes: allIssues.length,
+      codesWithFairPrices: codesWithFairPrices.length,
+      highConfidence,
+      mediumConfidence,
+      lowConfidence,
+      totalFairPriceData: codesWithFairPrices.length,
+      totalOvercharges,
+      averageMarkup
+    };
+  };
+
+  const pricingInsights = calculatePricingInsights();
 
   const handleReanalyze = async () => {
     if (!analysis.file_url) {
@@ -372,6 +426,13 @@ const NewResults = () => {
               ))}
             </div>
           </Card>
+        )}
+
+        {/* ⚡ PHASE 2B: Real-Time Pricing Insights */}
+        {pricingInsights.codesWithFairPrices > 0 && (
+          <div className="mb-6">
+            <PricingInsightsCard insights={pricingInsights} />
+          </div>
         )}
 
         {hospitalName && (

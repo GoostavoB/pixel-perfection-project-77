@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
+import { FairPriceComparison } from "./FairPriceComparison";
 
 interface FriendlyIssueCardProps {
   issue: {
@@ -16,6 +17,9 @@ interface FriendlyIssueCardProps {
     confidence_score: number;
     medicare_benchmark?: number;
     reasonable_rate?: number;
+    fair_price?: number;
+    fair_price_confidence?: 'high' | 'medium' | 'low';
+    fair_price_source?: string;
   };
   isPriority: boolean;
 }
@@ -104,31 +108,45 @@ export const FriendlyIssueCard = ({ issue, isPriority }: FriendlyIssueCardProps)
 
           {/* Detailed Breakdown */}
           {showDetails && (
-            <div className="mt-3 p-3 bg-white rounded-md border border-gray-200 text-sm space-y-2">
-              <div className="flex justify-between">
-                <span className="text-gray-600">They charged:</span>
-                <span className="font-semibold text-red-600">${issue.billed_amount.toLocaleString()}</span>
-              </div>
-              {issue.medicare_benchmark && (
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Medicare pays:</span>
-                  <span className="font-medium text-gray-700">${issue.medicare_benchmark.toLocaleString()}</span>
-                </div>
-              )}
-              {issue.reasonable_rate && (
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Fair price (3x Medicare):</span>
-                  <span className="font-medium text-green-700">${issue.reasonable_rate.toLocaleString()}</span>
-                </div>
-              )}
-              {issue.overcharge_amount && (
-                <>
-                  <div className="border-t pt-2" />
+            <div className="mt-3 space-y-3">
+              {/* Show Fair Price Comparison if available */}
+              {issue.fair_price && issue.fair_price > 0 ? (
+                <FairPriceComparison
+                  billedAmount={issue.billed_amount}
+                  fairPrice={issue.fair_price}
+                  medicareRate={issue.medicare_benchmark}
+                  confidence={issue.fair_price_confidence || 'medium'}
+                  source={issue.fair_price_source}
+                  description={issue.line_description}
+                />
+              ) : (
+                <div className="p-3 bg-white rounded-md border border-gray-200 text-sm space-y-2">
                   <div className="flex justify-between">
-                    <span className="font-semibold text-gray-700">You're being overcharged:</span>
-                    <span className="font-bold text-red-600">${issue.overcharge_amount.toLocaleString()}</span>
+                    <span className="text-gray-600">They charged:</span>
+                    <span className="font-semibold text-red-600">${issue.billed_amount.toLocaleString()}</span>
                   </div>
-                </>
+                  {issue.medicare_benchmark && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Medicare pays:</span>
+                      <span className="font-medium text-gray-700">${issue.medicare_benchmark.toLocaleString()}</span>
+                    </div>
+                  )}
+                  {issue.reasonable_rate && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Fair price (3x Medicare):</span>
+                      <span className="font-medium text-green-700">${issue.reasonable_rate.toLocaleString()}</span>
+                    </div>
+                  )}
+                  {issue.overcharge_amount && (
+                    <>
+                      <div className="border-t pt-2" />
+                      <div className="flex justify-between">
+                        <span className="font-semibold text-gray-700">You're being overcharged:</span>
+                        <span className="font-bold text-red-600">${issue.overcharge_amount.toLocaleString()}</span>
+                      </div>
+                    </>
+                  )}
+                </div>
               )}
             </div>
           )}
