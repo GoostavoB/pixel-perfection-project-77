@@ -1,8 +1,8 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Mail, Download, Copy, Check, Shield } from "lucide-react";
-import { DisputePack } from "@/types/disputePack";
+import { FileText, Mail, Download, Copy, Check, Shield, DollarSign, AlertTriangle, HelpCircle } from "lucide-react";
+import { DisputePack, IssueBlock } from "@/types/disputePack";
 import { generateBillingEmail, generateInsuranceEmail } from "@/utils/disputePackGenerator";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -185,6 +185,26 @@ export const DisputePackCard = ({
   
   const totalIssuesCount = disputePack.issue_blocks.length;
 
+  // Helper function to categorize and get icons for issues
+  const getIssueCategory = (issueType: IssueBlock['issue_type']) => {
+    const categories = {
+      'nsa_request': { icon: Shield, label: '🛡️ Insurance & Legal Protection', color: 'border-l-blue-500', bgColor: 'bg-blue-50' },
+      'duplicate': { icon: AlertTriangle, label: '💰 Potential Overcharges', color: 'border-l-orange-500', bgColor: 'bg-orange-50' },
+      'panel_unbundling': { icon: DollarSign, label: '💰 Potential Overcharges', color: 'border-l-orange-500', bgColor: 'bg-orange-50' },
+      'pricing_high': { icon: DollarSign, label: '💰 Potential Overcharges', color: 'border-l-orange-500', bgColor: 'bg-orange-50' },
+      'itemization': { icon: HelpCircle, label: '❓ Missing Information', color: 'border-l-purple-500', bgColor: 'bg-purple-50' },
+      'lab_repeat': { icon: AlertTriangle, label: '💰 Potential Overcharges', color: 'border-l-orange-500', bgColor: 'bg-orange-50' },
+      'pharmacy_itemization': { icon: HelpCircle, label: '❓ Missing Information', color: 'border-l-purple-500', bgColor: 'bg-purple-50' },
+      'blood_services': { icon: DollarSign, label: '💰 Potential Overcharges', color: 'border-l-orange-500', bgColor: 'bg-orange-50' },
+      'imaging_component': { icon: DollarSign, label: '💰 Potential Overcharges', color: 'border-l-orange-500', bgColor: 'bg-orange-50' },
+      'room_day': { icon: AlertTriangle, label: '💰 Potential Overcharges', color: 'border-l-orange-500', bgColor: 'bg-orange-50' },
+      'er_level': { icon: DollarSign, label: '💰 Potential Overcharges', color: 'border-l-orange-500', bgColor: 'bg-orange-50' },
+      'anesthesia_time': { icon: AlertTriangle, label: '💰 Potential Overcharges', color: 'border-l-orange-500', bgColor: 'bg-orange-50' },
+      'other': { icon: HelpCircle, label: '❓ Missing Information', color: 'border-l-gray-500', bgColor: 'bg-gray-50' }
+    };
+    return categories[issueType] || categories['other'];
+  };
+
   return (
     <Card className="p-6 bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200">
       <div className="flex items-start gap-4 mb-6">
@@ -242,34 +262,78 @@ export const DisputePackCard = ({
 
       {/* Issue Blocks Preview */}
       <div className="mb-6">
-        <h3 className="text-sm font-semibold text-foreground mb-3">Issues Included:</h3>
-        <div className="space-y-2">
-          {disputePack.issue_blocks.map((block, idx) => (
-            <div key={idx} className="p-3 bg-white rounded-lg border border-blue-200">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <p className="text-sm font-semibold text-foreground">{block.title}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{block.why_flagged}</p>
+        <h3 className="text-lg font-bold text-foreground mb-2">Billing Problems We Found</h3>
+        <p className="text-sm text-muted-foreground mb-4">
+          These are specific billing issues identified in your analysis. Each represents a potential error 
+          or missing information that could reduce your bill.
+        </p>
+        <div className="space-y-3">
+          {disputePack.issue_blocks.map((block, idx) => {
+            const category = getIssueCategory(block.issue_type);
+            const IconComponent = category.icon;
+            
+            return (
+              <div 
+                key={idx} 
+                className={`p-4 bg-white rounded-lg border-l-4 ${category.color} ${category.bgColor} border border-gray-200 shadow-sm`}
+              >
+                <div className="flex items-start gap-3">
+                  <div className="flex-shrink-0 mt-0.5">
+                    <IconComponent className="w-5 h-5 text-foreground" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-4 mb-2">
+                      <h4 className="text-sm font-bold text-foreground">{block.title}</h4>
+                      {block.amount ? (
+                        <div className="flex-shrink-0 text-right">
+                          <p className="text-lg font-bold text-orange-700">
+                            ${block.amount.toFixed(2)}
+                          </p>
+                          <p className="text-xs text-muted-foreground">potential savings</p>
+                        </div>
+                      ) : (
+                        <div className="flex-shrink-0 text-right">
+                          <p className="text-sm font-semibold text-amber-700">Pending</p>
+                          <p className="text-xs text-muted-foreground">needs verification</p>
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-sm text-muted-foreground mb-2">{block.why_flagged}</p>
+                    {block.lines_in_question.length > 0 && (
+                      <div className="mt-2 pt-2 border-t border-gray-200">
+                        <p className="text-xs font-semibold text-muted-foreground mb-1">
+                          Affected line items:
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {block.lines_in_question.join(', ')}
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </div>
-                {block.amount && (
-                  <p className="text-sm font-bold text-orange-700 ml-4">
-                    ${block.amount.toFixed(2)}
-                  </p>
-                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
       {/* Checklist */}
-      <div className="mb-6 p-4 bg-white/50 rounded-lg">
-        <h3 className="text-sm font-semibold text-foreground mb-2">Documents Requested:</h3>
-        <ul className="space-y-1">
+      <div className="mb-6 p-4 bg-gradient-to-br from-purple-50 to-indigo-50 rounded-lg border border-purple-200">
+        <div className="flex items-start gap-2 mb-3">
+          <FileText className="w-5 h-5 text-purple-700 mt-0.5 flex-shrink-0" />
+          <div>
+            <h3 className="text-sm font-bold text-foreground mb-1">Documents You'll Request</h3>
+            <p className="text-xs text-muted-foreground">
+              These documents will help prove the issues above and strengthen your dispute. 
+              Request them using the email templates below.
+            </p>
+          </div>
+        </div>
+        <ul className="space-y-2 mt-3">
           {disputePack.checklist.map((item, idx) => (
-            <li key={idx} className="text-xs text-muted-foreground flex items-center gap-2">
-              <span className="w-1.5 h-1.5 bg-blue-500 rounded-full" />
-              {item}
+            <li key={idx} className="text-sm text-foreground flex items-start gap-2 bg-white/60 p-2 rounded">
+              <Check className="w-4 h-4 text-purple-600 mt-0.5 flex-shrink-0" />
+              <span>{item}</span>
             </li>
           ))}
         </ul>
