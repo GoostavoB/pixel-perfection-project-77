@@ -128,44 +128,44 @@ export const ComprehensiveSavings = ({ savings, computedIssuesCount, totalBilled
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Main Savings Card */}
-      <Card className={`p-6 ${colorMap[color].bg} ${colorMap[color].border} border-2`}>
-        <div className="flex items-start gap-4">
-          <div className={`p-3 rounded-lg ${colorMap[color].bg}`}>
-            <TrendingDown className={`h-8 w-8 ${colorMap[color].text}`} />
+      <Card className={`p-4 ${colorMap[color].bg} ${colorMap[color].border} border-2`}>
+        <div className="flex items-start gap-3">
+          <div className={`p-2 rounded-lg ${colorMap[color].bg}`}>
+            <TrendingDown className={`h-6 w-6 ${colorMap[color].text}`} />
           </div>
           <div className="flex-1">
-            <h3 className="text-2xl font-bold mb-2">
+            <h3 className="text-xl font-bold mb-2">
               We Found {displayIssuesCount}/{total_lines} Lines with Potential Issues
             </h3>
             
             {/* Gross vs Likely Savings */}
             {fallbackSavings ? (
-              <div className="mb-4">
+              <div className="mb-3">
                 <div className="flex items-center gap-2 mb-2">
-                  <AlertTriangle className="w-5 h-5 text-warning" />
+                  <AlertTriangle className="w-4 h-4 text-warning" />
                   <p className="text-sm font-semibold text-foreground">Conservative Estimated Savings Range</p>
                 </div>
-                <p className="text-3xl font-bold text-primary mb-2">
+                <p className="text-2xl font-bold text-primary mb-1">
                   ${fallbackSavings.low.toLocaleString()} - ${fallbackSavings.high.toLocaleString()}
                 </p>
-                <Badge variant="outline" className="text-xs mb-3">
+                <Badge variant="outline" className="text-xs mb-2">
                   Based on typical overcharge patterns for bill categories
                 </Badge>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-xs text-muted-foreground">
                   This is a conservative estimate. Request an itemized bill with CPT codes for precise calculations.
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
-                    <p className="text-sm text-muted-foreground">Total Potential (Gross)</p>
+                    <p className="text-xs text-muted-foreground">Total Potential (Gross)</p>
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <Info className="w-4 h-4 text-muted-foreground cursor-help" />
+                          <Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
                         </TooltipTrigger>
                         <TooltipContent className="max-w-xs">
                           <p className="text-sm">Maximum possible savings if all identified issues are resolved. This is the upper bound.</p>
@@ -173,18 +173,18 @@ export const ComprehensiveSavings = ({ savings, computedIssuesCount, totalBilled
                       </Tooltip>
                     </TooltipProvider>
                   </div>
-                  <p className="text-3xl font-bold text-foreground">
+                  <p className="text-2xl font-bold text-foreground">
                     ${total_potential_savings_gross.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                   </p>
                 </div>
                 
                 <div>
                   <div className="flex items-center gap-2 mb-1">
-                    <p className="text-sm text-muted-foreground">Likely Savings (Weighted)</p>
+                    <p className="text-xs text-muted-foreground">Likely Savings (Weighted)</p>
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <Info className="w-4 h-4 text-muted-foreground cursor-help" />
+                          <Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
                         </TooltipTrigger>
                         <TooltipContent className="max-w-xs">
                           <p className="text-sm">Realistic savings estimate weighted by confidence. This is what you can reasonably expect to save.</p>
@@ -192,7 +192,7 @@ export const ComprehensiveSavings = ({ savings, computedIssuesCount, totalBilled
                       </Tooltip>
                     </TooltipProvider>
                   </div>
-                  <p className="text-3xl font-bold text-success">
+                  <p className="text-2xl font-bold text-success">
                     ${total_potential_savings_likely.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                   </p>
                 </div>
@@ -200,7 +200,7 @@ export const ComprehensiveSavings = ({ savings, computedIssuesCount, totalBilled
             )}
 
             {/* Issue Ratio Badge */}
-            <div className="flex items-center gap-2 mb-4">
+            <div className="flex items-center gap-2 mb-3">
               {(() => {
                 const percentageValue = fallbackSavings 
                   ? (total_lines > 0 ? 100 : 0)
@@ -220,14 +220,14 @@ export const ComprehensiveSavings = ({ savings, computedIssuesCount, totalBilled
                   </Badge>
                 );
               })()}
-              <span className="text-sm text-muted-foreground">
+              <span className="text-xs text-muted-foreground">
                 ({fallbackSavings ? total_lines : displayIssuesCount} of {total_lines} line items)
               </span>
             </div>
             
             {/* Non-itemized disclaimer */}
             {fallbackSavings && (
-              <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <div className="mb-3 p-2 bg-yellow-50 border border-yellow-200 rounded-lg">
                 <p className="text-xs text-yellow-900">
                   <strong>⚠️ Important:</strong> Bills/reports of non-itemized bills are <strong>less likely to be accurate</strong>. 
                   This is a conservative estimate based on typical overcharge patterns. Request an itemized bill for precise calculations.
@@ -235,7 +235,7 @@ export const ComprehensiveSavings = ({ savings, computedIssuesCount, totalBilled
               </div>
             )}
 
-            <p className="text-sm text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               These savings calculations prevent double-counting by processing NSA violations first, then duplicates, then overcharges.
             </p>
           </div>
@@ -243,20 +243,20 @@ export const ComprehensiveSavings = ({ savings, computedIssuesCount, totalBilled
       </Card>
 
       {/* Breakdown by Category */}
-      <Card className="p-6">
-        <h3 className="text-lg font-bold mb-4">Savings Breakdown by Category</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <Card className="p-4">
+        <h3 className="text-base font-semibold mb-3">Savings Breakdown by Category</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           {/* NSA Savings */}
           {nsa_savings_subtotal > 0 && (
-            <div className="p-4 bg-destructive/5 border border-destructive/20 rounded-lg">
-              <div className="flex items-center gap-2 mb-2">
-                <AlertCircle className="w-5 h-5 text-destructive" />
-                <span className="font-semibold text-sm">NSA Violations</span>
+            <div className="p-3 bg-destructive/5 border border-destructive/20 rounded-lg">
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <AlertCircle className="w-4 h-4 text-destructive" />
+                <span className="font-medium text-xs">NSA Violations</span>
               </div>
-              <p className="text-2xl font-bold text-destructive">
+              <p className="text-xl font-bold text-destructive">
                 ${nsa_savings_subtotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}
               </p>
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className="text-[10px] text-muted-foreground mt-0.5">
                 Balance billing protections
               </p>
             </div>
@@ -264,15 +264,15 @@ export const ComprehensiveSavings = ({ savings, computedIssuesCount, totalBilled
 
           {/* Duplicate Savings */}
           {duplicate_savings_subtotal > 0 && (
-            <div className="p-4 bg-warning/5 border border-warning/20 rounded-lg">
-              <div className="flex items-center gap-2 mb-2">
-                <AlertTriangle className="w-5 h-5 text-warning" />
-                <span className="font-semibold text-sm">Duplicate Charges</span>
+            <div className="p-3 bg-warning/5 border border-warning/20 rounded-lg">
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <AlertTriangle className="w-4 h-4 text-warning" />
+                <span className="font-medium text-xs">Duplicate Charges</span>
               </div>
-              <p className="text-2xl font-bold text-warning">
+              <p className="text-xl font-bold text-warning">
                 ${duplicate_savings_subtotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}
               </p>
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className="text-[10px] text-muted-foreground mt-0.5">
                 Identical or similar charges
               </p>
             </div>
@@ -280,15 +280,15 @@ export const ComprehensiveSavings = ({ savings, computedIssuesCount, totalBilled
 
           {/* Overcharge Savings */}
           {overcharge_savings_subtotal > 0 && (
-            <div className="p-4 bg-secondary/5 border border-secondary/20 rounded-lg">
-              <div className="flex items-center gap-2 mb-2">
-                <TrendingDown className="w-5 h-5 text-secondary" />
-                <span className="font-semibold text-sm">Overcharges</span>
+            <div className="p-3 bg-secondary/5 border border-secondary/20 rounded-lg">
+              <div className="flex items-center gap-1.5 mb-1.5">
+                <TrendingDown className="w-4 h-4 text-secondary" />
+                <span className="font-medium text-xs">Overcharges</span>
               </div>
-              <p className="text-2xl font-bold text-secondary">
+              <p className="text-xl font-bold text-secondary">
                 ${overcharge_savings_subtotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}
               </p>
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className="text-[10px] text-muted-foreground mt-0.5">
                 Above baseline pricing
               </p>
             </div>
@@ -389,40 +389,42 @@ export const ComprehensiveSavings = ({ savings, computedIssuesCount, totalBilled
 
       {/* Top 3 Drivers */}
       {((top_drivers && top_drivers.length > 0) || fallbackTopDrivers) && (
-        <Card className="p-6">
-          <h3 className="text-lg font-bold mb-4">Top 3 Savings Opportunities</h3>
-          {fallbackTopDrivers && (
-            <div className="mb-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-900">
-              <strong>Estimated opportunities:</strong> Based on bill categories. Request itemized bill for specific line items.
-            </div>
-          )}
-          <div className="space-y-3">
+        <Card className="p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-base font-semibold">Top 3 Savings Opportunities</h3>
+            {fallbackTopDrivers && (
+              <span className="text-xs text-yellow-700 bg-yellow-50 px-2 py-0.5 rounded border border-yellow-200">
+                Estimated
+              </span>
+            )}
+          </div>
+          <div className="space-y-2">
             {(fallbackTopDrivers || top_drivers).map((driver, idx) => {
               const categoryInfo = categoryLabels[driver.category];
               const CategoryIcon = categoryInfo.icon;
               
               return (
-                <div key={idx} className="flex items-start gap-3 p-3 border rounded-lg">
-                  <div className={`p-2 rounded ${colorMap[color].bg}`}>
-                    <CategoryIcon className={`w-5 h-5 ${categoryInfo.color}`} />
+                <div key={idx} className="flex items-start gap-2 p-2 border rounded-lg">
+                  <div className={`p-1.5 rounded ${colorMap[color].bg}`}>
+                    <CategoryIcon className={`w-4 h-4 ${categoryInfo.color}`} />
                   </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Badge variant="outline" className="text-xs">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0">
                         {driver.cpt_code}
                       </Badge>
-                      <Badge variant="outline" className="text-xs">
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0">
                         {categoryInfo.label}
                       </Badge>
                     </div>
-                    <p className="text-sm font-medium">{driver.description}</p>
+                    <p className="text-xs font-medium truncate">{driver.description}</p>
                   </div>
-                  <div className="text-right">
-                    <p className="text-lg font-bold text-success">
+                  <div className="text-right shrink-0">
+                    <p className="text-base font-bold text-success">
                       ${driver.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                     </p>
                     {fallbackTopDrivers && (
-                      <p className="text-xs text-muted-foreground">estimated</p>
+                      <p className="text-[10px] text-muted-foreground">est.</p>
                     )}
                   </div>
                 </div>

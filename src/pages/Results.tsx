@@ -392,20 +392,20 @@ const Results = () => {
 
         {/* Top Section: Provider info and Total Bill Amount */}
         <div className="mb-8">
-          <Card className="p-6">
+          <Card className="p-4">
             <div className="flex justify-between items-start gap-4">
               <div>
-                <p className="text-sm font-semibold text-muted-foreground uppercase mb-2">Provider</p>
-                <h2 className="text-2xl font-bold">{hospitalName}</h2>
+                <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">Provider</p>
+                <h2 className="text-xl font-bold">{hospitalName}</h2>
                 {a.date_of_service && (
-                  <p className="text-sm text-muted-foreground mt-2">
+                  <p className="text-xs text-muted-foreground mt-1">
                     <span className="font-semibold">Service Date:</span> {a.date_of_service}
                   </p>
                 )}
               </div>
               <div className="text-right">
-                <p className="text-sm font-semibold text-muted-foreground uppercase mb-2">Total Bill Amount</p>
-                <div className="text-3xl font-bold text-destructive">${totalCharged.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">Total Bill Amount</p>
+                <div className="text-2xl font-bold text-destructive">${totalCharged.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
               </div>
             </div>
           </Card>
@@ -436,11 +436,11 @@ const Results = () => {
           </div>
         )}
 
-        {/* Decision Summary - 3 metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <Card className="p-6 text-center">
-            <p className="text-xs text-muted-foreground mb-3">We found</p>
-            <p className={`text-5xl font-bold mb-3 ${
+        {/* Decision Summary - 2 metrics */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+          <Card className="p-4 text-center">
+            <p className="text-xs text-muted-foreground mb-2">We found</p>
+            <p className={`text-4xl font-bold mb-2 ${
               totalIssuesCount === 0 ? 'text-success' : 
               totalIssuesCount <= 3 ? 'text-warning' : 
               'text-destructive'
@@ -451,15 +451,15 @@ const Results = () => {
               line{totalIssuesCount !== 1 ? 's' : ''} with potential issues
             </p>
           </Card>
-          <Card className="p-6 flex flex-col items-center justify-center text-center min-h-[200px]">
-            <div className="flex items-center justify-center gap-2 mb-3">
-              <p className="text-sm text-muted-foreground">
+          <Card className="p-4 flex flex-col items-center justify-center text-center">
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <p className="text-xs text-muted-foreground">
                 {fallbackSavings ? 'Conservative Estimated Savings' : 'Potential Savings'}
               </p>
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Info className="w-4 h-4 text-muted-foreground cursor-help" />
+                    <Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
                   </TooltipTrigger>
                   <TooltipContent className="max-w-xs">
                     <p className="text-sm">
@@ -475,14 +475,14 @@ const Results = () => {
             
             {fallbackSavings ? (
               <>
-                <p className="text-3xl font-bold text-success mb-2">
+                <p className="text-4xl font-bold text-success mb-1">
                   ${fallbackSavings.low.toLocaleString()} - ${fallbackSavings.high.toLocaleString()}
                 </p>
                 <p className="text-xs text-muted-foreground">conservative range</p>
               </>
             ) : (
               <>
-                <p className="text-3xl font-bold text-success mb-2">
+                <p className="text-4xl font-bold text-success mb-1">
                   {estimatedSavings > 0
                     ? `$${estimatedSavings.toLocaleString('en-US', { minimumFractionDigits: 2 })}` 
                     : itemizationStatus === 'missing' ? 'Unknown' : '$0.00'}
@@ -494,7 +494,7 @@ const Results = () => {
             )}
             
             {itemizationStatus === 'missing' && !fallbackSavings && (
-              <div className="mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-900">
+              <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-900">
                 <strong>Note:</strong> Request an itemized bill from the hospital to calculate accurate savings.
               </div>
             )}
