@@ -90,8 +90,41 @@ const Results = () => {
   const recommendations = Array.isArray(a.recommendations) ? a.recommendations : [];
   const lineItems = Array.isArray(a.line_items) ? a.line_items : [];
   
-  // ✅ UNIFIED LOGIC: Calculate from ALL sources
-  const itemizationStatus = a.itemization_status || 'unknown';
+  // ✅ UNIFIED LOGIC: Derive itemization status locally if missing
+  const chargesOrLines = a.charges || a.line_items || [];
+  const hasAllCodes = chargesOrLines.length > 0 && chargesOrLines.every((line: any) => 
+    line.cpt_code && line.cpt_code !== 'N/A' && line.cpt_code.trim() !== ''
+  );
+  const hasSomeCodes = chargesOrLines.length > 0 && chargesOrLines.some((line: any) => 
+    line.cpt_code && line.cpt_code !== 'N/A' && line.cpt_code.trim() !== ''
+  );
+  const derivedItemization = chargesOrLines.length === 0 ? 'unknown' 
+    : hasAllCodes ? 'complete' 
+    : hasSomeCodes ? 'partial' 
+    : 'missing';
+  
+  const itemizationStatus = a.itemization_status || derivedItemization;
+  
+  // Check for itemization_needed tag
+  const analysisTags = Array.isArray(a.tags) ? a.tags : [];
+  const hasItemizationTag = analysisTags.some((t: any) => 
+    typeof t === 'string' && t.toLowerCase() === 'itemization_needed'
+  );
+  
+  // Show disclaimer if status is missing/partial OR if itemization_needed tag is present
+  const showItemizationDisclaimer = (
+    itemizationStatus === 'missing' || 
+    itemizationStatus === 'partial' || 
+    hasItemizationTag
+  );
+  
+  console.log('🔍 Itemization Check:', {
+    itemizationStatus,
+    hasItemizationTag,
+    showItemizationDisclaimer,
+    tags: analysisTags,
+    chargesCount: chargesOrLines.length
+  });
   
   // Map recommendations to issue-like items and unify itemsWithIssues
   const itemsFromRecommendations = recommendations?.map((rec: any) => ({
@@ -264,8 +297,8 @@ const Results = () => {
           <Separator className="my-4" />
         </div>
 
-        {/* Itemization Warning Disclaimer - Shows for missing or partial itemization */}
-        {(itemizationStatus === 'missing' || itemizationStatus === 'partial') && (
+        {/* Itemization Warning Disclaimer - Shows for missing/partial itemization or itemization_needed tag */}
+        {showItemizationDisclaimer && (
           <Card className="mb-8 border-2 border-destructive bg-destructive/5">
             <div className="p-6">
               <div className="flex items-start gap-4">
