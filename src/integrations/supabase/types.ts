@@ -296,6 +296,45 @@ export type Database = {
           },
         ]
       }
+      fair_price_metrics: {
+        Row: {
+          api_calls: number
+          cache_hit_rate: number | null
+          cached_codes: number
+          created_at: string
+          error_count: number | null
+          estimated_cost_saved: number | null
+          id: string
+          request_type: string
+          response_time_ms: number | null
+          total_codes: number
+        }
+        Insert: {
+          api_calls: number
+          cache_hit_rate?: number | null
+          cached_codes: number
+          created_at?: string
+          error_count?: number | null
+          estimated_cost_saved?: number | null
+          id?: string
+          request_type: string
+          response_time_ms?: number | null
+          total_codes: number
+        }
+        Update: {
+          api_calls?: number
+          cache_hit_rate?: number | null
+          cached_codes?: number
+          created_at?: string
+          error_count?: number | null
+          estimated_cost_saved?: number | null
+          id?: string
+          request_type?: string
+          response_time_ms?: number | null
+          total_codes?: number
+        }
+        Relationships: []
+      }
       jobs: {
         Row: {
           analysis_id: string

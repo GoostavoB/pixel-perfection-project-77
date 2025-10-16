@@ -26,6 +26,14 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const startTime = Date.now();
+  let metricsData = {
+    total_codes: 0,
+    cached_codes: 0,
+    api_calls: 0,
+    error_count: 0
+  };
+
   try {
     const { cptCodes, state, forceRefresh } = await req.json();
     
@@ -34,6 +42,8 @@ serve(async (req) => {
     }
 
     console.log(`Fetching fair prices for ${cptCodes.length} CPT codes in state: ${state || 'National'}`);
+    
+    metricsData.total_codes = cptCodes.length;
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -99,6 +109,9 @@ serve(async (req) => {
     
     console.log(`[CACHE] Using ${cachedResults.length} cached, fetching ${uncachedCodes.length} from API`);
     results.push(...cachedResults);
+    
+    metricsData.cached_codes = cachedResults.length;
+    metricsData.api_calls = uncachedCodes.length;
 
     // ⚡ PHASE 3A: Fetch uncached codes from API (if any)
     for (const cptCode of uncachedCodes) {
@@ -159,6 +172,7 @@ serve(async (req) => {
         }
       } catch (apiError) {
         console.error(`Error fetching from API for CPT ${cptCode}:`, apiError);
+        metricsData.error_count++;
         
         // Fallback to estimation
         const estimatedRate = estimateRateFromCPT(cptCode);
@@ -196,11 +210,39 @@ serve(async (req) => {
 
     console.log('Fair price fetch complete:', summary);
 
+    // ⚡ PHASE 3B: Log metrics to database (non-blocking)
+    const responseTime = Date.now() - startTime;
+    const cacheHitRate = metricsData.total_codes > 0 
+      ? ((metricsData.cached_codes / metricsData.total_codes) * 100).toFixed(2)
+      : '0.00';
+    
+    // Estimate cost saved (assume $0.01 per API call avoided)
+    const estimatedCostSaved = (metricsData.cached_codes * 0.01).toFixed(4);
+    
+    supabase.from('fair_price_metrics').insert({
+      request_type: metricsData.total_codes > 1 ? 'batch' : 'single',
+      total_codes: metricsData.total_codes,
+      cached_codes: metricsData.cached_codes,
+      api_calls: metricsData.api_calls,
+      cache_hit_rate: parseFloat(cacheHitRate),
+      response_time_ms: responseTime,
+      estimated_cost_saved: parseFloat(estimatedCostSaved),
+      error_count: metricsData.error_count
+    }).then(({ error }) => {
+      if (error) console.error('[METRICS] Failed to log:', error);
+      else console.log(`[METRICS] ✓ Logged: ${cacheHitRate}% hit rate, ${responseTime}ms, $${estimatedCostSaved} saved`);
+    });
+
     return new Response(
       JSON.stringify({
         success: true,
         results,
-        summary
+        summary,
+        performance: {
+          cache_hit_rate: `${cacheHitRate}%`,
+          response_time_ms: responseTime,
+          estimated_cost_saved: `$${estimatedCostSaved}`
+        }
       }),
       { 
         status: 200, 

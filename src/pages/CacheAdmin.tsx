@@ -11,6 +11,7 @@ import { Database, RefreshCw, TrendingUp, CheckCircle, Clock, Zap } from "lucide
 const CacheAdmin = () => {
   const { toast } = useToast();
   const [stats, setStats] = useState<any>(null);
+  const [metrics, setMetrics] = useState<any>(null);
   const [isPrecaching, setIsPrecaching] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -44,6 +45,37 @@ const CacheAdmin = () => {
         withDescriptions: withDescriptions || 0,
         dataQuality: totalCached ? Math.round((withDescriptions / totalCached) * 100) : 0
       });
+      
+      // Load metrics for last 24 hours
+      const twentyFourHoursAgo = new Date();
+      twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24);
+      
+      const { data: metricsData } = await supabase
+        .from('fair_price_metrics')
+        .select('*')
+        .gte('created_at', twentyFourHoursAgo.toISOString())
+        .order('created_at', { ascending: false });
+      
+      if (metricsData && metricsData.length > 0) {
+        const totalRequests = metricsData.length;
+        const avgCacheHitRate = metricsData.reduce((sum: number, m: any) => sum + (Number(m.cache_hit_rate) || 0), 0) / totalRequests;
+        const avgResponseTime = metricsData.reduce((sum: number, m: any) => sum + (Number(m.response_time_ms) || 0), 0) / totalRequests;
+        const totalCostSaved = metricsData.reduce((sum: number, m: any) => sum + (Number(m.estimated_cost_saved) || 0), 0);
+        const totalCodesProcessed = metricsData.reduce((sum: number, m: any) => sum + (Number(m.total_codes) || 0), 0);
+        const totalApiCalls = metricsData.reduce((sum: number, m: any) => sum + (Number(m.api_calls) || 0), 0);
+        const totalErrors = metricsData.reduce((sum: number, m: any) => sum + (Number(m.error_count) || 0), 0);
+        
+        setMetrics({
+          totalRequests,
+          avgCacheHitRate: avgCacheHitRate.toFixed(1),
+          avgResponseTime: Math.round(avgResponseTime),
+          totalCostSaved: totalCostSaved.toFixed(2),
+          totalCodesProcessed,
+          totalApiCalls,
+          totalErrors,
+          errorRate: totalCodesProcessed > 0 ? ((totalErrors / totalCodesProcessed) * 100).toFixed(1) : '0.0'
+        });
+      }
     } catch (error) {
       console.error('Error loading stats:', error);
       toast({
@@ -183,6 +215,48 @@ const CacheAdmin = () => {
             {stats?.withDescriptions || 0} of {stats?.totalCached || 0} cached codes have full descriptions
           </p>
         </Card>
+
+        {/* Performance Metrics (Last 24h) */}
+        {metrics && (
+          <Card className="p-6 mb-8">
+            <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-green-600" />
+              Performance Analytics (Last 24 Hours)
+            </h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div>
+                <div className="text-sm text-muted-foreground mb-1">Total Requests</div>
+                <div className="text-2xl font-bold text-foreground">{metrics.totalRequests}</div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  {metrics.totalCodesProcessed} codes processed
+                </div>
+              </div>
+              
+              <div>
+                <div className="text-sm text-muted-foreground mb-1">Avg Cache Hit Rate</div>
+                <div className="text-2xl font-bold text-green-600">{metrics.avgCacheHitRate}%</div>
+                <Progress value={parseFloat(metrics.avgCacheHitRate)} className="h-2 mt-2" />
+              </div>
+              
+              <div>
+                <div className="text-sm text-muted-foreground mb-1">Avg Response Time</div>
+                <div className="text-2xl font-bold text-blue-600">{metrics.avgResponseTime}ms</div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  {metrics.totalApiCalls} API calls made
+                </div>
+              </div>
+              
+              <div>
+                <div className="text-sm text-muted-foreground mb-1">Cost Savings</div>
+                <div className="text-2xl font-bold text-purple-600">${metrics.totalCostSaved}</div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  {metrics.errorRate}% error rate
+                </div>
+              </div>
+            </div>
+          </Card>
+        )}
 
         {/* Actions */}
         <Card className="p-6">
