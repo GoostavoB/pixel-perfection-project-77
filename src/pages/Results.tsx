@@ -84,10 +84,15 @@ const Results = () => {
   const hospitalName = a.hospital_name ?? 'Provider';
   const analysisDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
-  // ✅ ALL DATA FROM BACKEND - No frontend calculations
+  // Get issues from backend for calculations
+  const hi = Array.isArray(a.high_priority_issues) ? a.high_priority_issues : [];
+  const pi = Array.isArray(a.potential_issues) ? a.potential_issues : [];
+  
+  // ✅ Calculate savings from issues (fallback when backend returns 0)
   const itemizationStatus = a.itemization_status || 'unknown';
-  const totalIssuesCount = a.total_issues_count || 0;
-  const estimatedSavings = a.estimated_total_savings || 0;
+  const calculatedSavings = [...hi, ...pi].reduce((sum: number, issue: any) => sum + num(issue.overcharge_amount || 0), 0);
+  const estimatedSavings = a.estimated_total_savings > 0 ? a.estimated_total_savings : calculatedSavings;
+  const totalIssuesCount = a.total_issues_count > 0 ? a.total_issues_count : (hi.length + pi.length);
   const whatIfItems = a.what_if_calculator_items || [];
   
   // ✅ NEW: Comprehensive savings from savings engine
@@ -120,10 +125,6 @@ const Results = () => {
   // NSA status from backend
   const nsaReview = fullAnalysis.duplicate_findings?.nsa_review || {};
   const nsaApplies = nsaReview.applies === 'yes' ? 'protected' : nsaReview.applies === 'no' ? 'not-protected' : 'unknown';
-
-  // Get issues from backend
-  const hi = Array.isArray(a.high_priority_issues) ? a.high_priority_issues : [];
-  const pi = Array.isArray(a.potential_issues) ? a.potential_issues : [];
   
   // Generate dispute pack
   const disputePack = useMemo(() => generateDisputePack(analysis), [analysis]);
