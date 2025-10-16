@@ -1,8 +1,9 @@
-import { AlertCircle, Calendar, FileBarChart, Loader2, Mail, ArrowRight } from "lucide-react";
+import { AlertCircle, Calendar, FileBarChart, Loader2, Mail, ArrowRight, AlertTriangle } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import Header from "@/components/Header";
 import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -140,6 +141,17 @@ const ResultsV2 = () => {
           </div>
           <Separator className="my-4" />
         </div>
+
+        {itemizationStatus === 'missing' && (
+          <Alert className="mb-8 border-warning bg-warning/10">
+            <AlertTriangle className="h-5 w-5 text-warning" />
+            <AlertTitle className="text-lg font-bold">Aggregated Bill - Itemization Required</AlertTitle>
+            <AlertDescription className="mt-2 text-base">
+              <p className="mb-2">Your bill lacks specific procedure codes (CPT/HCPCS), preventing detailed savings calculations. We've identified <strong>{pi.length} charges that need review</strong>, but cannot quantify exact overcharges without itemization.</p>
+              <p className="font-semibold">Next Step: Request an itemized bill from {hospitalName} to unlock precise savings analysis.</p>
+            </AlertDescription>
+          </Alert>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           <Card className="lg:col-span-2 p-6">
