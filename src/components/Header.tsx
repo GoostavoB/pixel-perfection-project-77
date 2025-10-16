@@ -53,12 +53,15 @@ const Header = () => {
     <header className="bg-card border-b border-border sticky top-0 z-50 backdrop-blur-sm bg-card/95">
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2 group">
+          <Link to="/" className="flex items-center gap-3 group">
             <img 
               src={logo} 
               alt="Hospital Bill Checker" 
-              className="h-20 w-auto group-hover:scale-105 transition-transform"
+              className="h-12 w-auto group-hover:scale-105 transition-transform"
             />
+            <span className="text-xl font-bold text-foreground group-hover:text-primary transition-colors">
+              Hospital Bill Checker
+            </span>
           </Link>
 
           <NavigationMenu className="hidden lg:flex">
