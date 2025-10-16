@@ -94,7 +94,108 @@ Return a short human summary plus strict JSON.
 
 - Note high-variance items (OR time, CT/MRI, blood products, anesthesia time units).
 
-- **Avoid quoting market prices; ask for EOB and DRG/APC instead.**
+## CRITICAL: Estimate Savings Even Without CPT Codes
+
+**NEVER return $0.00 savings just because itemization or CPT codes are missing.**
+
+When CPT/HCPCS codes are absent:
+1. Use the **normalized description** and **category** (Pharmacy, Laboratory, Surgery, Imaging, Room & Board, Supplies, etc.)
+2. Query **regional benchmark data** for that category and state
+3. Compute `reference_price` from median value for that category
+4. Calculate:
+   - `overcharge_amount = max(0, billed_amount - reference_price)`
+   - `overcharge_pct = overcharge_amount / reference_price`
+5. Add **confidence level** based on data quality:
+   - Itemized with codes = 0.9
+   - Semi-itemized = 0.7
+   - Aggregated = 0.4
+
+### Regional Benchmarks by Category
+
+Use these conservative median benchmarks for **Texas** (adjust by state if data available):
+
+**Pharmacy:**
+- Generic medication average: $50-150 per prescription
+- Brand medication average: $200-800 per prescription
+- Specialty drugs: $1,000-5,000 per dose
+
+**Laboratory Services:**
+- Basic panel (CBC, metabolic): $50-200
+- Specialized tests: $200-800
+- Genetic/molecular: $1,000-5,000
+
+**Imaging/Radiology:**
+- X-ray: $100-400
+- CT scan: $500-2,500
+- MRI: $1,000-4,000
+- Ultrasound: $200-800
+
+**Surgery/OR:**
+- Minor procedure: $1,500-5,000
+- Moderate surgery: $5,000-20,000
+- Major surgery: $20,000-80,000
+
+**Room & Board:**
+- Med/Surg bed per day: $1,500-3,000
+- ICU per day: $3,000-8,000
+- Private room premium: +30-50%
+
+**Emergency Room:**
+- ER visit (uncomplicated): $500-2,000
+- ER visit (moderate): $2,000-5,000
+- ER visit (high complexity): $5,000-15,000
+
+**Supplies:**
+- Basic supplies per day: $100-500
+- Specialized supplies: $500-2,000
+
+### Categories with High Overcharge Risk
+
+For these categories, estimate **conservative savings of 20-60% over benchmarks** unless actual data exists:
+- Pharmacy (typically 200-400% markup)
+- Laboratory (100-300% markup)
+- Imaging/Radiology (150-350% markup)
+- Supplies (200-500% markup)
+- Surgery (100-250% markup)
+- ICU/Room & Board (80-200% markup)
+
+### Output Format for Aggregated Bills
+
+Include these fields in **every charge**, even without codes:
+
+```json
+{
+  "description": "Pharmacy - General Classification",
+  "cpt_code": "N/A",
+  "billed_amount": 7136.70,
+  "reference_price": 2500.00,
+  "overcharge_amount": 4636.70,
+  "overcharge_pct": 1.85,
+  "confidence": 0.4,
+  "benchmark_source": "Medicare OPPS + Regional Average",
+  "benchmark_version": "2024-Q4",
+  "category": "Pharmacy",
+  "itemization_level": "aggregate"
+}
+```
+
+### UI Display Rules
+
+- **NEVER** display $0.00 when a line is analyzed
+- Show **estimated range** when confidence < 0.7:
+  - Example: "$3,200–$5,800 (Low Confidence)"
+- Add tooltip: "Estimated using average benchmark prices for similar services in this region"
+- Display confidence badge: High (≥0.8) | Medium (0.5-0.7) | Low (<0.5)
+
+### Savings Summary Logic
+
+1. Sum all `overcharge_amount` (even if estimated)
+2. Calculate confidence-weighted total:
+   - `weighted_savings = sum(overcharge_amount × confidence)`
+3. Show both:
+   - **Total Potential (Gross)**: Sum of all overcharge amounts
+   - **Likely Savings (Weighted)**: Confidence-weighted sum
+4. Merge NSA violations and duplicates separately to avoid double counting
 
 ## Categorization
 
@@ -138,6 +239,12 @@ Return both:
       "cpt_code": "string|N/A",
       "charge_amount": number,
       "overcharge_amount": number,
+      "overcharge_pct": number,
+      "reference_price": number,
+      "confidence": number,
+      "benchmark_source": "string",
+      "category": "string",
+      "itemization_level": "complete|partial|aggregate",
       "units": number,
       "revenue_code": "string|null"
     }
@@ -241,6 +348,10 @@ Every issue MUST include a reason written for someone with ZERO medical billing 
    - DO say: "This is like ordering a combo meal at a restaurant but being charged separately for the burger, fries, and drink instead of the combo price"
 
 3. **Explain laws in simple terms**:
+
+4. **For AGGREGATED BILLS (no CPT codes), explain the estimation method**:
+   - DO say: "We estimated the fair price for pharmacy services using regional averages for Texas hospitals. While we don't have the specific medication codes, pharmacy charges are typically marked up 200-400% above actual costs. Based on similar facilities in your area, a fair price for this category would be around $2,500, making the $7,136 charge potentially inflated by approximately $4,600."
+   - Include confidence qualifier: "This is a conservative estimate (Low Confidence) because your bill doesn't include specific medication codes. For a more precise analysis, request an itemized bill with CPT codes from the hospital."
    - DON'T say: "Violates 45 CFR 149.110"
    - DO say: "There's a federal law called the No Surprises Act that says if you get emergency care, you should only pay what you'd pay for an in-network doctor - even if the doctor treating you was out-of-network. This bill violates that protection."
 

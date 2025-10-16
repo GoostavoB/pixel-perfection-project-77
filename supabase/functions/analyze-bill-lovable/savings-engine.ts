@@ -36,6 +36,8 @@ export interface BaselineSource {
   medicare_allowed?: number;
   regional_benchmark?: number;
   chargemaster_median?: number;
+  category_benchmark?: number; // NEW: for aggregated bills without codes
+  state?: string; // NEW: state for regional adjustments
 }
 
 export interface LineSavings {
@@ -78,6 +80,7 @@ export interface SavingsTotals {
 
 /**
  * Conservative baseline: Use smallest credible allowed price
+ * NEW: Supports category-based benchmarks for aggregated bills
  */
 export function computeAllowedBaseline(
   line: BillLine,
@@ -102,17 +105,32 @@ export function computeAllowedBaseline(
     candidates.push({ value: sources.regional_benchmark, label: 'regional_50th', weight: 0.25 });
   }
 
+  // Category benchmark (for aggregated bills without codes)
+  if (sources.category_benchmark && sources.category_benchmark > 0) {
+    candidates.push({ value: sources.category_benchmark, label: 'category_avg', weight: 0.2 });
+  }
+
   // Chargemaster median (lower quality but useful)
   if (sources.chargemaster_median && sources.chargemaster_median > 0) {
     candidates.push({ value: sources.chargemaster_median, label: 'chargemaster_median', weight: 0.15 });
   }
 
-  // If no candidates, use billed amount (low confidence)
+  // NEW: If no candidates BUT we have a category, estimate from description
   if (candidates.length === 0) {
+    const categoryBaseline = estimateBaselineFromCategory(line, sources.state);
+    if (categoryBaseline > 0) {
+      return {
+        baseline: categoryBaseline,
+        source: 'category_estimate',
+        confidence_adjustment: -0.3 // Moderate penalty for estimation
+      };
+    }
+    
+    // Final fallback: use billed amount (very low confidence)
     return {
       baseline: line.billed_amount,
       source: 'billed_amount_fallback',
-      confidence_adjustment: -0.4 // Major confidence penalty
+      confidence_adjustment: -0.5 // Major confidence penalty
     };
   }
 
@@ -131,6 +149,54 @@ export function computeAllowedBaseline(
   else if (candidates.length === 1) confidence_adjustment = -0.2; // Single source
 
   return { baseline, source, confidence_adjustment };
+}
+
+/**
+ * Estimate baseline from category for aggregated bills without codes
+ */
+function estimateBaselineFromCategory(line: BillLine, state?: string): number {
+  const desc = line.description.toLowerCase();
+  const amount = line.billed_amount;
+  
+  // Category detection based on keywords
+  if (desc.includes('pharmacy') || desc.includes('medication') || desc.includes('drug')) {
+    // Pharmacy typically 200-400% markup, estimate fair price at 35% of billed
+    return Math.round(amount * 0.35 * 100) / 100;
+  }
+  
+  if (desc.includes('laboratory') || desc.includes('lab') || desc.includes('test')) {
+    // Labs typically 100-300% markup, estimate at 40% of billed
+    return Math.round(amount * 0.40 * 100) / 100;
+  }
+  
+  if (desc.includes('imaging') || desc.includes('radiology') || desc.includes('ct') || 
+      desc.includes('mri') || desc.includes('x-ray') || desc.includes('ultrasound')) {
+    // Imaging typically 150-350% markup, estimate at 35% of billed
+    return Math.round(amount * 0.35 * 100) / 100;
+  }
+  
+  if (desc.includes('surgery') || desc.includes('operating room') || desc.includes('or time')) {
+    // Surgery typically 100-250% markup, estimate at 45% of billed
+    return Math.round(amount * 0.45 * 100) / 100;
+  }
+  
+  if (desc.includes('room') || desc.includes('bed') || desc.includes('icu') || desc.includes('ward')) {
+    // Room & board typically 80-200% markup, estimate at 50% of billed
+    return Math.round(amount * 0.50 * 100) / 100;
+  }
+  
+  if (desc.includes('emergency') || desc.includes('er ') || desc.includes('ed ')) {
+    // ER typically 150-300% markup, estimate at 40% of billed
+    return Math.round(amount * 0.40 * 100) / 100;
+  }
+  
+  if (desc.includes('supplies') || desc.includes('medical supplies')) {
+    // Supplies typically 200-500% markup, estimate at 30% of billed
+    return Math.round(amount * 0.30 * 100) / 100;
+  }
+  
+  // Default conservative estimate: 60% of billed amount (40% potential overcharge)
+  return Math.round(amount * 0.60 * 100) / 100;
 }
 
 /**

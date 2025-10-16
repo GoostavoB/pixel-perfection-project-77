@@ -363,20 +363,22 @@ From the console logs, we can see individual line items totaling **$367,435.80**
 
 ---
 
-## 11. Issues Amount: "$Pending itemization"
+## 11. Issues Amount: Shows Estimated Savings (No Longer "$Pending itemization")
 
 ### Source
-Conditional logic based on `itemization_status`
+Updated calculation that estimates savings even for aggregated bills
 
 ### Calculation
 ```typescript
-const itemizationStatus = analysis.itemization_status || 'unknown';
+const estimatedSavings = Math.max(
+  uiSummary.estimated_savings_if_corrected || 0,
+  fullAnalysis.estimated_savings || 0,
+  fullAnalysis.savings_total || 0,
+  (fullAnalysis.recommendations || []).reduce((s, r) => s + (r.total || 0), 0)
+);
 
-if (itemizationStatus === 'aggregate' || itemizationStatus === 'partial') {
-  issuesAmount = "$Pending itemization";
-} else {
-  issuesAmount = `$${estimatedSavings.toLocaleString()}`;
-}
+// Now shows actual estimated amount instead of "Pending itemization"
+issuesAmount = `$${estimatedSavings.toLocaleString()}`;
 ```
 
 ### Why "Pending itemization"
