@@ -41,16 +41,33 @@ Return precise flags with evidence and plain-language explanations.
 
 ## Duplicate Patterns to Flag
 
-### Identical Repeat
-Same patient, same date, same code, same provider group, same units or split units, no modifier among 25, 59, 76, 77, 91, XE, XS, XP, XU.
+**CRITICAL: Be CONSERVATIVE. Only flag as P1 (Definite Duplicate) when you have STRONG evidence. When in doubt, use P2 or P3.**
 
-### Split Units
-Same code repeated across lines with units that sum to a simple total and a linear price pattern.
+### Identical Repeat (P1 ONLY if ALL criteria met)
+ALL of the following MUST be true:
+- Same patient
+- **Exact same date AND time (if timestamps available)**
+- Exact same code (CPT/HCPCS)
+- Same provider group/NPI
+- Same or split units that sum to a simple total
+- **NO modifier among 25, 59, 76, 77, 91, XE, XS, XP, XU**
+- **NO clinical indication in notes or description suggesting medical necessity**
+- Same price per unit pattern
 
-### Labs
-- Same CPT repeats same day without modifier 91
-- Panel plus component codes on the same date (treat as unbundling and flag)
-- More than one venipuncture 36415 per encounter
+**If ANY of these are missing or unclear, use P2 (Likely) or P3 (Needs Review) instead.**
+
+### Split Units (P2 unless proven)
+Same code repeated across lines with units that sum to a simple total and linear price pattern.
+- Mark as P2 unless you have documentation that this is NOT split billing
+- Split unit billing can be legitimate for tracking or insurance purposes
+
+### Labs (Be Conservative)
+- Same CPT repeats same day without modifier 91 → **P2** (not P1) unless proven duplicate with timestamps
+- Panel plus component codes on the same date → **P3** (Needs Review) NOT P1
+  - IMPORTANT: Some panels are ordered WITH individual components for specific clinical reasons
+  - Only flag as P1 if the component is explicitly included in the panel definition AND no clinical notes suggest separate testing
+  - ALWAYS request clinical justification before assuming unbundling
+- More than one venipuncture 36415 per encounter → **P2** (multiple blood draws can be medically necessary)
 
 ### Imaging
 - Global code billed plus separate 26 and TC for the same study
@@ -88,25 +105,51 @@ When your bill shows vague "Supplies" charges, you're seeing one of the most com
 - Either global code, or 26+TC pairing, not both plus global
 
 ## Panel Map for Fast Checks
-- 80053 CMP includes components such as AST 84450, ALT 84460, creatinine 82565, electrolytes, etc.
+- 80053 CMP (Comprehensive Metabolic Panel) includes components such as AST 84450, ALT 84460, creatinine 82565, electrolytes, etc.
+- 80048 BMP (Basic Metabolic Panel) includes electrolytes, creatinine, glucose, BUN
 - 80061 lipid panel includes total cholesterol 82465, triglycerides 84478, HDL 83718, LDL method varies
 - 80050 general health panel equals 80053 + 85025 + 84443
 
-**Rule**: If a panel code appears, flag its components on the same date as unbundled.
+**IMPORTANT RULE CHANGE**: 
+- **CMP (80053) and BMP (80048) are DIFFERENT panels and can both be legitimately ordered**
+  - BMP is a subset of CMP, but they serve different clinical purposes
+  - A doctor may order BMP first for quick results, then CMP later for comprehensive evaluation
+  - **DO NOT flag 80053 + 80048 as unbundling unless they have identical timestamps**
+  - Mark as P3 (Needs Review) with request for clinical justification
 
-## Category Labels
+- For other panel unbundling: If a panel code appears WITH component codes on same date:
+  - **First check if component is ACTUALLY included** in the panel definition
+  - Mark as **P3 (Needs Review)** NOT P1 - request clinical justification
+  - Only mark P1 if you have explicit documentation that component is included AND no valid reason exists
 
-### P1 - Definite Duplicate
-Meets identical repeat rules. No valid modifier. No documentation of a second service. Or unbundled panel components present with the panel.
+## Category Labels (UPDATED - BE CONSERVATIVE)
 
-### P2 - Likely Duplicate
-Strong match on date, code, and price, but missing documentation or unclear units.
+### P1 - Definite Duplicate (USE SPARINGLY - requires overwhelming evidence)
+**Only use P1 when ALL of these are true:**
+- Meets ALL criteria in identical repeat rules (including timestamps if available)
+- NO valid modifier present
+- NO documentation or clinical indication of a second service
+- Same exact service with identical characteristics
+- **If you have ANY doubt, use P2 or P3 instead**
 
-### P3 - Requires Clinical Review
-Repeat present with a justifying modifier (59, 76, 77, 91, 50, LT, RT, XE, XS, XP, XU). Ask for proof.
+### P2 - Likely Duplicate (DEFAULT for most suspected duplicates)
+- Strong match on date, code, and price
+- Missing documentation or timestamps
+- Unclear units or clinical justification
+- **Use this instead of P1 when evidence is incomplete**
 
-### P4 - False Positive
-Similar lines are valid due to different tax IDs, bilateral coding, or documented separate sessions.
+### P3 - Requires Clinical Review (Use for uncertain cases)
+- Repeat present with OR without justifying modifier
+- Clinical context unclear
+- Panel + component codes (unless explicitly proven unbundling)
+- **Any case where clinical notes would clarify the situation**
+- Ask for proof and clinical justification
+
+### P4 - Not a Duplicate (Valid reasons confirmed)
+- Different tax IDs (facility vs professional)
+- Bilateral coding with proper modifiers
+- Documented separate sessions with clinical need
+- Valid medical necessity confirmed
 
 ## Evidence to Extract for Each Flag
 - Line IDs or indexes
@@ -133,10 +176,12 @@ Similar lines are valid due to different tax IDs, bilateral coding, or documente
 10. If any repeat has a justifying modifier, move to P3 and request proof
 11. If professional vs facility duplication is suspected, classify P4
 
-## Confidence Scoring
-- **High**: Same date, same code, same provider group, same units or split units, matching price, and no valid modifier
-- **Medium**: Price or units differ slightly or documentation is missing
-- **Low**: A justifying modifier is present and evidence is thin
+## Confidence Scoring (UPDATED - More Conservative)
+- **High**: ALL criteria met: exact same date WITH timestamps, same code, same provider group, same units or proven split units, matching price, NO valid modifier, and NO clinical indication of medical necessity
+- **Medium**: Most criteria met but timestamps missing OR documentation unclear OR clinical context not available
+- **Low**: Only some criteria met OR justifying modifier present OR clinical notes suggest possible medical necessity OR reasonable doubt exists about duplication
+
+**DEFAULT to Medium or Low confidence unless you have overwhelming evidence for High.**
 
 ## What to Request When Data is Missing
 
@@ -166,10 +211,10 @@ Similar lines are valid due to different tax IDs, bilateral coding, or documente
 ## Plain-Language Messages per Flag
 
 ### P1 Duplicate Service
-"This service appears twice on the same day from the same provider without a modifier that indicates a separate repeat. No documentation of a second session."
+"This service appears multiple times on the same day from the same provider with identical characteristics and no modifier indicating separate sessions. The charges appear identical in timing, code, and amount, suggesting a billing error rather than multiple legitimate services."
 
-### P1 Unbundled Panel
-"A panel test was billed together with its component tests on the same date. Components are included in the panel."
+### P1 Unbundled Panel (RARELY USE - only with strong evidence)
+"A comprehensive panel test was billed together with its component tests on the same date and time. Based on CPT bundling rules, these components are already included in the panel price. However, clinical justification may exist for separate component testing."
 
 ### P2 Likely Duplicate
 "This looks duplicated, but the bill lacks timestamps or notes. Please provide documentation or correct the charge."
