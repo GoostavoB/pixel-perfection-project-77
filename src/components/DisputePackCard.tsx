@@ -249,6 +249,23 @@ export const DisputePackCard = ({ disputePack, sessionId, fallbackSavings, itemi
 
       {/* Action Buttons */}
       <div className="space-y-3">
+        {/* Recommendation Header */}
+        <div className="p-4 bg-gradient-to-br from-blue-100 to-indigo-100 border-2 border-blue-300 rounded-lg">
+          <div className="flex items-start gap-3">
+            <Mail className="w-5 h-5 text-blue-700 mt-0.5 flex-shrink-0" />
+            <div>
+              <h3 className="text-sm font-bold text-blue-900 mb-2">📋 Recommended: Send All 3 Emails</h3>
+              <p className="text-xs text-blue-800 mb-2">
+                Before disputing charges, gather complete information by sending these three emails. 
+                Each targets a different party and requests specific documentation that strengthens your case.
+              </p>
+              <p className="text-xs font-semibold text-blue-900">
+                💡 Copy each email template below, paste into your email client, and send to the appropriate recipient.
+              </p>
+            </div>
+          </div>
+        </div>
+
         {/* Billing Email Section */}
         <div className="p-3 bg-blue-50/50 border border-blue-200 rounded-lg">
           <div className="flex items-start gap-2 mb-2">
