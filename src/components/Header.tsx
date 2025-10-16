@@ -12,7 +12,7 @@ import {
   NavigationMenuList,
   NavigationMenuTrigger,
 } from "@/components/ui/navigation-menu";
-import logo from "@/assets/logo-new.png";
+import logo from "@/assets/logo-typography.png";
 
 const Header = () => {
   const [session, setSession] = useState<Session | null>(null);
