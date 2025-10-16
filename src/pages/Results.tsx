@@ -87,12 +87,32 @@ const Results = () => {
   // Get issues from backend for calculations
   const hi = Array.isArray(a.high_priority_issues) ? a.high_priority_issues : [];
   const pi = Array.isArray(a.potential_issues) ? a.potential_issues : [];
+  const recommendations = Array.isArray(a.recommendations) ? a.recommendations : [];
+  const lineItems = Array.isArray(a.line_items) ? a.line_items : [];
   
-  // ✅ Calculate savings from issues (fallback when backend returns 0)
+  // ✅ UNIFIED LOGIC: Calculate from ALL sources
   const itemizationStatus = a.itemization_status || 'unknown';
-  const calculatedSavings = [...hi, ...pi].reduce((sum: number, issue: any) => sum + num(issue.overcharge_amount || 0), 0);
-  const estimatedSavings = a.estimated_total_savings > 0 ? a.estimated_total_savings : calculatedSavings;
-  const totalIssuesCount = a.total_issues_count > 0 ? a.total_issues_count : (hi.length + pi.length);
+  
+  // Count issues from all possible sources
+  const issuesFromHighPriority = hi.length;
+  const issuesFromPotential = pi.length;
+  const issuesFromRecommendations = recommendations.length;
+  const issuesFromLineItems = lineItems.filter((item: any) => item.issue_type && item.issue_type !== 'normal').length;
+  const totalIssuesCount = Math.max(
+    a.total_issues_count || 0,
+    issuesFromHighPriority + issuesFromPotential,
+    issuesFromRecommendations,
+    issuesFromLineItems
+  );
+  
+  // Calculate savings from all possible sources
+  const savingsFromIssues = [...hi, ...pi].reduce((sum: number, issue: any) => sum + num(issue.overcharge_amount || 0), 0);
+  const savingsFromRecommendations = recommendations.reduce((sum: number, rec: any) => sum + num(rec.total || 0), 0);
+  const estimatedSavings = Math.max(
+    a.estimated_total_savings || 0,
+    savingsFromIssues,
+    savingsFromRecommendations
+  );
   const whatIfItems = a.what_if_calculator_items || [];
   
   // ✅ NEW: Comprehensive savings from savings engine
