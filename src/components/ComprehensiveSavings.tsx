@@ -34,9 +34,10 @@ interface SavingsTotals {
 
 interface ComprehensiveSavingsProps {
   savings: SavingsTotals;
+  computedIssuesCount?: number;
 }
 
-export const ComprehensiveSavings = ({ savings }: ComprehensiveSavingsProps) => {
+export const ComprehensiveSavings = ({ savings, computedIssuesCount }: ComprehensiveSavingsProps) => {
   const {
     total_potential_savings_gross,
     total_potential_savings_likely,
@@ -50,6 +51,8 @@ export const ComprehensiveSavings = ({ savings }: ComprehensiveSavingsProps) => 
     confidence_bands,
     top_drivers
   } = savings;
+
+  const displayIssuesCount = computedIssuesCount ?? lines_with_issues;
 
   const colorMap = {
     green: { bg: 'bg-success/10', border: 'border-success/20', text: 'text-success' },
@@ -74,7 +77,7 @@ export const ComprehensiveSavings = ({ savings }: ComprehensiveSavingsProps) => 
           </div>
           <div className="flex-1">
             <h3 className="text-2xl font-bold mb-2">
-              We Found {lines_with_issues}/{total_lines} Lines with Potential Issues
+              We Found {displayIssuesCount}/{total_lines} Lines with Potential Issues
             </h3>
             
             {/* Gross vs Likely Savings */}
@@ -124,7 +127,7 @@ export const ComprehensiveSavings = ({ savings }: ComprehensiveSavingsProps) => 
                 {(issue_ratio * 100).toFixed(0)}% of bill has issues
               </Badge>
               <span className="text-sm text-muted-foreground">
-                ({lines_with_issues} of {total_lines} line items)
+                ({displayIssuesCount} of {total_lines} line items)
               </span>
             </div>
 

@@ -93,11 +93,23 @@ const Results = () => {
   // ✅ UNIFIED LOGIC: Calculate from ALL sources
   const itemizationStatus = a.itemization_status || 'unknown';
   
+  // Map recommendations to issue-like items and unify itemsWithIssues
+  const itemsFromRecommendations = recommendations?.map((rec: any) => ({
+    description: rec.description || rec.type,
+    billed_amount: rec.total,
+    issue_type: 'issue',
+    savings: rec.total
+  })) || [];
+
+  const itemsWithIssues = lineItems.length > 0
+    ? lineItems.filter((item: any) => item.issue_type && item.issue_type !== 'normal')
+    : itemsFromRecommendations;
+  
   // Count issues from all possible sources
   const issuesFromHighPriority = hi.length;
   const issuesFromPotential = pi.length;
   const issuesFromRecommendations = recommendations.length;
-  const issuesFromLineItems = lineItems.filter((item: any) => item.issue_type && item.issue_type !== 'normal').length;
+  const issuesFromLineItems = itemsWithIssues.length;
   const totalIssuesCount = Math.max(
     a.total_issues_count || 0,
     issuesFromHighPriority + issuesFromPotential,
@@ -109,6 +121,7 @@ const Results = () => {
   const savingsFromIssues = [...hi, ...pi].reduce((sum: number, issue: any) => sum + num(issue.overcharge_amount || 0), 0);
   const savingsFromRecommendations = recommendations.reduce((sum: number, rec: any) => sum + num(rec.total || 0), 0);
   const estimatedSavings = Math.max(
+    a.savings_total || 0,
     a.estimated_total_savings || 0,
     savingsFromIssues,
     savingsFromRecommendations
@@ -117,6 +130,20 @@ const Results = () => {
   
   // ✅ NEW: Comprehensive savings from savings engine
   const savingsTotals = a._savings_details || null;
+
+  // Debug: savings reconciliation
+  useEffect(() => {
+    if (analysis) {
+      const recTotal = recommendations?.reduce((s: number, r: any) => s + (num(r.total || 0)), 0) || 0;
+      console.log('🔴 CORREÇÃO SAVINGS:', {
+        original_savings_total: a.savings_total,
+        recommendations_total: recTotal,
+        should_display: Math.max(a.savings_total || 0, recTotal),
+        recommendations_count: recommendations?.length,
+        raw_analysis: a
+      });
+    }
+  }, [analysis, recommendations]);
   
   // Build charge categories for charge map (from backend data)
   const chargeCategories = (a.charges || []).map((charge: any) => ({
@@ -310,7 +337,7 @@ const Results = () => {
         {/* Comprehensive Savings Display */}
         {savingsTotals && (
           <div className="mb-8">
-            <ComprehensiveSavings savings={savingsTotals} />
+            <ComprehensiveSavings savings={savingsTotals} computedIssuesCount={Math.max(recommendations.length || 0, itemsWithIssues.length || 0)} />
           </div>
         )}
 
