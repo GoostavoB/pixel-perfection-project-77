@@ -23,16 +23,19 @@ serve(async (req) => {
     // Generate HTML for PDF
     const html = generateDisputePackHTML(disputePack);
 
-    // In a real implementation, you would:
-    // 1. Use a PDF generation service (e.g., Puppeteer, PDFKit)
-    // 2. Store the PDF in Supabase Storage
-    // 3. Return the public URL
+    // Convert HTML to data URL for download
+    const htmlBlob = new Blob([html], { type: 'text/html' });
+    const dataUrl = `data:text/html;charset=utf-8,${encodeURIComponent(html)}`;
 
-    // For now, return the HTML content
+    console.log('Dispute pack HTML generated successfully');
+
+    // Return both HTML content and a data URL for immediate download
     return new Response(
       JSON.stringify({
         success: true,
         html_content: html,
+        pdf_url: dataUrl,
+        filename: `dispute-pack-${disputePack.report_id}.html`,
         message: 'Dispute pack generated successfully'
       }),
       {

@@ -40,26 +40,47 @@ export const DisputePackCard = ({ disputePack, sessionId, fallbackSavings, itemi
   const handleDownloadPDF = async () => {
     setIsGenerating(true);
     try {
+      console.log('Requesting dispute pack PDF generation...');
       const { data, error } = await supabase.functions.invoke('generate-dispute-pack-pdf', {
         body: { disputePack, sessionId }
       });
 
-      if (error) throw error;
+      console.log('Response from edge function:', { data, error });
 
-      if (data?.pdf_url) {
-        window.open(data.pdf_url, '_blank');
+      if (error) {
+        console.error('Edge function error:', error);
+        throw error;
       }
 
-      toast({
-        title: "Success!",
-        description: "Dispute pack PDF generated",
-      });
+      if (!data) {
+        throw new Error('No data returned from edge function');
+      }
+
+      // Download the HTML file
+      if (data.html_content) {
+        const blob = new Blob([data.html_content], { type: 'text/html' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = data.filename || `dispute-pack-${disputePack.report_id}.html`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        toast({
+          title: "Success!",
+          description: "Dispute pack downloaded. You can print this to PDF from your browser.",
+        });
+      } else {
+        throw new Error('No HTML content in response');
+      }
     } catch (error) {
       console.error("Error generating dispute pack:", error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to generate dispute pack PDF",
+        description: error instanceof Error ? error.message : "Failed to generate dispute pack",
       });
     } finally {
       setIsGenerating(false);
