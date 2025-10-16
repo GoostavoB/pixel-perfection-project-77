@@ -263,37 +263,20 @@ export const DisputePackCard = ({ disputePack, sessionId, fallbackSavings, itemi
           </Button>
         </div>
         
-        <div className="grid grid-cols-2 gap-3">
-          <Button
-            onClick={handleDownloadPDF}
-            disabled={isGenerating}
-            variant="outline"
-            className="w-full"
-          >
-            {isGenerating ? (
-              <>Generating...</>
-            ) : (
-              <>
-                <Download className="w-4 h-4 mr-2" />
-                Download PDF
-              </>
-            )}
-          </Button>
-          <Button
-            onClick={handleDownloadWord}
-            disabled={isGenerating}
-            className="w-full bg-blue-600 hover:bg-blue-700"
-          >
-            {isGenerating ? (
-              <>Generating...</>
-            ) : (
-              <>
-                <Download className="w-4 h-4 mr-2" />
-                Download Word
-              </>
-            )}
-          </Button>
-        </div>
+        <Button
+          onClick={handleDownloadWord}
+          disabled={isGenerating}
+          className="w-full bg-blue-600 hover:bg-blue-700"
+        >
+          {isGenerating ? (
+            <>Generating...</>
+          ) : (
+            <>
+              <Download className="w-4 h-4 mr-2" />
+              Download Word Document
+            </>
+          )}
+        </Button>
       </div>
 
       {disputePack.eob_present === 'no' && (
