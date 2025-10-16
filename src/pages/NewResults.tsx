@@ -58,6 +58,44 @@ const NewResults = () => {
   const tags = uiSummary.tags || fullAnalysis.tags || [];
   const emailSent = analysis.email_sent || false;
 
+  // Calculate fallback savings estimate based on categories when real savings are $0
+  const calculateFallbackSavings = (totalBill: number, tags: string[]): { low: number; high: number } => {
+    // Start with conservative 20-30% range
+    let savingsPercentLow = 0.20;
+    let savingsPercentHigh = 0.30;
+    
+    // Adjust based on detected categories (uses same logic as savings-engine.ts lines 157-200)
+    if (tags.some(t => t.toLowerCase().includes('emergency') || t.toLowerCase().includes('er'))) {
+      savingsPercentLow = 0.35; // 65% fair price, 35% potential savings
+      savingsPercentHigh = 0.40;
+    } else if (tags.some(t => t.toLowerCase().includes('surgery') || t.toLowerCase().includes('operating'))) {
+      savingsPercentLow = 0.30; // 70% fair price, 30% savings
+      savingsPercentHigh = 0.35;
+    } else if (tags.some(t => t.toLowerCase().includes('imaging') || t.toLowerCase().includes('radiology'))) {
+      savingsPercentLow = 0.30;
+      savingsPercentHigh = 0.35;
+    } else if (tags.some(t => t.toLowerCase().includes('lab') || t.toLowerCase().includes('test'))) {
+      savingsPercentLow = 0.25;
+      savingsPercentHigh = 0.30;
+    } else if (tags.some(t => t.toLowerCase().includes('pharmacy') || t.toLowerCase().includes('medication'))) {
+      savingsPercentLow = 0.25;
+      savingsPercentHigh = 0.30;
+    } else if (tags.some(t => t.toLowerCase().includes('room') || t.toLowerCase().includes('bed'))) {
+      savingsPercentLow = 0.20;
+      savingsPercentHigh = 0.25;
+    }
+    
+    return {
+      low: Math.round(totalBill * savingsPercentLow),
+      high: Math.round(totalBill * savingsPercentHigh)
+    };
+  };
+
+  // Use fallback if savings are $0 but we have a bill amount
+  const fallbackSavings = (estimatedSavings === 0 && (uiSummary.total_billed || 0) > 0) 
+    ? calculateFallbackSavings(uiSummary.total_billed || 0, tags)
+    : null;
+
   const handleReanalyze = async () => {
     if (!analysis.file_url) {
       toast({
@@ -289,10 +327,23 @@ const NewResults = () => {
                 <div className="p-2 bg-success/10 rounded">
                   <TrendingDown className="w-5 h-5 text-success" />
                 </div>
-                <span className="text-3xl font-bold text-success">${estimatedSavings.toLocaleString()}</span>
+                <span className="text-3xl font-bold text-success">
+                  {fallbackSavings 
+                    ? `$${fallbackSavings.low.toLocaleString()}-$${fallbackSavings.high.toLocaleString()}`
+                    : `$${estimatedSavings.toLocaleString()}`
+                  }
+                </span>
               </div>
               <h3 className="text-sm font-semibold text-foreground mb-1">Est. Savings</h3>
-              <p className="text-xs text-muted-foreground">Potential cost reduction</p>
+              <p className="text-xs text-muted-foreground">
+                {fallbackSavings ? 'Conservative estimate range' : 'Potential cost reduction'}
+              </p>
+              {fallbackSavings && (
+                <Badge variant="outline" className="mt-2 text-xs">
+                  <AlertTriangle className="w-3 h-3 mr-1" />
+                  Pending detailed analysis
+                </Badge>
+              )}
             </Card>
 
             {/* Data Sources */}

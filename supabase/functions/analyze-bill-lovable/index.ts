@@ -705,6 +705,15 @@ BILL FORMAT ANALYSIS - Handle ALL these types:
 📋 **Internal Codes**: Hospital-specific codes (SURG01, B&B01, LAB01) instead of standard CPT
 📋 **Mixed Format**: Some line items + some aggregated categories
 
+📋 **CRITICAL FOR SAVINGS CALCULATION**:
+When extracting charges from aggregated categories (like "PHARMACY TOTAL: $5,000" or "Laboratory Services - $18,861"):
+- You MUST extract the dollar amount from the description
+- Store it in BOTH \`charge_amount\` AND \`billed_amount\` fields
+- Example: "PHARMACY SERVICES $33,719.00" → { charge_amount: 33719, billed_amount: 33719 }
+- Example: "Laboratory Total: $18,861" → { charge_amount: 18861, billed_amount: 18861 }
+- Example: "Emergency Room - $12,450.00" → { charge_amount: 12450, billed_amount: 12450 }
+- This is REQUIRED for savings calculation to work on non-itemized bills
+
 CRITICAL FRAUD DETECTION RULES:
 ⚠️ **DUPLICATES** (High Priority):
 - Identical description + date + amount = 95% duplicate probability
@@ -1065,6 +1074,10 @@ Return your analysis in this EXACT JSON structure (ALL fields REQUIRED):
     analysis = computeFrontendFields(analysis);
     console.log('[COMPUTE] ✅ All frontend fields computed');
     
+    // Step 4.5: Backfill missing billed_amount values
+    backfillMissingAmounts(analysis, Number(analysis.total_bill_amount) || 0);
+    console.log('[BACKFILL] ✅ Backfill logic applied');
+    
     // Step 5: Add version metadata
     analysis.analysis_version = ANALYSIS_VERSION;
     analysis.prompt_version = PROMPT_VERSION;
@@ -1388,6 +1401,63 @@ function computeFrontendFields(analysis: any): any {
   return analysis;
 }
 
+// 🔧 BACKFILL LOGIC: Ensure every charge has billed_amount
+function backfillMissingAmounts(analysis: any, totalBilled: number): void {
+  if (!analysis.charges || analysis.charges.length === 0) {
+    console.log('[BACKFILL] No charges to process');
+    return;
+  }
+  
+  console.log('[BACKFILL] Processing charges for missing billed_amount...');
+  let backfilled = 0;
+  
+  for (const charge of analysis.charges) {
+    // Skip if already has billed_amount
+    if (charge.billed_amount && charge.billed_amount > 0) continue;
+    
+    // Tier 1: Copy from charge_amount if AI populated it
+    if (charge.charge_amount && charge.charge_amount > 0) {
+      charge.billed_amount = charge.charge_amount;
+      console.log(`[BACKFILL] Tier 1 - Copied charge_amount: $${charge.billed_amount}`);
+      backfilled++;
+      continue;
+    }
+    
+    // Tier 2: Regex extract from description
+    if (charge.description) {
+      const amountMatch = charge.description.match(/\$\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2})?)/);
+      if (amountMatch) {
+        charge.billed_amount = parseFloat(amountMatch[1].replace(/,/g, ''));
+        console.log(`[BACKFILL] Tier 2 - Extracted from description: $${charge.billed_amount}`);
+        backfilled++;
+        continue;
+      }
+    }
+    
+    // Tier 3: Category-based proportional estimate
+    if (totalBilled > 0 && charge.description) {
+      const desc = charge.description.toLowerCase();
+      let estimatedPercent = 0.10; // Default 10% of total bill
+      
+      // Use same category logic as estimateBaselineFromCategory (lines 157-200)
+      if (desc.includes('pharmacy') || desc.includes('medication')) estimatedPercent = 0.15;
+      if (desc.includes('laboratory') || desc.includes('lab')) estimatedPercent = 0.12;
+      if (desc.includes('imaging') || desc.includes('radiology')) estimatedPercent = 0.18;
+      if (desc.includes('surgery') || desc.includes('operating')) estimatedPercent = 0.30;
+      if (desc.includes('room') || desc.includes('bed')) estimatedPercent = 0.20;
+      if (desc.includes('emergency') || desc.includes('er')) estimatedPercent = 0.25;
+      if (desc.includes('supplies')) estimatedPercent = 0.08;
+      
+      charge.billed_amount = Math.round(totalBilled * estimatedPercent * 100) / 100;
+      console.log(`[BACKFILL] Tier 3 - Category estimate (${estimatedPercent * 100}% of total): $${charge.billed_amount}`);
+      backfilled++;
+    }
+  }
+  
+  const populated = analysis.charges.filter((c: any) => c.billed_amount > 0).length;
+  console.log(`[BACKFILL] Result: ${populated}/${analysis.charges.length} charges have billed_amount (backfilled: ${backfilled})`);
+}
+
 // ✅ NEW: Production-ready savings calculation using multi-source baseline
 function calculateSavings(analysis: any): number {
   console.log('[CALC] === Starting Production Savings Calculation ===');
@@ -1472,6 +1542,23 @@ function calculateSavings(analysis: any): number {
       chargemaster_median: undefined
     });
   });
+
+  // 🔍 HIGH-SIGNAL LOGGING: What's going into the savings engine?
+  console.log('[SAVINGS_ENGINE_INPUT]', JSON.stringify({
+    total_lines: lines.length,
+    lines_with_billed_amount: lines.filter(l => l.billed_amount > 0).length,
+    lines_with_cpt: lines.filter(l => l.cpt_or_hcpcs && l.cpt_or_hcpcs !== 'N/A').length,
+    sample_lines: lines.slice(0, 3).map(l => ({
+      description: l.description?.slice(0, 50),
+      billed: l.billed_amount,
+      cpt: l.cpt_or_hcpcs,
+      has_baseline: baseline_sources.has(l.line_id || '')
+    })),
+    baseline_sources_count: baseline_sources.size,
+    nsa_flags_count: nsa_flags.size,
+    total_billed_from_lines: lines.reduce((sum, l) => sum + (l.billed_amount || 0), 0),
+    expected_total: Number(analysis.total_bill_amount) || 0
+  }, null, 2));
 
   // Run the production savings engine
   const savings_result: SavingsTotals = analyzeBillSavings(
