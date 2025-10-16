@@ -74,17 +74,50 @@ const ResultsV2 = () => {
   const hospitalName = a.hospital_name ?? 'Provider';
   const analysisDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
-  const chargeCategories = (a.charges || []).map((charge: any) => ({
-    category: charge.description || 'Unknown',
-    amount: num(charge.charge_amount || 0),
-    shareOfTotal: (num(charge.charge_amount || 0) / totalCharged) * 100,
-    riskTags: [
-      ...(charge.cpt_code === 'N/A' ? ['Missing code'] : []),
-      ...(charge.overcharge_amount > 0 ? ['High price'] : []),
-    ]
-  })).filter((c: any) => c.amount > 0);
-
+  // Extract duplicate findings first (needed for charge categorization)
   const duplicateFindings = fullAnalysis.duplicate_findings?.flags || [];
+  
+  // Create a lookup map for duplicate charges from duplicate_findings
+  const duplicateChargesLookup = new Set<string>();
+  duplicateFindings.forEach((flag: any) => {
+    // Extract line IDs or descriptions from evidence
+    const lineIds = flag.evidence?.line_ids || [];
+    const codes = flag.evidence?.codes?.map((c: any) => c.value) || [];
+    const descriptions = [flag.reason, ...(flag.evidence?.descriptions || [])];
+    
+    lineIds.forEach((id: string) => duplicateChargesLookup.add(id));
+    codes.forEach((code: string) => duplicateChargesLookup.add(code));
+    descriptions.forEach((desc: string) => {
+      if (desc) duplicateChargesLookup.add(desc.toLowerCase().trim());
+    });
+  });
+
+  const chargeCategories = (a.charges || []).map((charge: any, idx: number) => {
+    const chargeDesc = (charge.description || 'Unknown').toLowerCase().trim();
+    const chargeCPT = charge.cpt_code;
+    const chargeLineId = charge.line_id || `line_${idx}`;
+    
+    // Check if this charge is in the duplicate findings
+    const isDuplicate = 
+      duplicateChargesLookup.has(chargeLineId) ||
+      duplicateChargesLookup.has(chargeCPT) ||
+      duplicateChargesLookup.has(chargeDesc) ||
+      charge.is_duplicate === true ||
+      (charge.issue_type && charge.issue_type === 'duplicate');
+    
+    return {
+      category: charge.description || 'Unknown',
+      amount: num(charge.charge_amount || 0),
+      shareOfTotal: (num(charge.charge_amount || 0) / totalCharged) * 100,
+      riskTags: [
+        ...(isDuplicate ? ['Duplicate'] : []),
+        ...(charge.cpt_code === 'N/A' ? ['Missing code'] : []),
+        ...(charge.overcharge_amount > 0 && !isDuplicate ? ['High price'] : []),
+      ]
+    };
+  }).filter((c: any) => c.amount > 0);
+
+  // Process duplicates for display
   const duplicates = duplicateFindings
     .filter((flag: any) => flag.category === 'P1' || flag.category === 'P2')
     .map((flag: any) => ({

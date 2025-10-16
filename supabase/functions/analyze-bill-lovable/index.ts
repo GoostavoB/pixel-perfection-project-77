@@ -914,9 +914,13 @@ Return your analysis in this EXACT JSON structure (ALL fields REQUIRED):
                     description: { type: 'string' },
                     cpt_code: { type: 'string', description: 'CPT/HCPCS code or "N/A" if missing' },
                     charge_amount: { type: 'number' },
+                    billed_amount: { type: 'number', description: 'CRITICAL: For aggregate charges like "PHARMACY $5,000", extract dollar amount and store here' },
                     overcharge_amount: { type: 'number', description: 'Estimated overcharge for this line' },
                     units: { type: 'number' },
-                    revenue_code: { type: 'string' }
+                    revenue_code: { type: 'string' },
+                    line_id: { type: 'string', description: 'Unique identifier for this charge line' },
+                    is_duplicate: { type: 'boolean', description: 'CRITICAL: Mark true if this is a confirmed duplicate charge' },
+                    issue_type: { type: 'string', enum: ['duplicate', 'overcharge', 'nsa_violation', 'unbundling', 'other'], description: 'Primary issue type for this charge' }
                   }
                 }
               },

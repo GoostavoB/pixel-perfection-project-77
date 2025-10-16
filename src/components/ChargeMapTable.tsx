@@ -20,14 +20,16 @@ export const ChargeMapTable = ({ charges, totalBill }: ChargeMapTableProps) => {
   const [sortBy, setSortBy] = useState<"amount" | "risk" | "category">("amount");
 
   const getRiskColor = (tag: string) => {
-    if (tag.includes("Duplicate") || tag.includes("duplicate")) return "text-orange-700 bg-orange-50 border-orange-200";
+    // IMPROVED: More prominent styling for duplicates (orange/red with stronger contrast)
+    if (tag.includes("Duplicate") || tag.includes("duplicate")) return "text-orange-900 bg-orange-100 border-orange-400 font-semibold";
     if (tag.includes("High") || tag.includes("Missing")) return "text-red-700 bg-red-50 border-red-200";
     if (tag.includes("Needs")) return "text-yellow-700 bg-yellow-50 border-yellow-200";
     return "text-blue-700 bg-blue-50 border-blue-200";
   };
 
   const getRiskIcon = (tag: string) => {
-    if (tag.includes("Duplicate")) return <AlertCircle className="w-3 h-3" />;
+    // IMPROVED: Use AlertCircle for duplicates (more attention-grabbing)
+    if (tag.includes("Duplicate")) return <AlertCircle className="w-3.5 h-3.5" />;
     if (tag.includes("High") || tag.includes("Missing")) return <AlertTriangle className="w-3 h-3" />;
     return <FileQuestion className="w-3 h-3" />;
   };
@@ -88,31 +90,39 @@ export const ChargeMapTable = ({ charges, totalBill }: ChargeMapTableProps) => {
             </tr>
           </thead>
           <tbody className="divide-y divide-muted">
-            {sortedCharges.map((charge, idx) => (
-              <tr key={idx} className="hover:bg-muted/50 transition-colors">
-                <td className="py-4 font-medium text-foreground">{charge.category}</td>
-                <td className="py-4 text-right font-semibold text-lg text-foreground">
-                  ${charge.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </td>
-                <td className="py-4 text-right text-muted-foreground">
-                  {charge.shareOfTotal.toFixed(1)}%
-                </td>
-                <td className="py-4">
-                  <div className="flex flex-wrap gap-1">
-                    {charge.riskTags.map((tag, tagIdx) => (
-                      <Badge
-                        key={tagIdx}
-                        variant="outline"
-                        className={`text-xs ${getRiskColor(tag)} flex items-center gap-1`}
-                      >
-                        {getRiskIcon(tag)}
-                        {tag}
-                      </Badge>
-                    ))}
-                  </div>
-                </td>
-              </tr>
-            ))}
+            {sortedCharges.map((charge, idx) => {
+              // IMPROVED: Highlight duplicate charges with border
+              const hasDuplicate = charge.riskTags.some(tag => tag.includes("Duplicate"));
+              const rowClassName = hasDuplicate 
+                ? "hover:bg-orange-50/50 transition-colors border-l-4 border-l-orange-400" 
+                : "hover:bg-muted/50 transition-colors";
+              
+              return (
+                <tr key={idx} className={rowClassName}>
+                  <td className="py-4 font-medium text-foreground">{charge.category}</td>
+                  <td className="py-4 text-right font-semibold text-lg text-foreground">
+                    ${charge.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </td>
+                  <td className="py-4 text-right text-muted-foreground">
+                    {charge.shareOfTotal.toFixed(1)}%
+                  </td>
+                  <td className="py-4">
+                    <div className="flex flex-wrap gap-1">
+                      {charge.riskTags.map((tag, tagIdx) => (
+                        <Badge
+                          key={tagIdx}
+                          variant="outline"
+                          className={`text-xs ${getRiskColor(tag)} flex items-center gap-1`}
+                        >
+                          {getRiskIcon(tag)}
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
           <tfoot className="border-t-2 border-muted">
             <tr className="font-bold">

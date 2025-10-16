@@ -257,15 +257,30 @@ export function findDuplicateClusters(lines: BillLine[]): Array<[BillLine, BillL
         const lj = group[i];
         const lk = group[j];
 
-        // Check description similarity
+        // IMPROVED: Check for exact description match first (100% duplicate)
+        const exactMatch = lj.description.toLowerCase().trim() === lk.description.toLowerCase().trim();
+        
+        // IMPROVED: Check if description contains duplicate markers
+        const hasDuplicateMarker = 
+          lj.description.toLowerCase().includes('(duplicate') ||
+          lj.description.toLowerCase().includes('duplicate entry') ||
+          lk.description.toLowerCase().includes('(duplicate') ||
+          lk.description.toLowerCase().includes('duplicate entry');
+        
+        // IMPROVED: Lowered threshold from 0.9 to 0.75 for better duplicate catching
         const desc_sim = jaccardSimilarity(lj.description, lk.description);
-        if (desc_sim < 0.9) continue;
+        const similarityThreshold = exactMatch ? 1.0 : (hasDuplicateMarker ? 0.85 : 0.75);
+        
+        if (!exactMatch && desc_sim < similarityThreshold) continue;
 
-        // Check unit price similarity (within 20%)
-        const uj = lj.billed_amount / Math.max(1, lj.quantity || lj.units || 1);
-        const uk = lk.billed_amount / Math.max(1, lk.quantity || lk.units || 1);
-        const price_diff = Math.abs(uj - uk) / Math.max(uj, uk);
-        if (price_diff > 0.2) continue;
+        // IMPROVED: For exact matches or duplicate markers, skip price check
+        if (!exactMatch && !hasDuplicateMarker) {
+          // Check unit price similarity (within 20%)
+          const uj = lj.billed_amount / Math.max(1, lj.quantity || lj.units || 1);
+          const uk = lk.billed_amount / Math.max(1, lk.quantity || lk.units || 1);
+          const price_diff = Math.abs(uj - uk) / Math.max(uj, uk);
+          if (price_diff > 0.2) continue;
+        }
 
         // Valid duplicate candidate
         const savings = computeDuplicateSavings(lj, lk);
