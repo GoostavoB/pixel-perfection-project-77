@@ -1245,8 +1245,8 @@ function assertAnalysis(a: any): any {
     if (i.overcharge_amount < 0) {
       throw new Error(`Negative overcharge_amount after sanitize: ${i.overcharge_amount}`);
     }
-    if (i.overcharge_amount > i.billed_amount * 0.95) {
-      throw new Error(`overcharge_amount ${i.overcharge_amount} exceeds 95% guard (billed: ${i.billed_amount})`);
+    if (i.overcharge_amount > i.billed_amount * 1.0) {
+      throw new Error(`overcharge_amount ${i.overcharge_amount} exceeds 100% guard (billed: ${i.billed_amount})`);
     }
   }
   
@@ -1341,13 +1341,14 @@ function sanitizeIssue(issue: any): any {
   
   // Guard: overcharge exceeds billed amount (impossible)
   if (overcharge > billed) {
-    console.warn(`[SANITIZE] Overcharge ${overcharge} > billed ${billed} → capping to 70% of billed`);
-    overcharge = Math.min(billed, Math.round(billed * 0.7));
+    console.warn(`[SANITIZE] Overcharge ${overcharge} > billed ${billed} → capping to 100% of billed`);
+    overcharge = billed;
   }
   
   return {
     ...issue,
     billed_amount: billed,
+    overcharge_amount: overcharge,
   };
 }
 
@@ -1816,10 +1817,10 @@ async function validateAnalysis(analysis: any, extractedText: string): Promise<a
   }
   
   // If savings exceed bill total, proportionally reduce all overcharges
-  const maxAllowed = totalBill * 0.95; // Cap at 95% of bill
+  const maxAllowed = totalBill * 0.9; // Cap at 90% of bill
   
   if (calculatedSavings > maxAllowed) {
-    console.error(`[VALIDATE] ⚠️ FAILED: Savings ($${calculatedSavings.toLocaleString()}) exceed 95% of bill ($${maxAllowed.toLocaleString()})`);
+    console.error(`[VALIDATE] ⚠️ FAILED: Savings ($${calculatedSavings.toLocaleString()}) exceed 90% of bill ($${maxAllowed.toLocaleString()})`);
     const reductionFactor = maxAllowed / calculatedSavings;
     console.log(`[VALIDATE] 📉 Applying reduction factor: ${(reductionFactor * 100).toFixed(1)}%`);
     
