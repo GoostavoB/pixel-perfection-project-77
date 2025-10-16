@@ -1,7 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Mail, Download, Copy, Check } from "lucide-react";
+import { FileText, Mail, Download, Copy, Check, Shield } from "lucide-react";
 import { DisputePack } from "@/types/disputePack";
 import { generateBillingEmail, generateInsuranceEmail } from "@/utils/disputePackGenerator";
 import { useToast } from "@/hooks/use-toast";
@@ -14,12 +14,21 @@ interface DisputePackCardProps {
   sessionId: string;
   fallbackSavings?: { low: number; high: number } | null;
   itemizationStatus?: string;
+  nsaMissingData?: string[];
+  nsaApplies?: 'protected' | 'not-protected' | 'unknown';
 }
 
-export const DisputePackCard = ({ disputePack, sessionId, fallbackSavings, itemizationStatus }: DisputePackCardProps) => {
+export const DisputePackCard = ({ 
+  disputePack, 
+  sessionId, 
+  fallbackSavings, 
+  itemizationStatus,
+  nsaMissingData = [],
+  nsaApplies = 'unknown'
+}: DisputePackCardProps) => {
   const { toast } = useToast();
   const [isGenerating, setIsGenerating] = useState(false);
-  const [copiedButton, setCopiedButton] = useState<'billing' | 'insurance' | null>(null);
+  const [copiedButton, setCopiedButton] = useState<'billing' | 'insurance' | 'nsa' | null>(null);
 
   const handleCopyBillingEmail = () => {
     const email = generateBillingEmail(disputePack);
@@ -40,6 +49,25 @@ export const DisputePackCard = ({ disputePack, sessionId, fallbackSavings, itemi
     toast({
       title: "Copied!",
       description: "Insurance email copied to clipboard",
+    });
+  };
+
+  const handleCopyNSAEmail = () => {
+    const emailText = 
+      `Subject: Request for Network Status and NSA Documentation\n\n` +
+      `Dear Billing Department,\n\n` +
+      `I am requesting the following information to determine No Surprises Act (NSA) protections for my recent medical bill:\n\n` +
+      nsaMissingData.map(item => `• ${item}`).join('\n') +
+      `\n\nPlease provide this information within 30 days as required by federal law.\n\n` +
+      `Thank you,`;
+    
+    navigator.clipboard.writeText(emailText);
+    setCopiedButton('nsa');
+    setTimeout(() => setCopiedButton(null), 2000);
+    
+    toast({
+      title: "Copied!",
+      description: "NSA request email copied to clipboard",
     });
   };
 
@@ -296,6 +324,39 @@ export const DisputePackCard = ({ disputePack, sessionId, fallbackSavings, itemi
             )}
           </Button>
         </div>
+
+        {/* NSA Email Section - Only show if there's missing data */}
+        {nsaMissingData.length > 0 && (
+          <div className="p-3 bg-blue-50/50 border border-blue-200 rounded-lg">
+            <div className="flex items-start gap-2 mb-2">
+              <Shield className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-blue-900 mb-1">No Surprises Act Request Email</p>
+                <p className="text-xs text-blue-700">
+                  Requests information to determine if you're protected from balance billing under federal law. 
+                  Could save you significant money if NSA protections apply.
+                </p>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              onClick={handleCopyNSAEmail}
+              className="w-full transition-all mt-2"
+            >
+              {copiedButton === 'nsa' ? (
+                <>
+                  <Check className="w-4 h-4 mr-2 animate-scale-in text-green-600" />
+                  <span className="text-green-600 font-semibold">Copied to Clipboard!</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="w-4 h-4 mr-2" />
+                  Copy NSA Request Email
+                </>
+              )}
+            </Button>
+          </div>
+        )}
 
         {/* Insurance Email Section */}
         <div className="p-3 bg-blue-50/50 border border-blue-200 rounded-lg">

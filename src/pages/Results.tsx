@@ -580,6 +580,8 @@ const Results = () => {
             sessionId={sessionId || ''}
             fallbackSavings={fallbackSavings}
             itemizationStatus={itemizationStatus}
+            nsaMissingData={nsaReview.missing_for_nsa || []}
+            nsaApplies={nsaApplies}
           />
         </div>
 
