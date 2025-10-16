@@ -333,7 +333,7 @@ export const DisputePackCard = ({
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-semibold text-blue-900 mb-1">No Surprises Act Request Email</p>
                 <p className="text-xs text-blue-700">
-                  Requests information to determine if you're protected from balance billing under federal law. 
+                  Email to Hospital/Provider Billing Department requesting information to determine if you're protected from balance billing under federal law. 
                   Could save you significant money if NSA protections apply.
                 </p>
               </div>
