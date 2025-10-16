@@ -395,7 +395,12 @@ const Results = () => {
           <div className="mb-8">
             <ComprehensiveSavings 
               savings={savingsTotals} 
-              computedIssuesCount={Math.max(recommendations.length || 0, itemsWithIssues.length || 0)}
+              computedIssuesCount={Math.max(
+                savingsTotals.lines_with_issues || 0,
+                totalIssuesCount || 0,
+                pi.length || 0,
+                recommendations.length || 0
+              )}
               totalBilled={totalCharged}
               tags={tags}
             />
