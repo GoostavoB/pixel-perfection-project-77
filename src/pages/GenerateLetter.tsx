@@ -29,7 +29,18 @@ const GenerateLetter = () => {
   const [copied, setCopied] = useState(false);
   
   const billingIssues = (location.state?.issues as BillingIssue[]) || [];
-  const totalSavings = location.state?.totalSavings || "$0";
+  
+  // ✅ UNIFIED: Calculate total savings from issues and ensure it's never "$0" if there are actual issues
+  const totalSavingsValue = location.state?.totalSavings || "$0";
+  const calculatedSavings = billingIssues.reduce((sum, issue) => {
+    const impactStr = issue.impact || "$0";
+    const impactNum = parseFloat(impactStr.replace(/[$,]/g, '')) || 0;
+    return sum + impactNum;
+  }, 0);
+  
+  const totalSavings = calculatedSavings > 0 
+    ? `$${calculatedSavings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    : totalSavingsValue;
   
   const [formData, setFormData] = useState({
     patientName: "",

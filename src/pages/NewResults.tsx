@@ -43,7 +43,15 @@ const NewResults = () => {
 
   const criticalIssues = uiSummary.high_priority_count || fullAnalysis.high_priority_issues?.length || 0;
   const moderateIssues = uiSummary.potential_issues_count || fullAnalysis.potential_issues?.length || 0;
-  const estimatedSavings = uiSummary.estimated_savings_if_corrected || fullAnalysis.estimated_savings || 0;
+  
+  // ✅ UNIFIED: Calculate savings from all sources including recommendations
+  const savingsFromRecommendations = fullAnalysis.recommendations?.reduce((sum: number, rec: any) => sum + (rec.total || 0), 0) || 0;
+  const estimatedSavings = Math.max(
+    uiSummary.estimated_savings_if_corrected || 0,
+    fullAnalysis.estimated_savings || 0,
+    fullAnalysis.savings_total || 0,
+    savingsFromRecommendations
+  );
   const hospitalName = analysis.hospital_name || '';
   const dataSources = uiSummary.data_sources_used || fullAnalysis.data_sources || [];
   const tags = uiSummary.tags || fullAnalysis.tags || [];

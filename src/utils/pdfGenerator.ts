@@ -117,7 +117,15 @@ export class PDFGenerator {
         </div>
         <div class="stat-row">
             <span class="stat-label">Estimated Savings:</span>
-            <span class="stat-value">$${(summary.estimated_savings || ui.estimated_savings_if_corrected || 0).toLocaleString()}</span>
+            <span class="stat-value">$${(() => {
+              const savingsFromRecs = (analysisJson.recommendations || []).reduce((sum: number, rec: any) => sum + (rec.total || 0), 0);
+              return Math.max(
+                summary.estimated_savings || 0,
+                ui.estimated_savings_if_corrected || 0,
+                analysisJson.savings_total || 0,
+                savingsFromRecs
+              ).toLocaleString();
+            })()}</span>
         </div>
         <div class="stat-row">
             <span class="stat-label">NSA Protected:</span>
