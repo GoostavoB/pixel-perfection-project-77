@@ -77,17 +77,28 @@ const NewResults = () => {
       const fileName = analysis.file_name || 'medical-bill.pdf';
       const file = new File([fileBlob], fileName, { type: fileBlob.type });
 
-      // Create form data with fresh flag to bypass cache
+      // Create form data
       const formData = new FormData();
       formData.append('file', file);
-      formData.append('fresh', 'true');
 
-      // Call analysis with cache bypass
-      const response = await supabase.functions.invoke('analyze-bill-lovable', {
+      // Use direct fetch with query parameter to bypass cache (invoke doesn't support FormData properly)
+      const { data: { session } } = await supabase.auth.getSession();
+      const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-bill-lovable?fresh=true`;
+      
+      const response = await fetch(functionUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
         body: formData,
       });
 
-      if (response.error) throw response.error;
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Analysis failed');
+      }
+
+      const data = await response.json();
 
       toast({
         title: "Re-analysis Complete!",
@@ -97,7 +108,7 @@ const NewResults = () => {
       // Navigate to processing page
       navigate('/processing', { 
         state: { 
-          sessionId: response.data.session_id 
+          sessionId: data.session_id 
         } 
       });
     } catch (error) {
@@ -186,7 +197,7 @@ const NewResults = () => {
         </div>
 
         {/* Re-analyze Notice - Show if savings are $0 or analysis is cached */}
-        {(fullAnalysis.cached || estimatedSavings === 0) && (
+        {(tags.includes('cached') || estimatedSavings === 0) && (
           <Card className="mb-6 p-6 border-l-4 border-l-warning shadow-card bg-warning/5">
             <div className="flex items-start gap-4">
               <div className="p-2 bg-warning/10 rounded">
@@ -194,10 +205,10 @@ const NewResults = () => {
               </div>
               <div className="flex-1">
                 <h2 className="text-lg font-bold text-foreground mb-1">
-                  {fullAnalysis.cached ? 'Cached Analysis Detected' : 'Enhanced Estimation Available'}
+                  {tags.includes('cached') ? 'Cached Analysis Detected' : 'Enhanced Estimation Available'}
                 </h2>
                 <p className="text-sm text-muted-foreground mb-3">
-                  {fullAnalysis.cached 
+                  {tags.includes('cached')
                     ? "You're viewing cached results from a previous analysis. Recent improvements to our estimation engine may provide more accurate savings calculations."
                     : "Your bill shows $0 savings because it lacks CPT codes. Our new estimation engine can now calculate potential savings using category-based benchmarks, even without itemization."
                   }
