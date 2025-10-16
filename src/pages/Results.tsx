@@ -242,8 +242,15 @@ const Results = () => {
   const nsaReview = fullAnalysis.duplicate_findings?.nsa_review || {};
   const nsaApplies = nsaReview.applies === 'yes' ? 'protected' : nsaReview.applies === 'no' ? 'not-protected' : 'unknown';
   
-  // Generate dispute pack
-  const disputePack = useMemo(() => generateDisputePack(analysis), [analysis]);
+  // Generate dispute pack - use fullAnalysis instead of raw analysis
+  const disputePack = useMemo(() => {
+    console.log('🔧 Generating dispute pack with analysis:', { 
+      rawAnalysis: analysis, 
+      fullAnalysis,
+      sessionId 
+    });
+    return generateDisputePack({ ...fullAnalysis, session_id: sessionId });
+  }, [fullAnalysis, sessionId]);
 
   const handleEmailReport = async () => {
     setIsGeneratingPDF(true);
