@@ -297,22 +297,26 @@ export const ComprehensiveSavings = ({ savings, computedIssuesCount, totalBilled
       </Card>
 
       {/* Confidence Bands */}
-      <Card className="p-6">
-        <h3 className="text-lg font-bold mb-4">Confidence Breakdown</h3>
-        {fallbackSavings && (
-          <div className="mb-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-900">
-            <strong>Estimated ranges:</strong> Based on category analysis. Request itemized bill for exact amounts.
-          </div>
-        )}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="p-4 border rounded-lg">
-            <div className="flex items-center gap-2 mb-2">
-              <CheckCircle2 className="w-5 h-5 text-success" />
-              <span className="font-semibold text-sm">High Confidence</span>
+      <Card className="p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-base font-semibold">Confidence Breakdown</h3>
+          {fallbackSavings && (
+            <span className="text-xs text-yellow-700 bg-yellow-50 px-2 py-0.5 rounded border border-yellow-200">
+              Estimated ranges
+            </span>
+          )}
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="p-3 border rounded-lg bg-background/50">
+            <div className="flex items-center justify-between mb-1.5">
+              <div className="flex items-center gap-1.5">
+                <CheckCircle2 className="w-4 h-4 text-success" />
+                <span className="font-medium text-xs">High</span>
+              </div>
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Info className="w-4 h-4 text-muted-foreground cursor-help" />
+                    <Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
                   </TooltipTrigger>
                   <TooltipContent className="max-w-xs">
                     <p className="text-sm font-semibold mb-1">Why High Confidence?</p>
@@ -321,22 +325,24 @@ export const ComprehensiveSavings = ({ savings, computedIssuesCount, totalBilled
                 </Tooltip>
               </TooltipProvider>
             </div>
-            <p className="text-2xl font-bold">
+            <p className="text-xl font-bold">
               ${(fallbackConfidenceBands?.high_confidence || confidence_bands.high_confidence).toLocaleString('en-US', { minimumFractionDigits: 2 })}
             </p>
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="text-[10px] text-muted-foreground mt-0.5">
               {fallbackSavings ? 'estimated' : '≥80% certainty'}
             </p>
           </div>
 
-          <div className="p-4 border rounded-lg">
-            <div className="flex items-center gap-2 mb-2">
-              <AlertTriangle className="w-5 h-5 text-warning" />
-              <span className="font-semibold text-sm">Medium Confidence</span>
+          <div className="p-3 border rounded-lg bg-background/50">
+            <div className="flex items-center justify-between mb-1.5">
+              <div className="flex items-center gap-1.5">
+                <AlertTriangle className="w-4 h-4 text-warning" />
+                <span className="font-medium text-xs">Medium</span>
+              </div>
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Info className="w-4 h-4 text-muted-foreground cursor-help" />
+                    <Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
                   </TooltipTrigger>
                   <TooltipContent className="max-w-xs">
                     <p className="text-sm font-semibold mb-1">Why Medium Confidence?</p>
@@ -345,22 +351,24 @@ export const ComprehensiveSavings = ({ savings, computedIssuesCount, totalBilled
                 </Tooltip>
               </TooltipProvider>
             </div>
-            <p className="text-2xl font-bold">
+            <p className="text-xl font-bold">
               ${(fallbackConfidenceBands?.medium_confidence || confidence_bands.medium_confidence).toLocaleString('en-US', { minimumFractionDigits: 2 })}
             </p>
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="text-[10px] text-muted-foreground mt-0.5">
               {fallbackSavings ? 'estimated' : '50-80% certainty'}
             </p>
           </div>
 
-          <div className="p-4 border rounded-lg">
-            <div className="flex items-center gap-2 mb-2">
-              <AlertCircle className="w-5 h-5 text-muted-foreground" />
-              <span className="font-semibold text-sm">Low Confidence</span>
+          <div className="p-3 border rounded-lg bg-background/50">
+            <div className="flex items-center justify-between mb-1.5">
+              <div className="flex items-center gap-1.5">
+                <AlertCircle className="w-4 h-4 text-muted-foreground" />
+                <span className="font-medium text-xs">Low</span>
+              </div>
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Info className="w-4 h-4 text-muted-foreground cursor-help" />
+                    <Info className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
                   </TooltipTrigger>
                   <TooltipContent className="max-w-xs">
                     <p className="text-sm font-semibold mb-1">Why Low Confidence?</p>
@@ -369,10 +377,10 @@ export const ComprehensiveSavings = ({ savings, computedIssuesCount, totalBilled
                 </Tooltip>
               </TooltipProvider>
             </div>
-            <p className="text-2xl font-bold">
+            <p className="text-xl font-bold">
               ${(fallbackConfidenceBands?.low_confidence || confidence_bands.low_confidence).toLocaleString('en-US', { minimumFractionDigits: 2 })}
             </p>
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="text-[10px] text-muted-foreground mt-0.5">
               {fallbackSavings ? 'estimated' : '<50% certainty'}
             </p>
           </div>
