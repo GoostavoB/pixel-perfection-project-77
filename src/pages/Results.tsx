@@ -264,6 +264,54 @@ const Results = () => {
           <Separator className="my-4" />
         </div>
 
+        {/* Itemization Warning Disclaimer - Shows for missing or partial itemization */}
+        {(itemizationStatus === 'missing' || itemizationStatus === 'partial') && (
+          <Card className="mb-8 border-2 border-destructive bg-destructive/5">
+            <div className="p-6">
+              <div className="flex items-start gap-4">
+                <div className="flex-shrink-0">
+                  <AlertCircle className="w-6 h-6 text-destructive" />
+                </div>
+                <div className="flex-1 space-y-3">
+                  <h3 className="text-lg font-bold text-destructive">
+                    ⚠️ Limited Accuracy Warning
+                  </h3>
+                  <p className="text-sm text-foreground leading-relaxed">
+                    <strong>Your bill is {itemizationStatus === 'partial' ? 'partially' : 'not'} itemized, so this report may not be fully accurate.</strong> You have the legal right to request an itemized bill that lists each charge and service.
+                  </p>
+                  <p className="text-sm text-foreground leading-relaxed">
+                    Under federal law (<a 
+                      href="https://www.law.cornell.edu/cfr/text/45/164.524" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline font-semibold"
+                    >
+                      45 C.F.R. § 164.524 — HIPAA Privacy Rule, 1996
+                    </a>), every patient in the United States has the right to access and obtain copies of their medical and billing records, including itemized statements.
+                  </p>
+                  <p className="text-sm font-semibold text-destructive">
+                    Ask your provider for an itemized bill and run the check again for a complete analysis.
+                  </p>
+                  <Button 
+                    variant="destructive" 
+                    size="sm"
+                    className="mt-2"
+                    asChild
+                  >
+                    <a 
+                      href="https://www.law.cornell.edu/cfr/text/45/164.524" 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                    >
+                      Learn more about your rights <ArrowRight className="w-4 h-4 ml-2" />
+                    </a>
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </Card>
+        )}
+
         {/* Top Section: Provider info and Total Bill Amount */}
         <div className="mb-8">
           <Card className="p-6">
