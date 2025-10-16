@@ -11,6 +11,9 @@ const CMS_CATALOG_URL = "https://data.cms.gov/data.json";
 const CMS_DATASET_ID = "92396110-2aed-4d63-a6a2-5d6207d46a29"; // Medicare Physician & Other Practitioners
 const CMS_API_BASE = "https://data.cms.gov/data-api/v1/dataset";
 
+// CMS Procedure Price Lookup (PPL) API - FREE API with ~3,900 procedures
+const CMS_PPL_API = "https://data.cms.gov/provider-summary-by-type-of-service/medicare-physician-other-practitioners/medicare-physician-other-practitioners-by-provider-and-service/data";
+
 // Common CPT codes for bulk import
 const COMMON_CPT_CODES = [
   { code: '99213', desc: 'Office visit, established patient, level 3', rate: 93.85 },
@@ -81,11 +84,82 @@ const COMMON_CPT_CODES = [
 ];
 
 /**
- * Fetch pricing data from specific CMS dataset by CPT code
+ * Fetch pricing from CMS PPL API (newer, more comprehensive)
+ */
+async function fetchCMSPPLPricing(cptCode: string) {
+  try {
+    console.log(`Fetching pricing from CMS PPL API for CPT ${cptCode}...`);
+    
+    // Query PPL API for specific HCPCS/CPT code
+    const url = `${CMS_PPL_API}?hcpcs_code=${cptCode}`;
+    
+    const response = await fetch(url);
+    
+    if (!response.ok) {
+      console.error(`CMS PPL API returned ${response.status} for CPT ${cptCode}`);
+      return null;
+    }
+    
+    const data = await response.json();
+    
+    if (data && data.length > 0) {
+      // Aggregate data from all providers
+      let totalSubmitted = 0;
+      let totalAllowed = 0;
+      let totalPayment = 0;
+      let count = 0;
+      
+      for (const record of data) {
+        const submitted = parseFloat(record.average_submitted_chrg_amt || 0);
+        const allowed = parseFloat(record.average_Medicare_allowed_amt || 0);
+        const payment = parseFloat(record.average_Medicare_payment_amt || 0);
+        
+        if (submitted > 0 && allowed > 0) {
+          totalSubmitted += submitted;
+          totalAllowed += allowed;
+          totalPayment += payment;
+          count++;
+        }
+      }
+      
+      if (count > 0) {
+        const avgSubmitted = totalSubmitted / count;
+        const avgAllowed = totalAllowed / count;
+        const avgPayment = totalPayment / count;
+        
+        return {
+          cpt_code: cptCode,
+          description: data[0].hcpcs_description || 'Medical procedure',
+          avg_submitted_charge: avgSubmitted,
+          avg_medicare_allowed: avgAllowed,
+          avg_medicare_payment: avgPayment,
+          fair_price_range: {
+            min: avgAllowed * 0.8,  // 80% of Medicare allowed
+            max: avgAllowed * 2.5,  // 250% of Medicare allowed (fair market)
+            recommended: avgAllowed * 1.5  // 150% of Medicare (typical fair price)
+          },
+          provider_count: count,
+          source: 'CMS PPL API',
+          confidence: count >= 50 ? 'high' : count >= 20 ? 'medium' : 'low'
+        };
+      }
+    }
+    
+    console.log(`No pricing data found in CMS PPL API for CPT ${cptCode}`);
+    return null;
+    
+  } catch (error) {
+    console.error(`Error fetching CMS PPL pricing for ${cptCode}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Fetch pricing data from specific CMS dataset by CPT code (legacy method)
  */
 async function fetchCMSPricingByCPT(cptCode: string) {
   try {
-    console.log(`Fetching pricing from CMS dataset for CPT ${cptCode}...`);
+    console.log(`Fetching pricing from CMS legacy dataset for CPT ${cptCode}...`);
     
     // Query CMS API for specific HCPCS/CPT code
     const url = `${CMS_API_BASE}/${CMS_DATASET_ID}/data?filter[Hcpcs_Cd]=${cptCode}&size=100`;
@@ -123,8 +197,15 @@ async function fetchCMSPricingByCPT(cptCode: string) {
           description: records[0].Hcpcs_Desc || 'Medicare procedure',
           avg_submitted_charge: totalCharge / count,
           avg_medicare_allowed: totalAllowed / count,
+          avg_medicare_payment: totalAllowed / count * 0.8, // Estimate 80% of allowed
+          fair_price_range: {
+            min: (totalAllowed / count) * 0.8,
+            max: (totalAllowed / count) * 2.5,
+            recommended: (totalAllowed / count) * 1.5
+          },
           provider_count: count,
-          source: 'CMS Medicare Physician Data'
+          source: 'CMS Medicare Physician Data',
+          confidence: count >= 50 ? 'high' : count >= 20 ? 'medium' : 'low'
         };
       }
     }
@@ -136,6 +217,21 @@ async function fetchCMSPricingByCPT(cptCode: string) {
     console.error(`Error fetching CMS pricing for ${cptCode}:`, error);
     return null;
   }
+}
+
+/**
+ * Fetch pricing with fallback: Try PPL first, then legacy CMS API
+ */
+async function fetchComprehensivePricing(cptCode: string) {
+  // Try PPL API first (more comprehensive)
+  let pricingData = await fetchCMSPPLPricing(cptCode);
+  
+  // Fallback to legacy CMS API
+  if (!pricingData) {
+    pricingData = await fetchCMSPricingByCPT(cptCode);
+  }
+  
+  return pricingData;
 }
 
 /**
@@ -275,12 +371,12 @@ serve(async (req) => {
         if (existing) {
           result = existing;
         } else if (fetchFromAPI) {
-          // If not in DB and fetchFromAPI flag is true, query CMS API
-          console.log(`CPT ${code} not in database, fetching from CMS API...`);
-          const apiData = await fetchCMSPricingByCPT(code);
+          // If not in DB and fetchFromAPI flag is true, query CMS APIs
+          console.log(`CPT ${code} not in database, fetching from CMS APIs...`);
+          const apiData = await fetchComprehensivePricing(code);
           
           if (apiData) {
-            // Save to database for future use
+            // Save to database for future use with extended metadata
             const { data: inserted, error } = await supabase
               .from('medicare_prices')
               .upsert({
@@ -298,7 +394,12 @@ serve(async (req) => {
               result.fetched_from_api = true;
               result.api_metadata = {
                 avg_submitted_charge: apiData.avg_submitted_charge,
-                provider_count: apiData.provider_count
+                avg_medicare_payment: apiData.avg_medicare_payment,
+                fair_price_range: apiData.fair_price_range,
+                provider_count: apiData.provider_count,
+                confidence: apiData.confidence,
+                source: apiData.source,
+                fetched_at: new Date().toISOString()
               };
             }
           }

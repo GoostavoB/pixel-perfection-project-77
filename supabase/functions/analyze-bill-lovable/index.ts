@@ -215,7 +215,7 @@ serve(async (req) => {
     analysisResult.total_issues_count = originalIssueCount + duplicateLineCount;
     
     // ✅ FIX: Recalculate estimated_total_savings INCLUDING duplicates
-    const originalSavings = calculateSavings(analysisResult);
+    const originalSavings = await calculateSavings(analysisResult);
     
     // 🔧 CRITICAL FIX: Extract actual savings from savings engine details
     const savingsDetails = (analysisResult as any)._savings_details;
@@ -253,7 +253,7 @@ serve(async (req) => {
     console.log('User ID:', userId);
 
     // 🔧 FIX 6: Log final analysis summary before storage
-    const finalSavings = calculateSavings(analysisResult);
+    const finalSavings = await calculateSavings(analysisResult);
     console.log('[FINAL] === Analysis Summary ===');
     console.log('[FINAL] Bill Total:', analysisResult.total_bill_amount);
     console.log('[FINAL] High Priority Issues:', analysisResult.high_priority_issues?.length || 0);
@@ -310,7 +310,7 @@ serve(async (req) => {
         analysis_result: analysisResult,
         critical_issues: analysisResult.high_priority_issues?.length || 0,
         moderate_issues: analysisResult.potential_issues?.length || 0,
-        estimated_savings: calculateSavings(analysisResult),
+        estimated_savings: await calculateSavings(analysisResult),
         issues: [...(analysisResult.high_priority_issues || []), ...(analysisResult.potential_issues || [])],
         updated_at: new Date().toISOString(),
       })
@@ -333,7 +333,7 @@ serve(async (req) => {
         ui_summary: {
           high_priority_count: analysisResult.high_priority_issues?.length || 0,
           potential_issues_count: analysisResult.potential_issues?.length || 0,
-          estimated_savings_if_corrected: calculateSavings(analysisResult),
+          estimated_savings_if_corrected: await calculateSavings(analysisResult),
           data_sources_used: analysisResult.data_sources || ['Lovable AI Analysis'],
           tags: analysisResult.tags || [],
           analysis_version: analysisResult.analysis_version,
@@ -1048,7 +1048,7 @@ Return your analysis in this EXACT JSON structure (ALL fields REQUIRED):
     });
     
     // 🔧 FIX 5: UNCONDITIONAL validation with text extraction fallback
-    analysis = validateAnalysis(analysis, extractedText);
+    analysis = await validateAnalysis(analysis, extractedText);
     
     // 🔧 VALIDATION PIPELINE: Normalize → Finalize → Assert
     console.log('[VALIDATION] Starting final validation pipeline');
@@ -1459,7 +1459,7 @@ function backfillMissingAmounts(analysis: any, totalBilled: number): void {
 }
 
 // ✅ NEW: Production-ready savings calculation using multi-source baseline
-function calculateSavings(analysis: any): number {
+async function calculateSavings(analysis: any): Promise<number> {
   console.log('[CALC] === Starting Production Savings Calculation ===');
   console.log('[CALC] Analysis structure:', {
     has_charges: !!analysis.charges,
@@ -1522,25 +1522,83 @@ function calculateSavings(analysis: any): number {
     }
   });
 
-  // Build baseline sources - use existing overcharge_amount from AI as baseline difference
+  // ⚡ PHASE 2A: Fetch real-time fair prices from CMS APIs
+  console.log('[FAIR_PRICE] === Fetching real-time fair prices from CMS APIs ===');
+  const uniqueCptCodes = Array.from(new Set(
+    lines
+      .map(l => l.cpt_or_hcpcs)
+      .filter(code => code && code !== 'N/A' && /^\d{5}$/.test(code))
+  ));
+  
+  console.log(`[FAIR_PRICE] Found ${uniqueCptCodes.length} unique CPT codes to price`);
+  
+  const fairPricesMap = new Map<string, any>();
+  
+  if (uniqueCptCodes.length > 0) {
+    try {
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+      const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+      const fairPriceClient = createClient(supabaseUrl, supabaseKey);
+      
+      const { data: fairPricesData, error: fairPricesError } = await fairPriceClient.functions.invoke('fetch-fair-prices', {
+        body: {
+          cptCodes: uniqueCptCodes,
+          state: analysis.hospital_state || 'National',
+          forceRefresh: false // Use 30-day cache
+        }
+      });
+      
+      if (fairPricesError) {
+        console.error('[FAIR_PRICE] Error fetching fair prices:', fairPricesError);
+      } else if (fairPricesData?.results) {
+        console.log(`[FAIR_PRICE] ✓ Received ${fairPricesData.results.length} fair price results`);
+        fairPricesData.results.forEach((fp: any) => {
+          fairPricesMap.set(fp.cpt_code, fp);
+          console.log(`[FAIR_PRICE] ${fp.cpt_code}: Fair=$${fp.fair_price}, Medicare=$${fp.medicare_rate}, Confidence=${fp.confidence}`);
+        });
+      }
+    } catch (apiError) {
+      console.error('[FAIR_PRICE] Failed to fetch fair prices:', apiError);
+    }
+  }
+
+  // Build baseline sources - NOW POWERED BY REAL-TIME FAIR PRICES! 🚀
   const baseline_sources = new Map<string, BaselineSource>();
   charges.forEach((charge: any, idx: number) => {
     const line_id = `line_${idx}`;
     const billed = Number(charge.charge_amount || charge.billed_amount) || 0;
     const overcharge = Number(charge.overcharge_amount) || 0;
+    const cptCode = charge.cpt_code;
     
-    // If AI provided an overcharge, derive the baseline
+    // Start with AI-derived baseline as fallback
     let estimated_baseline = billed;
     if (overcharge > 0 && overcharge < billed) {
       estimated_baseline = billed - overcharge;
     }
     
-    baseline_sources.set(line_id, {
-      plan_allowed: estimated_baseline > 0 ? estimated_baseline : undefined,
-      medicare_allowed: undefined,
-      regional_benchmark: undefined,
-      chargemaster_median: undefined
-    });
+    // ⚡ UPGRADE: Use real-time fair price if available
+    const fairPrice = fairPricesMap.get(cptCode);
+    
+    if (fairPrice && fairPrice.confidence !== 'low') {
+      console.log(`[BASELINE] ✓ Using REAL fair price for ${cptCode}: $${fairPrice.fair_price} (${fairPrice.source})`);
+      
+      baseline_sources.set(line_id, {
+        plan_allowed: fairPrice.fair_price,                     // 150% of Medicare (fair market)
+        medicare_allowed: fairPrice.medicare_rate,              // Actual Medicare rate
+        regional_benchmark: fairPrice.fair_price_range.recommended, // Same as fair price
+        chargemaster_median: undefined
+      });
+    } else {
+      // Use AI estimate as fallback
+      console.log(`[BASELINE] Using AI estimate for ${cptCode || 'aggregated'}: $${estimated_baseline}`);
+      
+      baseline_sources.set(line_id, {
+        plan_allowed: estimated_baseline > 0 ? estimated_baseline : undefined,
+        medicare_allowed: undefined,
+        regional_benchmark: undefined,
+        chargemaster_median: undefined
+      });
+    }
   });
 
   // 🔍 HIGH-SIGNAL LOGGING: What's going into the savings engine?
@@ -1585,7 +1643,7 @@ function calculateSavings(analysis: any): number {
 }
 
 // 🔧 FIX 4: Enhanced validation with robust total extraction and deduplication
-function validateAnalysis(analysis: any, extractedText: string): any {
+async function validateAnalysis(analysis: any, extractedText: string): Promise<any> {
   console.log('[VALIDATE] === Starting Validation ===');
   
   // Guard: Ensure total_bill_amount exists (extract from text if missing)
@@ -1617,7 +1675,7 @@ function validateAnalysis(analysis: any, extractedText: string): any {
   }
   
   // Calculate actual savings from deduplicated issues
-  const calculatedSavings = calculateSavings(analysis);
+  const calculatedSavings = await calculateSavings(analysis);
   
   console.log('[VALIDATE] Validation check:', {
     totalBill,
@@ -1653,7 +1711,7 @@ function validateAnalysis(analysis: any, extractedText: string): any {
       validation_adjusted: true
     }));
     
-    analysis.total_potential_savings = calculateSavings(analysis);
+    analysis.total_potential_savings = await calculateSavings(analysis);
     analysis.validation_applied = true;
     analysis.reduction_factor = reductionFactor;
     
