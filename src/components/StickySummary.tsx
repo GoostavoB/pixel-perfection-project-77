@@ -34,22 +34,22 @@ export const StickySummary = ({
           </div>
         )}
 
-        <div className="flex items-end justify-between">
-          <div className="flex flex-col">
-            <span className="text-sm font-semibold text-foreground mb-1">Estimated new total:</span>
-            {selectedReductions > 0 && (
+        {selectedReductions > 0 && (
+          <div className="flex items-end justify-between">
+            <div className="flex flex-col">
+              <span className="text-sm font-semibold text-foreground mb-1">Estimated new total:</span>
               <Badge className="bg-green-100 text-green-700 border-green-300 w-fit">
                 <TrendingDown className="w-3 h-3 mr-1" />
                 {savingsPercentage.toFixed(1)}% savings
               </Badge>
-            )}
-          </div>
-          <div className="text-right">
-            <div className="text-3xl font-bold text-green-700">
-              ${estimatedNewTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </div>
+            <div className="text-right">
+              <div className="text-3xl font-bold text-green-700">
+                ${estimatedNewTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </Card>
     </div>
   );

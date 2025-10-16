@@ -110,24 +110,36 @@ export const NSATriage = ({ applies, scenarios, missingData, prelimAssessment }:
 
       <div className="flex gap-2">
         {missingData.length > 0 && (
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={handleGenerateEmail}
-            className="transition-all"
-          >
-            {copied ? (
-              <>
-                <Check className="w-4 h-4 mr-1 animate-scale-in text-green-600" />
-                <span className="text-green-600 font-semibold">Copied!</span>
-              </>
-            ) : (
-              <>
-                <Mail className="w-4 h-4 mr-1" />
-                Copy NSA Request Email
-              </>
-            )}
-          </Button>
+          <div className="p-3 bg-blue-50/50 border border-blue-200 rounded-lg mt-4">
+            <div className="flex items-start gap-2 mb-2">
+              <Shield className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-blue-900 mb-1">No Surprises Act Request Email</p>
+                <p className="text-xs text-blue-700">
+                  Requests information to determine if you're protected from balance billing under federal law. 
+                  Could save you significant money if NSA protections apply.
+                </p>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleGenerateEmail}
+              className="transition-all w-full"
+            >
+              {copied ? (
+                <>
+                  <Check className="w-4 h-4 mr-1 animate-scale-in text-green-600" />
+                  <span className="text-green-600 font-semibold">Copied!</span>
+                </>
+              ) : (
+                <>
+                  <Mail className="w-4 h-4 mr-1" />
+                  Copy NSA Request Email
+                </>
+              )}
+            </Button>
+          </div>
         )}
         {applies === "protected" && (
           <Button
