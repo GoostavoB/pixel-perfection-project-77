@@ -1,4 +1,4 @@
-import { CheckCircle, AlertCircle, AlertTriangle, Database, FileText, ArrowRight, Calendar, FileBarChart, TrendingDown, DollarSign, Loader2 } from "lucide-react";
+import { CheckCircle, AlertCircle, AlertTriangle, Database, FileText, ArrowRight, Calendar, FileBarChart, TrendingDown, DollarSign, Loader2, RefreshCw } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -16,6 +16,7 @@ const NewResults = () => {
   const { toast } = useToast();
   const { analysis, sessionId } = (location.state as { analysis?: any; sessionId?: string }) || {};
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [isReanalyzing, setIsReanalyzing] = useState(false);
   
   useEffect(() => {
     if (!analysis || !sessionId) {
@@ -56,6 +57,60 @@ const NewResults = () => {
   const dataSources = uiSummary.data_sources_used || fullAnalysis.data_sources || [];
   const tags = uiSummary.tags || fullAnalysis.tags || [];
   const emailSent = analysis.email_sent || false;
+
+  const handleReanalyze = async () => {
+    if (!analysis.file_url) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Original bill file not available"
+      });
+      return;
+    }
+
+    setIsReanalyzing(true);
+
+    try {
+      // Fetch the original file
+      const fileResponse = await fetch(analysis.file_url);
+      const fileBlob = await fileResponse.blob();
+      const fileName = analysis.file_name || 'medical-bill.pdf';
+      const file = new File([fileBlob], fileName, { type: fileBlob.type });
+
+      // Create form data with fresh flag to bypass cache
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('fresh', 'true');
+
+      // Call analysis with cache bypass
+      const response = await supabase.functions.invoke('analyze-bill-lovable', {
+        body: formData,
+      });
+
+      if (response.error) throw response.error;
+
+      toast({
+        title: "Re-analysis Complete!",
+        description: "Bill analyzed with latest estimation logic"
+      });
+
+      // Navigate to processing page
+      navigate('/processing', { 
+        state: { 
+          sessionId: response.data.session_id 
+        } 
+      });
+    } catch (error) {
+      console.error('Re-analysis Error:', error);
+      toast({
+        variant: "destructive",
+        title: "Re-analysis Failed",
+        description: error instanceof Error ? error.message : "Failed to re-analyze bill"
+      });
+    } finally {
+      setIsReanalyzing(false);
+    }
+  };
 
   const handleDownloadPDF = async () => {
     if (!analysis) {
@@ -129,6 +184,42 @@ const NewResults = () => {
           </div>
           <Separator className="my-4" />
         </div>
+
+        {/* Cache Notice - Show if analysis is cached */}
+        {fullAnalysis.cached && (
+          <Card className="mb-6 p-6 border-l-4 border-l-warning shadow-card bg-warning/5">
+            <div className="flex items-start gap-4">
+              <div className="p-2 bg-warning/10 rounded">
+                <AlertTriangle className="w-5 h-5 text-warning" />
+              </div>
+              <div className="flex-1">
+                <h2 className="text-lg font-bold text-foreground mb-1">Cached Analysis Detected</h2>
+                <p className="text-sm text-muted-foreground mb-3">
+                  You're viewing cached results from a previous analysis. Recent improvements to our estimation engine may provide more accurate savings calculations.
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleReanalyze}
+                  disabled={isReanalyzing}
+                  className="border-warning text-warning hover:bg-warning hover:text-warning-foreground"
+                >
+                  {isReanalyzing ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Re-analyzing...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                      Re-analyze with Latest Logic
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </Card>
+        )}
 
         {/* Email Sent Confirmation */}
         {emailSent && (
