@@ -325,8 +325,8 @@ const Results = () => {
               line{totalIssuesCount !== 1 ? 's' : ''} with potential issues
             </p>
           </Card>
-          <Card className="p-6 text-center relative">
-            <div className="flex items-center justify-center gap-2 mb-1">
+          <Card className="p-6 flex flex-col items-center justify-center text-center min-h-[200px]">
+            <div className="flex items-center justify-center gap-2 mb-3">
               <p className="text-sm text-muted-foreground">
                 {fallbackSavings ? 'Conservative Estimated Savings' : 'Potential Savings'}
               </p>
@@ -349,32 +349,32 @@ const Results = () => {
             
             {fallbackSavings ? (
               <>
-                <p className="text-3xl font-bold text-success">
+                <p className="text-3xl font-bold text-success mb-2">
                   ${fallbackSavings.low.toLocaleString()} - ${fallbackSavings.high.toLocaleString()}
                 </p>
-                <p className="text-xs text-muted-foreground mt-1">conservative range</p>
+                <p className="text-xs text-muted-foreground">conservative range</p>
               </>
             ) : (
               <>
-                <p className="text-3xl font-bold text-success">
+                <p className="text-3xl font-bold text-success mb-2">
                   {estimatedSavings > 0
                     ? `$${estimatedSavings.toLocaleString('en-US', { minimumFractionDigits: 2 })}` 
                     : itemizationStatus === 'missing' ? 'Unknown' : '$0.00'}
                 </p>
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="text-xs text-muted-foreground">
                   {itemizationStatus === 'missing' ? 'itemization required' : 'estimated'}
                 </p>
               </>
             )}
             
             {itemizationStatus === 'missing' && !fallbackSavings && (
-              <div className="mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-900 text-left">
+              <div className="mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-900">
                 <strong>Note:</strong> Request an itemized bill from the hospital to calculate accurate savings.
               </div>
             )}
           </Card>
-          <Card className="p-6 text-center">
-            <div className="flex items-center justify-center gap-2 mb-1">
+          <Card className="p-6 flex flex-col items-center justify-center text-center min-h-[200px]">
+            <div className="flex items-center justify-center gap-2 mb-3">
               <p className="text-sm text-muted-foreground">Confidence</p>
               <TooltipProvider>
                 <Tooltip>
@@ -387,7 +387,7 @@ const Results = () => {
                 </Tooltip>
               </TooltipProvider>
             </div>
-            <p className="text-3xl font-bold text-foreground">Mixed</p>
+            <p className="text-3xl font-bold text-foreground mb-2">Mixed</p>
             <p className="text-xs text-muted-foreground mt-1">see badges below for details</p>
           </Card>
         </div>
