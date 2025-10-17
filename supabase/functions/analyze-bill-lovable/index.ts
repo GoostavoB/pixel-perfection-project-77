@@ -189,7 +189,7 @@ serve(async (req) => {
     // Integrate duplicate findings into main analysis
     analysisResult.duplicate_findings = duplicateFindings;
     
-    // ✅ FIX: Calculate duplicate savings properly
+    // ✅ PHASE 2: Calculate duplicate savings properly (100% of FIRST duplicate)
     let totalDuplicateSavings = 0;
     let duplicateLineCount = 0;
     
@@ -198,7 +198,12 @@ serve(async (req) => {
       .filter((f: any) => f.category === 'P1' || f.category === 'P2')
       .forEach((flag: any, idx: number) => {
         const amount = (flag.evidence?.prices || []).reduce((sum: number, p: number) => sum + p, 0);
-        const estimatedSavings = Math.round(amount * 0.8 * 100) / 100; // Conservative 80%
+        const duplicatePrices = flag.evidence?.prices || [];
+        const estimatedSavings = duplicatePrices.length > 0 
+          ? duplicatePrices[0] // ✅ 100% of FIRST duplicate charge
+          : 0;
+        
+        console.log(`[DUP SAVINGS] Line ${flag.lineIds?.[0]}: prices=${JSON.stringify(duplicatePrices)}, savings=$${estimatedSavings}`);
         
         duplicateLineCount++;
         totalDuplicateSavings += estimatedSavings;
@@ -207,7 +212,7 @@ serve(async (req) => {
           id: `duplicate-${idx}`,
           description: flag.reason || 'Potential duplicate charge',
           amount: amount,
-          estimated_reduction: estimatedSavings,
+          estimatedReduction: estimatedSavings, // ✅ PHASE 2.3: camelCase field name
           reason: flag.dispute_text || 'Potential duplicate - same service billed multiple times'
         });
       });
@@ -243,6 +248,13 @@ serve(async (req) => {
       total_savings_final: analysisResult.estimated_total_savings,
       what_if_items: analysisResult.what_if_calculator_items?.length
     });
+    
+    // ✅ PHASE 5.2: Add savings validation
+    console.log('[SAVINGS VALIDATION]');
+    console.log(`  Duplicate savings: $${totalDuplicateSavings.toFixed(2)} (${duplicateLineCount} lines)`);
+    console.log(`  Overcharge savings: $${savingsDetails?.overcharge_savings_subtotal || 0} (${savingsDetails?.overcharge_count || 0} lines)`);
+    console.log(`  Total potential savings: $${analysisResult.estimated_total_savings?.toFixed(2) || 0}`);
+    console.log(`  Expected for test bill: Duplicates=$450, Overcharges=$5030, Total=$5480`);
 
     // Get user ID from auth header
     const authHeader = req.headers.get('Authorization');
@@ -577,278 +589,10 @@ ${regionalData?.map((r: any) => `${r.state_code} (${r.region_name}): ${r.adjustm
 ${providerContext}
 `;
   
-  const systemPrompt = `# Medical Bill Analysis System - Comprehensive Professional Audit v2.0
-
-You are a specialized medical billing auditor for Hospital Bill Checker analyzing ALL types of medical bills with access to:
-- Medicare pricing and regional adjustments
-- NPI verification
-- No Surprises Act (NSA) federal protections database
-- Top 10 Most Common Billing Issues database
-
-${pricingContext}
-
-# NO SURPRISES ACT PROTECTIONS
-
-Use No Surprises Act rules to detect:
-- Emergency balance billing violations
-- Out-of-network ancillary provider violations at in-network facilities
-- Missing notice-and-consent documentation
-- Air ambulance balance billing
-- Good Faith Estimate discrepancies
-
-CRITICAL ANALYSIS REQUIREMENTS:
-1. For EVERY issue you flag, you MUST provide DETAILED, EVIDENCE-BASED explanations
-2. Check ALL charges against No Surprises Act protections using the knowledge base above
-3. For overcharges, compare to Medicare rates with specific dollar amounts
-4. For duplicates, explain exact matching criteria (CPT code, date, provider, modifiers)
-5. NEVER use vague language like "potential overcharge" without explaining WHY with evidence
-
-## STEP 0: LANGUAGE DETECTION & TRANSLATION (CRITICAL)
-1. **Identify bill language**: Spanish, English, or other
-2. **If NOT English**: Translate ALL charge descriptions, provider names, diagnoses, and notes to English
-3. **Preserve**: All amounts, dates, account numbers, CPT codes (no translation)
-4. **Note in output**: Add "bill_language" field and include "translated_bill" tag if applicable
-5. **Format**: Show "LABORATORIO (Laboratory Services)" to preserve context
-
-## STEP 1: EXTRACT CORE INFORMATION (MANDATORY FIRST STEP)
-**Required fields for EVERY bill**:
-- **total_bill_amount** (MANDATORY): Extract from "TOTAL", "TOTAL ADEUDADO", "BALANCE DUE", "AMOUNT OWED", "PATIENT BALANCE", "TOTAL CHARGES"
-- **hospital_name** (MANDATORY): Extract from bill header/letterhead  
-- **date_of_service**: Service date, admission date, or statement date
-- **account_number**: Bill/account reference if visible
-
-## STEP 2: ORGANIZE LINE ITEMS
-Extract and translate each charge:
-- Line number, CPT code, description (translated), billed amount, quantity
-- For Spanish bills: "Sala de Emergencias" → "Emergency Room (Sala de Emergencias)"
-- Note missing codes or descriptions
-
-## STEP 3: NSA PROTECTION CHECK
-✅ **NSA PROTECTED** (Patient owes only in-network rates):
-- Emergency care at ANY facility
-- Out-of-network clinicians at in-network facility (anesthesia, radiology, pathology, ER physicians)
-- Air ambulance
-- Self-pay with Good Faith Estimate variance >$400
-
-If protected, classify violations as HIGH PRIORITY and cite "No Surprises Act (45 CFR § 149.410)"
-
-## STEP 4: LINE-ITEM AUDIT - Top 10 Most Common Issues
-
-### #1 - DUPLICATE BILLING (30-40% of bills - MOST COMMON)
-- Same CPT code billed 2+ times on same date
-- Provider AND facility billing same service
-- **Classification**: HIGH PRIORITY | **Confidence**: 1.0 for exact duplicates
-- **Tag**: "duplicate_billing" | **Ranking**: "#1 most common (30-40% of bills)"
-
-### #2 - UPCODING (25% of bills)
-- ER Level 5 for non-critical cases
-- High-level E/M without justification
-- **Classification**: POTENTIAL ISSUE | **Confidence**: 0.7-0.9
-- **Tag**: "upcoding" | **Ranking**: "#2 most common (25% of bills)"
-
-### #3 - UNBUNDLING (20-25% of bills)
-- Lab panels split into individual tests
-- Separate billing for bundled procedures
-- **Classification**: POTENTIAL ISSUE | **Confidence**: 0.8-0.95
-- **Tag**: "unbundling" | **Ranking**: "#3 most common (20-25% of bills)"
-
-### #4 - FACILITY FEE ISSUES
-- Multiple facility fees same date
-- Undisclosed facility charges
-- **Classification**: POTENTIAL ISSUE | **Confidence**: 0.7-0.9
-- **Tag**: "facility_fee" | **Ranking**: "#4 most common"
-
-### #5 - BALANCE BILLING (NSA violation if protected)
-- Out-of-network at in-network facility
-- **Classification**: HIGH PRIORITY if NSA applies | **Confidence**: 0.95-1.0
-- **Tag**: "balance_billing", "nsa_violation" | **Ranking**: "#5 most common"
-
-### #6 - SERVICES NOT RENDERED (10-15%)
-- Unreasonable quantities
-- Undocumented services
-- **Classification**: HIGH PRIORITY | **Confidence**: 0.6-0.9
-- **Tag**: "phantom_billing" | **Ranking**: "#6 most common (10-15%)"
-
-### #7 - PRE-EOB BILLING
-- Bill before insurance processing
-- No EOB shown
-- **Classification**: POTENTIAL ISSUE | **Confidence**: 1.0
-- **Tag**: "pre_eob" | **Ranking**: "#7 most common"
-
-### #8 - TRAUMA ACTIVATION FEE
-- Large trauma fee for minor injury
-- **Classification**: POTENTIAL ISSUE | **Confidence**: 0.6-0.8
-- **Tag**: "trauma_fee" | **Ranking**: "#8 most common in ER bills"
-
-### #9 - COLLECTIONS ON INVALID BILLS
-- Collections on disputed/NSA-protected charges
-- **Classification**: HIGH PRIORITY | **Confidence**: 0.9-1.0
-- **Tag**: "invalid_collections" | **Ranking**: "#9 most common"
-
-### #10 - GROUND AMBULANCE
-- Not NSA-protected but negotiable
-- **Classification**: POTENTIAL ISSUE | **Confidence**: 1.0
-- **Tag**: "ambulance_charges" | **Ranking**: "#10 most common"
-
-## STEP 5: PRICE BENCHMARKING
-- Compare to Medicare rates (fair = 2-3x Medicare)
-- Flag >200% above Medicare as overcharge
-- Note regional variations
-
-## STEP 6: DATABASE CROSS-REFERENCE
-- Check if issues match common patterns in our database
-- Note: "This issue appears in X% of similar bills"
-- Provide recurrence context for user
-
-BILL FORMAT ANALYSIS - Handle ALL these types:
-📋 **Structured Bills**: Line-by-line itemization with CPT/HCPCS codes (99213, 80053, etc.)
-📋 **Aggregate Bills**: Category summaries (LABORATORY SERVICES $18,861, PHARMACY $33,719)
-📋 **Photo Bills**: Poor quality images with partial codes visible
-📋 **Internal Codes**: Hospital-specific codes (SURG01, B&B01, LAB01) instead of standard CPT
-📋 **Mixed Format**: Some line items + some aggregated categories
-
-📋 **CRITICAL FOR SAVINGS CALCULATION**:
-When extracting charges from aggregated categories (like "PHARMACY TOTAL: $5,000" or "Laboratory Services - $18,861"):
-- You MUST extract the dollar amount from the description
-- Store it in BOTH \`charge_amount\` AND \`billed_amount\` fields
-- Example: "PHARMACY SERVICES $33,719.00" → { charge_amount: 33719, billed_amount: 33719 }
-- Example: "Laboratory Total: $18,861" → { charge_amount: 18861, billed_amount: 18861 }
-- Example: "Emergency Room - $12,450.00" → { charge_amount: 12450, billed_amount: 12450 }
-- This is REQUIRED for savings calculation to work on non-itemized bills
-
-CRITICAL FRAUD DETECTION RULES:
-⚠️ **DUPLICATES** (High Priority):
-- Identical description + date + amount = 95% duplicate probability
-- Same service code charged 2x same day = investigate
-- Example: "IV hydration PROC-010 $200" appearing twice = $200 overcharge
-
-⚠️ **UNBUNDLING** (High Priority):
-- "Technical fee" + "Professional fee" separate from imaging = likely unbundled
-- Anesthesia + separate "monitoring fee" = red flag
-- Multiple "supply charges" for same procedure = investigate
-
-⚠️ **MASSIVE OVERCHARGES** (High Priority):
-- Compare to Medicare: >3x Medicare = overcharge, >5x = extreme overcharge
-- $5,400 for appendectomy (Medicare ~$1,200) = $4,200+ potential savings
-- Room charges >$2,000/night = investigate regional rates
-
-⚠️ **OUT-OF-NETWORK SURPRISE** (No Surprises Act):
-- Anesthesiologist OON at in-network hospital = VIOLATION
-- Assistant surgeon OON = check if emergency (protected) or elective (negotiable)
-- Radiology reading by OON doctor = potential violation
-
-⚠️ **CATEGORY-LEVEL RED FLAGS**:
-- "SUPPLIES" >$10,000 without itemization = demand breakdown
-- "PHARMACY" >$50,000 without drug list = investigate
-- Any category >$100,000 needs detailed review
-
-⚠️ **CODING ISSUES**:
-- Generic codes (like "SURG01") prevent price verification = demand CPT codes
-- Missing procedure codes = cannot benchmark fairly = flag for clarification
-- Mismatched specialty (cardiologist billing neurosurgery code) = upcoding risk
-
-ANALYSIS STRATEGY:
-1. **FIRST: Find TOTAL BILL AMOUNT** - Look for "TOTAL ADEUDADO", "BALANCE DUE", "AMOUNT OWED", "TOTAL CHARGES"
-2. **Extract ALL charges** - even from aggregated categories
-3. **Pattern detection** - look for duplicates, unbundling, excessive markups
-4. **Benchmark aggressively** - use Medicare + regional adjustment as "fair" baseline
-5. **Calculate realistic savings** - conservative estimates (what patient can actually negotiate)
-6. **MANDATORY VALIDATION**: Sum of all overcharge_amount values MUST be ≤ total_bill_amount
-7. **Actionable advice** - specific steps to dispute each overcharge
-
-🚨 **CRITICAL MATH VALIDATION**:
-- NEVER have total_potential_savings > total_bill_amount (impossible!)
-- If your calculated overcharges sum > 70% of bill total, you're likely making errors:
-  * Double-counting charges
-  * Using wrong Medicare benchmarks
-  * Counting aggregate categories AND their sub-items (counts twice)
-- SANITY CHECK: Review each overcharge_amount - is it reasonable?
-
-LANGUAGE REQUIREMENTS:
-- ALL responses in English
-- Dollar amounts with commas ($1,234.56)
-- Percentages for markup (320% markup)
-- Confidence scores (0.0-1.0) for each finding
-
-REAL-WORLD EXAMPLES from training data:
-
-**Example 1 - Duplicate Charge:**
-Bill shows: "IV hydration PROC-010 2 units $200" appearing on Line 4 and Line 5 on same date
-→ HIGH PRIORITY: Duplicate charge, $200 overcharge, confidence 0.95
-→ "Line 4 and Line 5 both charge PROC-010 for IV hydration on 2025-09-15 for $200 each. This is a $200 duplicate that should be removed."
-
-**Example 2 - Unbundling:**
-Bill shows: "Imaging - chest X-ray IMG-001 $250" + separate "Technical fee - imaging TECH-IMG $150"
-→ HIGH PRIORITY: Unbundling fraud, $150 overcharge, confidence 0.90
-→ "Technical fees should be bundled with the imaging charge. The $150 TECH-IMG is an unbundled charge that violates billing standards."
-
-**Example 3 - Extreme Markup:**
-Bill shows: "Surgery - Appendectomy SURG01 $5,400" (Medicare benchmark ~$1,800)
-→ HIGH PRIORITY: 300% markup, $1,800-$2,700 potential savings, confidence 0.85
-→ "Medicare pays $1,800 for this surgery. Even with a fair 2-3x hospital markup, this should be $3,600-$5,400. You have strong grounds to negotiate down to $3,600 (saving $1,800)."
-
-**Example 4 - OON Surprise Bill:**
-Bill shows: "Anesthesiologist (OON) - procedural support ANES-500 $600" at in-network facility
-→ HIGH PRIORITY: No Surprises Act violation, $300-$600 potential adjustment, confidence 0.90
-→ "Out-of-network anesthesia at an in-network hospital violates the No Surprises Act (2022). You should only pay the in-network rate. Request immediate adjustment."
-
-**Example 5 - Supply Overcharge:**
-Bill shows: "Supply charge - dressing kit SUP-001, 4 units @ $40 = $160"
-→ MODERATE PRIORITY: Excessive units, $80-$120 potential savings, confidence 0.75
-→ "Four units of dressing supplies for one wound care seems excessive. Typically 1-2 units. Question why 4 units were necessary."
-
-**Example 6 - Aggregate Category (Large Bill):**
-Bill shows: "LABORATORY SERVICES $18,861.71" without itemization
-→ MODERATE PRIORITY: Cannot verify without breakdown, confidence 0.60
-→ "This is a large aggregate charge. Request an itemized breakdown of all lab tests to verify each charge against Medicare rates. Lab markups often exceed 500%."
-
-Return your analysis in this EXACT JSON structure (ALL fields REQUIRED):
-{
-  "total_bill_amount": 27838.01,
-  "high_priority_issues": [
-    {
-      "type": "Major Overcharge",
-      "cpt_code": "99283",
-      "line_description": "Emergency Room Visit - Level 3",
-      "billed_amount": 1200,
-      "medicare_benchmark": 285,
-      "reasonable_rate": 855,
-      "overcharge_amount": 345,
-      "markup_percentage": 321,
-      "explanation_for_user": "This ER visit was charged at $1,200, but Medicare pays $285 for the same service. Even with a fair hospital markup (3x), it should be around $855. You're being overcharged by $345.",
-      "suggested_action": "Call billing and say: 'I see you charged $1,200 for CPT 99283, but the fair rate is $855. Can you adjust this?' Reference Medicare rates.",
-      "why_this_matters": "ER visits are commonly overcharged. This is a clear case where you have strong grounds to negotiate.",
-      "confidence_score": 0.95
-    }
-  ],
-  "potential_issues": [
-    {
-      "type": "Possible Duplicate",
-      "line_description": "Lab test appeared twice",
-      "billed_amount": 150,
-      "explanation_for_user": "This looks like it might be billed twice. Double-check with the hospital if you only had this test done once.",
-      "suggested_action": "Ask: 'Can you confirm CPT XXXXX was only performed once? It appears twice on my bill.'",
-      "confidence_score": 0.75
-    }
-  ],
-  "summary_for_user": "I found $XXX in overcharges and questionable items on your bill. The good news: these are fixable. Here's what to do next...",
-  "total_potential_savings": 495,
-  "data_sources": ["Medicare Fee Schedule 2025", "Regional Pricing (Your State)", "Provider Verification"],
-  "provider_notes": "Provider verified as legitimate and active.",
-  "hospital_name": "Baylor Scott & White Health",
-  "next_steps": [
-    "Call billing department: [phone]",
-    "Reference the specific overcharges listed above",
-    "Ask for an itemized bill review",
-    "Request payment plan if needed"
-  ],
-  "tags": ["overcharging", "negotiable", "high_confidence"]
-}
-
-🚨 CRITICAL REQUIREMENTS:
-- total_bill_amount is MANDATORY - extract from "TOTAL ADEUDADO", "BALANCE DUE", "AMOUNT OWED", "TOTAL CHARGES"
-- If total cannot be found, set total_bill_amount to 0 and add tag "missing_total"
-- hospital_name is MANDATORY - extract from bill header`;
+  // ✅ PHASE 1: Replace inline prompt with data extraction prompt file
+  const systemPrompt = await Deno.readTextFile('./prompts/data-extraction-prompt.md');
+  console.log('[PROMPT] Using data extraction prompt, length:', systemPrompt.length);
+  console.log('[PROMPT] First 200 chars:', systemPrompt.substring(0, 200));
 
   // Build message content - include image if available (for vision analysis)
   const userMessage: any = {
@@ -917,6 +661,7 @@ Return your analysis in this EXACT JSON structure (ALL fields REQUIRED):
                     cpt_code: { type: 'string', description: 'CPT/HCPCS code or "N/A" if missing' },
                     charge_amount: { type: 'number' },
                     billed_amount: { type: 'number', description: 'CRITICAL: For aggregate charges like "PHARMACY $5,000", extract dollar amount and store here' },
+                    allowed_amount: { type: 'number', description: 'CRITICAL: Extract from "Allowed", "Plan Allowed", "Insurance Allowed" column if present, otherwise null' },
                     overcharge_amount: { type: 'number', description: 'Estimated overcharge for this line' },
                     units: { type: 'number' },
                     revenue_code: { type: 'string' },
@@ -1052,6 +797,12 @@ Return your analysis in this EXACT JSON structure (ALL fields REQUIRED):
       data_sources: analysis.data_sources?.length || 0,
       tags: analysis.tags?.length || 0
     });
+    
+    // ✅ PHASE 5.1: Add extraction validation
+    console.log('[EXTRACTION VALIDATION]');
+    console.log(`  Total lines extracted: ${analysis.line_items?.length || 0}`);
+    console.log(`  Lines with allowed_amount: ${analysis.line_items?.filter((l: any) => l.allowed_amount > 0).length || 0}`);
+    console.log(`  Lines with CPT codes: ${analysis.line_items?.filter((l: any) => l.cpt_or_hcpcs && l.cpt_or_hcpcs !== 'N/A').length || 0}`);
     
     // 🔧 FIX 5: UNCONDITIONAL validation with text extraction fallback
     analysis = await validateAnalysis(analysis, extractedText);
@@ -1696,11 +1447,22 @@ async function calculateSavings(analysis: any): Promise<number> {
 
   // Build baseline sources - NOW POWERED BY REAL-TIME FAIR PRICES! 🚀
   const baseline_sources = new Map<string, BaselineSource>();
+  
+  // ✅ PHASE 3: Extract allowed amounts from charges
+  console.log('[BASELINE] Sample check (first 3 lines):');
+  
   charges.forEach((charge: any, idx: number) => {
     const line_id = `line_${idx}`;
     const billed = Number(charge.charge_amount || charge.billed_amount) || 0;
     const overcharge = Number(charge.overcharge_amount) || 0;
     const cptCode = charge.cpt_code;
+    
+    // ✅ PHASE 3.2: Extract allowed_amount from charge (from bill's "Allowed" column)
+    const allowed_amount = charge.allowed_amount || null;
+    
+    if (idx < 3) {
+      console.log(`  Line ${idx+1}: Billed=$${billed}, Allowed=${allowed_amount || 'N/A'}`);
+    }
     
     // Start with AI-derived baseline as fallback
     let estimated_baseline = billed;
@@ -1715,7 +1477,7 @@ async function calculateSavings(analysis: any): Promise<number> {
       console.log(`[BASELINE] ✓ Using REAL fair price for ${cptCode}: $${fairPrice.fair_price} (${fairPrice.source})`);
       
       baseline_sources.set(line_id, {
-        plan_allowed: fairPrice.fair_price,                     // 150% of Medicare (fair market)
+        plan_allowed: allowed_amount || fairPrice.fair_price, // ✅ Prioritize allowed_amount from bill
         medicare_allowed: fairPrice.medicare_rate,              // Actual Medicare rate
         regional_benchmark: fairPrice.fair_price_range.recommended, // Same as fair price
         chargemaster_median: undefined
@@ -1725,7 +1487,7 @@ async function calculateSavings(analysis: any): Promise<number> {
       console.log(`[BASELINE] Using AI estimate for ${cptCode || 'aggregated'}: $${estimated_baseline}`);
       
       baseline_sources.set(line_id, {
-        plan_allowed: estimated_baseline > 0 ? estimated_baseline : undefined,
+        plan_allowed: allowed_amount || (estimated_baseline > 0 ? estimated_baseline : undefined), // ✅ Prioritize allowed_amount
         medicare_allowed: undefined,
         regional_benchmark: undefined,
         chargemaster_median: undefined

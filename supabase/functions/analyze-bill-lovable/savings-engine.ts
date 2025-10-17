@@ -138,6 +138,9 @@ export function computeAllowedBaseline(
   const sorted = candidates.sort((a, b) => a.value - b.value);
   const baseline = sorted[0].value;
   
+  // ✅ PHASE 3.3: Add logging for baseline calculation
+  console.log(`[BASELINE] Line ${line.line_id}: plan_allowed=${sources.plan_allowed || 'N/A'}, medicare=${sources.medicare_allowed || 'N/A'}, using=${sorted[0].label}`);
+  
   // Build source description
   const sourceLabels = candidates.map(c => c.label).join(', ');
   const source = `min(${sourceLabels})`;
@@ -416,6 +419,7 @@ export function analyzeBillSavings(
     
     let overcharge_savings = 0;
     if (overcharge_ratio >= 2.5) {
+      console.log(`[OVERCHARGE] Line ${line.line_id}: ${line.description.substring(0,40)}... - Billed=$${line.billed_amount}, Baseline=$${baseline.toFixed(2)}, Ratio=${overcharge_ratio.toFixed(2)}x`);
       // Only count overcharge if billed is 2.5x or more above baseline
       const overcharge_raw = Math.max(0, line.billed_amount - baseline);
       overcharge_savings = Math.min(overcharge_raw, remaining);
