@@ -187,7 +187,7 @@ serve(async (req) => {
       .from('medical-bills')
       .upload(fileName, fileBuffer, {
         contentType: file.type,
-        upsert: false
+        upsert: true  // Allow overwriting on re-analysis
       });
 
     if (uploadError) {
