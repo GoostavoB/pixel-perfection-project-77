@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { join } from "https://deno.land/std@0.168.0/path/mod.ts";
 import { 
   analyzeBillSavings, 
   computeAllowedBaseline, 
@@ -641,9 +642,11 @@ ${providerContext}
 `;
   
   // ✅ PHASE 1: Replace inline prompt with data extraction prompt file
-  const systemPrompt = await Deno.readTextFile('./prompts/data-extraction-prompt.md');
+  const currentDir = new URL('.', import.meta.url).pathname;
+  const dataExtractionPromptPath = join(currentDir, 'prompts', 'data-extraction-prompt.md');
+  const systemPrompt = await Deno.readTextFile(dataExtractionPromptPath);
   console.log('[PROMPT] Using data extraction prompt, length:', systemPrompt.length);
-  console.log('[PROMPT] First 200 chars:', systemPrompt.substring(0, 200));
+  console.log('[PROMPT] Path resolved:', dataExtractionPromptPath);
 
   // Build message content - include image if available (for vision analysis)
   const userMessage: any = {
