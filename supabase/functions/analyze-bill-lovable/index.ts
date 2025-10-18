@@ -1865,12 +1865,12 @@ async function runRuleBasedDuplicateDetection(analysisResult: any) {
   const billLines = (analysisResult.charges || []).map((charge: any, idx: number) => ({
     line_id: `line_${idx + 1}`,
     date_of_service: charge.date_of_service || analysisResult.date_of_service,
-    cpt_or_hcpcs: charge.cpt_code !== 'N/A' ? charge.cpt_code : undefined,
+    cpt_code: charge.cpt_code !== 'N/A' ? charge.cpt_code : undefined,
     revenue_code: charge.revenue_code,
     description: charge.description,
-    billed_amount: charge.charge_amount || charge.billed_amount || 0,
-    quantity: charge.units || 1,
-    provider_id_ref: charge.provider_npi || 'UNKNOWN'
+    charged: charge.charge_amount || charge.billed_amount || 0,  // ← Fixed: use "charged" not "billed_amount"
+    units: charge.units || 1,
+    provider: charge.provider_npi || 'UNKNOWN'
   }));
   
   if (billLines.length === 0) {
