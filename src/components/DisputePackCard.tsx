@@ -298,7 +298,11 @@ export const DisputePackCard = ({
                         </div>
                       )}
                     </div>
-                    <p className="text-sm text-muted-foreground mb-2">{block.why_flagged}</p>
+                    <p className="text-sm text-muted-foreground mb-2">
+                      <span className="font-medium">Why this matters:</span> {block.why_flagged.includes('No Surprises Act') || block.why_flagged.includes('NSA') 
+                        ? `Under the federal No Surprises Act (NSA), you're protected from unexpected out-of-network charges during emergencies or when receiving care at in-network facilities. ${block.why_flagged}` 
+                        : block.why_flagged}
+                    </p>
                     {block.lines_in_question.length > 0 && (
                       <div className="mt-2 pt-2 border-t border-gray-200">
                         <p className="text-xs font-semibold text-muted-foreground mb-1">
