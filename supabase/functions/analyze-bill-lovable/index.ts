@@ -1771,14 +1771,16 @@ async function runRuleBasedDuplicateDetection(analysisResult: any) {
     category: match.category,
     reason: match.reason,
     evidence: {
-      line_ids: match.line_ids,
-      date_of_service: match.evidence?.date || 'unknown',
-      codes: match.evidence?.codes || [],
-      prices: match.evidence?.prices || [],
-      provider_group: match.evidence?.provider || null
+      lineIds: match.lineIds,
+      dates: match.evidence?.dates || [],
+      descriptions: match.evidence?.descriptions || [],
+      amounts: match.evidence?.amounts || [],
+      departments: match.evidence?.departments || [],
+      providers: match.evidence?.providers || []
     },
     confidence: match.confidence >= 0.8 ? 'high' : match.confidence >= 0.5 ? 'medium' : 'low',
-    recommended_action: `Request removal of duplicate charge (${match.rule_type})`,
+    potential_savings: match.potential_savings || 0,
+    recommended_action: `Request removal of duplicate charge (${match.rule})`,
     dispute_text: match.reason
   }));
   

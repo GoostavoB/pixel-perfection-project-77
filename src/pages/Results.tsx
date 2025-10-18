@@ -230,15 +230,22 @@ const Results = () => {
 
   // Extract duplicates from backend analysis
   const duplicateFindings = fullAnalysis.duplicate_findings?.flags || [];
+  console.log('[DUPLICATES DEBUG] Raw findings:', duplicateFindings);
+  
   const duplicates = duplicateFindings
     .filter((flag: any) => flag.category === 'P1' || flag.category === 'P2')
     .map((flag: any) => ({
       description: flag.reason || 'Duplicate charge',
-      amount: flag.evidence?.prices?.reduce((sum: number, p: number) => sum + p, 0) || 0,
+      amount: flag.potential_savings || 0,
       confidence: flag.confidence || 'medium',
-      details: flag.evidence?.codes?.map((c: any) => c.value).join(', ') || 'Missing codes',
+      details: flag.evidence?.descriptions?.join(' + ') || 'Missing descriptions',
       disputeText: flag.dispute_text || 'Please provide details.'
     }));
+  
+  console.log('[DUPLICATES DEBUG] Filtered count:', duplicates.length);
+  if (duplicates.length > 0) {
+    console.log('[DUPLICATES DEBUG] Sample duplicate:', duplicates[0]);
+  }
 
   // NSA status from backend
   const nsaReview = fullAnalysis.duplicate_findings?.nsa_review || {};
