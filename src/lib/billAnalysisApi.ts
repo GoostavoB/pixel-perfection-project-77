@@ -56,13 +56,18 @@ const CONFIG = {
  * @returns Upload response with job_id and ui_summary
  * @throws Error if upload fails
  */
-export async function uploadMedicalBill(file: File, options?: { bypassCache?: boolean; cleanCache?: boolean }): Promise<UploadResponse> {
+export async function uploadMedicalBill(file: File, options?: { bypassCache?: boolean; cleanCache?: boolean; sessionId?: string }): Promise<UploadResponse> {
   const formData = new FormData();
   formData.append('file', file);
   
   // Add bypass cache flag if requested
   if (options?.bypassCache) {
     formData.append('fresh', 'true');
+  }
+  
+  // Add session ID if provided
+  if (options?.sessionId) {
+    formData.append('sessionId', options.sessionId);
   }
 
   const { data: { session } } = await supabase.auth.getSession();
@@ -91,7 +96,18 @@ export async function uploadMedicalBill(file: File, options?: { bypassCache?: bo
   if (!response.ok) {
     const errorText = await response.text();
     console.error('Upload failed:', response.status, errorText);
-    throw new Error(`Upload failed: ${response.statusText}`);
+    
+    // Handle specific error codes
+    if (response.status === 429) {
+      throw new Error('Rate limit exceeded. Please try again in a few moments.');
+    }
+    if (response.status === 402) {
+      throw new Error('Payment required. Please add credits to your workspace.');
+    }
+    
+    // Include detailed error in message (truncated)
+    const errorSnippet = errorText.length > 400 ? errorText.substring(0, 400) + '...' : errorText;
+    throw new Error(`Upload failed (${response.status}): ${response.statusText} — ${errorSnippet}`);
   }
 
   return response.json();

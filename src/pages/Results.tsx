@@ -338,7 +338,7 @@ const Results = () => {
     });
     
     try {
-      // Step 1: Fetch original PDF from storage
+      // Step 1: Fetch original file from storage
       const { data: fileList, error: listError } = await supabase
         .storage
         .from('medical-bills')
@@ -348,10 +348,17 @@ const Results = () => {
         throw new Error("Could not find original bill file");
       }
       
-      const fileName = fileList[0].name;
+      // ✅ FIX: Select most recent file by metadata.lastModified
+      const sortedFiles = [...fileList].sort((a, b) => {
+        const timeA = new Date(a.metadata?.lastModified || a.created_at || 0).getTime();
+        const timeB = new Date(b.metadata?.lastModified || b.created_at || 0).getTime();
+        return timeB - timeA; // Descending (newest first)
+      });
+      
+      const fileName = sortedFiles[0].name;
       const filePath = `${sessionId}/${fileName}`;
       
-      console.log('[REANALYZE] Downloading file:', filePath);
+      console.log('[REANALYZE] Downloading file:', filePath, '(most recent)');
       
       const { data: fileBlob, error: downloadError } = await supabase
         .storage
@@ -362,9 +369,19 @@ const Results = () => {
         throw new Error("Failed to download bill file");
       }
       
-      // Convert Blob to File
-      const file = new File([fileBlob], fileName, { type: 'application/pdf' });
-      console.log('[REANALYZE] File retrieved:', file.name, file.size);
+      // ✅ FIX: Infer correct MIME type from blob or file extension
+      const inferMimeType = (name: string, blob: Blob): string => {
+        if (blob.type) return blob.type;
+        const ext = name.toLowerCase().split('.').pop();
+        if (ext === 'pdf') return 'application/pdf';
+        if (ext === 'png') return 'image/png';
+        if (ext === 'jpg' || ext === 'jpeg') return 'image/jpeg';
+        return 'application/octet-stream';
+      };
+      
+      const mimeType = inferMimeType(fileName, fileBlob);
+      const file = new File([fileBlob], fileName, { type: mimeType });
+      console.log('[REANALYZE] File retrieved:', file.name, file.size, 'type:', file.type);
       
       // Step 2: Run fresh analysis with cache cleaning
       toast({
@@ -374,7 +391,8 @@ const Results = () => {
       
       const result = await uploadMedicalBill(file, { 
         bypassCache: true,
-        cleanCache: true 
+        cleanCache: true,
+        sessionId: sessionId // Reuse same session folder
       });
       
       console.log('[REANALYZE] Analysis complete:', result);
