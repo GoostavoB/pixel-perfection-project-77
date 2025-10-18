@@ -72,6 +72,37 @@ serve(async (req) => {
       );
     }
 
+    // ✅ PHASE 6: Generate structured line-by-line dispute blocks
+    const billData = analysis.analysis_result || {};
+    const lineBlocks = (billData.high_priority_issues || []).map((issue: any) => {
+      // 1. Identification
+      const identification = `Line ${issue.line_id}: ${issue.line_description} (CPT ${issue.cpt_code || 'N/A'}), billed $${issue.billed_amount?.toFixed(2) || '0.00'}`;
+      
+      // 2. Rule (citation with regulation reference)
+      const citation = issue.evidence?.citation || 'reasonable medical billing practices';
+      const rule = issue.issue_type === 'duplicate' 
+        ? `This represents a duplicate charge in violation of ${citation}`
+        : issue.issue_type === 'nsa_violation'
+        ? `This violates the No Surprises Act (42 U.S.C. § 300gg-111) regarding ${citation}`
+        : `This charge exceeds allowable rates per ${citation}`;
+      
+      // 3. Comparison (benchmark reference)
+      const benchmark = issue.medicare_benchmark || issue.reasonable_rate || 0;
+      const benchmarkSource = issue.evidence?.benchmark_source || 'Medicare Fee Schedule 2025-Q1';
+      const ratio = benchmark > 0 ? (issue.billed_amount / benchmark).toFixed(1) : 'N/A';
+      const comparison = benchmark > 0
+        ? `Reference pricing: $${benchmark.toFixed(2)} (${benchmarkSource}), representing a ${ratio}× markup`
+        : `This charge lacks reasonable justification`;
+      
+      // 4. Request (specific adjustment amount)
+      const adjustment = issue.overcharge_amount || 0;
+      const request = adjustment > 0
+        ? `We request adjustment to $${benchmark.toFixed(2)}, reducing balance by $${adjustment.toFixed(2)}`
+        : `We request removal of this duplicate charge of $${issue.billed_amount?.toFixed(2) || '0.00'}`;
+      
+      return `${identification}. ${rule}. ${comparison}. ${request}.`;
+    }).join('\n\n');
+
     // Prepare data for n8n webhook
     const letterData = {
       session_id: sessionId,
@@ -83,7 +114,10 @@ serve(async (req) => {
       estimated_savings: analysis.estimated_savings || 0,
       issues: analysis.issues || [],
       tags: analysis.analysis_result?.tags || [],
-      analysis_result: analysis.analysis_result
+      analysis_result: analysis.analysis_result,
+      structuredLineBlocks: lineBlocks,
+      totalIssues: billData.high_priority_issues?.length || 0,
+      totalSavings: billData.savings_total || 0
     };
 
     console.log('Sending to n8n for dispute letter generation:', letterData);

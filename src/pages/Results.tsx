@@ -157,7 +157,11 @@ const Results = () => {
     savingsFromIssues,
     savingsFromRecommendations
   );
-  const whatIfItems = a.what_if_calculator_items || [];
+  // ✅ PHASE 2: Fix field name mismatch (defensive)
+  const whatIfItems = (a.what_if_calculator_items || []).map((item: any) => ({
+    ...item,
+    estimatedReduction: item.estimatedReduction ?? item.estimated_reduction ?? 0
+  }));
   
   // Calculate fallback savings estimate based on categories when real savings are $0
   const calculateFallbackSavings = (totalBill: number, tags: string[]): { low: number; high: number } => {

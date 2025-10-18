@@ -8,6 +8,7 @@ import {
   type BaselineSource,
   type SavingsTotals 
 } from "./savings-engine.ts";
+import { runQAChecklist } from "./qa-checklist.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -174,7 +175,7 @@ serve(async (req) => {
     // Analyze with Lovable AI
     const lovableApiKey = Deno.env.get('LOVABLE_API_KEY')!;
     
-    const analysisResult = await analyzeBillWithAI(extractedContent, lovableApiKey, supabase);
+    const analysisResult = await analyzeBillWithAI(extractedContent, lovableApiKey, supabase, pdfHash);
     console.log('AI analysis complete - validated and ready for storage');
     
     // ✅ NEW: Run rule-based duplicate detection (R1-R7)
@@ -266,6 +267,9 @@ serve(async (req) => {
     }
     console.log('User ID:', userId);
 
+    // ✅ PHASE 5: Run QA checklist before final storage
+    runQAChecklist(analysisResult);
+    
     // 🔧 FIX 6: Log final analysis summary before storage
     const finalSavings = await calculateSavings(analysisResult);
     console.log('[FINAL] === Analysis Summary ===');
@@ -524,10 +528,24 @@ async function ocrPdfWithRapidApi(pdfBytes: Uint8Array): Promise<string | null> 
 async function analyzeBillWithAI(
   extractedContent: {text: string, imageData?: string, isScanned?: boolean}, 
   apiKey: string, 
-  supabase: any
+  supabase: any,
+  pdfHash: string
 ) {
   console.log('Calling Lovable AI with pricing data...');
   const extractedText = extractedContent.text; // Store for validation
+  
+  // ✅ PHASE 3: Analysis metadata for traceability
+  const analysisMetadata = {
+    version_engine: "2.0.3",
+    version_datasets: {
+      medicare_pfs: "2025-Q1",
+      ncci_edits: "2025-01-15",
+      duplicate_rules: "v1.0"
+    },
+    file_hash: pdfHash,
+    analysis_timestamp: new Date().toISOString()
+  };
+  console.log('[METADATA]', JSON.stringify(analysisMetadata));
   
   // Fetch Medicare pricing data
   const { data: medicarePrices } = await supabase
@@ -601,14 +619,42 @@ ${providerContext}
       ? [
           {
             type: 'text',
-            text: `ANALYZE THIS MEDICAL BILL IMAGE AGGRESSIVELY - Look for duplicates, unbundling, overcharges, phantom billing, and out-of-network surprises. Extract ALL visible charges, codes, descriptions, and amounts:\n\n${extractedContent.text}`
+            text: `Extract all structured data from this medical bill. Return only the fields defined in the schema: charges[], account_number, hospital_name, service_dates.
+
+DO NOT analyze, flag duplicates, or calculate overcharges - only extract raw data exactly as it appears on the bill.
+
+Extract ALL visible charges with:
+- Date of service (exact, YYYY-MM-DD format)
+- Description (verbatim text from bill)
+- CPT/HCPCS code (if visible, otherwise "N/A")
+- Revenue code (if visible)
+- Units/Quantity
+- Charge/billed amount (exact dollar amount)
+- CRITICAL: "Allowed amount" or "Plan allowed" column (extract exact amount if present, set to null if missing)
+
+${extractedContent.text}`
           },
           {
             type: 'image_url',
             image_url: { url: extractedContent.imageData }
           }
         ]
-      : `ANALYZE THIS MEDICAL BILL AGGRESSIVELY - Look for duplicates, unbundling, overcharges, phantom billing, and out-of-network surprises${extractedContent.isScanned ? ' (NOTE: This is a scanned PDF - extract all visible information even if text quality is poor)' : ''}:\n\n${extractedContent.text}`
+      : `Extract all structured data from this medical bill. Return only the fields defined in the schema: charges[], account_number, hospital_name, service_dates.
+
+DO NOT analyze, flag duplicates, or calculate overcharges - only extract raw data exactly as it appears on the bill.
+
+Extract ALL visible charges with:
+- Date of service (exact, YYYY-MM-DD format)
+- Description (verbatim text from bill)
+- CPT/HCPCS code (if visible, otherwise "N/A")
+- Revenue code (if visible)
+- Units/Quantity
+- Charge/billed amount (exact dollar amount)
+- CRITICAL: "Allowed amount" or "Plan allowed" column (extract exact amount if present, set to null if missing)
+
+${extractedContent.isScanned ? ' (NOTE: This is a scanned PDF - extract all visible information even if text quality is poor)' : ''}
+
+${extractedContent.text}`
   };
 
   const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
@@ -662,12 +708,16 @@ ${providerContext}
                     charge_amount: { type: 'number' },
                     billed_amount: { type: 'number', description: 'CRITICAL: For aggregate charges like "PHARMACY $5,000", extract dollar amount and store here' },
                     allowed_amount: { type: 'number', description: 'CRITICAL: Extract from "Allowed", "Plan Allowed", "Insurance Allowed" column if present, otherwise null' },
-                    overcharge_amount: { type: 'number', description: 'Estimated overcharge for this line' },
+                    baseline_source: { type: 'string', description: 'Source of baseline used for comparison (e.g., "medicare_pfs_2025q1", "plan_allowed", "regional_benchmark")' },
+                    baseline_value: { type: 'number', description: 'Baseline amount used for comparison' },
+                    overcharge_pct: { type: 'number', description: 'Percentage overcharge: (billed - baseline) / baseline * 100' },
                     units: { type: 'number' },
                     revenue_code: { type: 'string' },
                     line_id: { type: 'string', description: 'Unique identifier for this charge line' },
-                    is_duplicate: { type: 'boolean', description: 'CRITICAL: Mark true if this is a confirmed duplicate charge' },
-                    issue_type: { type: 'string', enum: ['duplicate', 'overcharge', 'nsa_violation', 'unbundling', 'other'], description: 'Primary issue type for this charge' }
+                    date_of_service: { type: 'string', format: 'date' },
+                    provider_id: { type: 'string' },
+                    department: { type: 'string' },
+                    modifier: { type: 'string' }
                   }
                 }
               },
@@ -706,7 +756,7 @@ ${providerContext}
                       }
                     }
                   },
-                  required: ['type', 'line_description', 'billed_amount', 'overcharge_amount', 'reason', 'explanation_for_user', 'suggested_action', 'confidence_score']
+                  required: ['type', 'line_description', 'billed_amount', 'reason', 'explanation_for_user', 'suggested_action', 'confidence_score']
                 }
               },
               potential_issues: {
@@ -739,7 +789,7 @@ ${providerContext}
                       }
                     }
                   },
-                  required: ['type', 'line_description', 'billed_amount', 'overcharge_amount', 'reason', 'explanation_for_user', 'suggested_action', 'confidence_score']
+                  required: ['type', 'line_description', 'billed_amount', 'reason', 'explanation_for_user', 'suggested_action', 'confidence_score']
                 }
               },
               total_potential_savings: { 
@@ -799,8 +849,13 @@ ${providerContext}
     });
     
     // ✅ PHASE 5.1: Add extraction validation
-    console.log('[EXTRACTION VALIDATION]');
-    console.log(`  Total lines extracted: ${analysis.line_items?.length || 0}`);
+    const chargesWithAllowed = analysis.charges?.filter((c: any) => c.allowed_amount != null).length || 0;
+    const chargesWithoutOvercharge = analysis.charges?.filter((c: any) => !c.overcharge_amount).length || 0;
+    console.log('[EXTRACTION VALIDATION]', {
+      total_lines: analysis.charges?.length || 0,
+      lines_with_allowed_amount: chargesWithAllowed,
+      lines_without_overcharge: chargesWithoutOvercharge
+    });
     console.log(`  Lines with allowed_amount: ${analysis.line_items?.filter((l: any) => l.allowed_amount > 0).length || 0}`);
     console.log(`  Lines with CPT codes: ${analysis.line_items?.filter((l: any) => l.cpt_or_hcpcs && l.cpt_or_hcpcs !== 'N/A').length || 0}`);
     
@@ -1579,7 +1634,7 @@ function rebuildWhatIfItemsFromSavingsEngine(analysis: any): void {
       id: `${idPrefix}-${lineDetail.line_id}`,
       description: issue.line_description || issue.explanation_for_user || 'Billing issue',
       amount: issue.billed_amount || 0,
-      estimated_reduction: Math.round(totalLineSavings * 100) / 100,
+      estimatedReduction: Math.round(totalLineSavings * 100) / 100,
       reason: issue.reason || issue.explanation_for_user || 'Potential overcharge'
     });
   });
