@@ -12,7 +12,7 @@ import { runQAChecklist } from "./qa-checklist.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-bypass-cache',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-bypass-cache, x-clean-cache',
 };
 
 // ✅ DETERMINISTIC: Calculate SHA-256 hash for caching
@@ -81,6 +81,39 @@ serve(async (req) => {
       hash: pdfHash.slice(0, 16),
       ts: new Date().toISOString(),
     }));
+    
+    // 🧹 CACHE CLEANING: Delete existing cached entries if requested
+    const cleanCache = req.headers.get('x-clean-cache') === 'true';
+    
+    if (bypassCache && cleanCache) {
+      console.log('[CACHE_CLEAN] Deleting existing cached entries for this file...');
+      
+      // Delete by cache_key (versioned)
+      const { error: deleteKeyError } = await supabase
+        .from('bill_analyses')
+        .delete()
+        .eq('cache_key', cacheKey);
+      
+      if (deleteKeyError) {
+        console.warn('[CACHE_CLEAN] Failed to delete by cache_key:', deleteKeyError);
+      } else {
+        console.log('[CACHE_CLEAN] ✓ Deleted entries matching cache_key');
+      }
+      
+      // Delete by pdf_hash (deduplication)
+      const { error: deleteHashError } = await supabase
+        .from('bill_analyses')
+        .delete()
+        .eq('pdf_hash', pdfHash);
+      
+      if (deleteHashError) {
+        console.warn('[CACHE_CLEAN] Failed to delete by pdf_hash:', deleteHashError);
+      } else {
+        console.log('[CACHE_CLEAN] ✓ Deleted entries matching pdf_hash');
+      }
+      
+      console.log('[CACHE_CLEAN] Cache cleaned - proceeding with fresh analysis');
+    }
     
     // ✅ CACHE CHECK: Look for existing analysis by versioned cache_key (unless bypassed)
     if (!bypassCache) {

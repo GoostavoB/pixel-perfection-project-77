@@ -1,4 +1,4 @@
-import { AlertCircle, Calendar, Loader2, Mail, ArrowRight, Info, Download } from "lucide-react";
+import { AlertCircle, Calendar, Loader2, Mail, ArrowRight, Info, Download, RefreshCw } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -23,6 +23,7 @@ import { DisputePackCard } from "@/components/DisputePackCard";
 import { ComprehensiveSavings } from "@/components/ComprehensiveSavings";
 import { ItemizationAlert } from "@/components/ItemizationAlert";
 import { MedicalBillingGlossary } from "@/components/MedicalBillingGlossary";
+import { uploadMedicalBill } from "@/lib/billAnalysisApi";
 
 const Results = () => {
   const location = useLocation();
@@ -30,9 +31,10 @@ const Results = () => {
   const { toast } = useToast();
   const { analysis: passedAnalysis, sessionId } = (location.state as { analysis?: any; sessionId?: string }) || {};
   
-  const [analysis] = useState(passedAnalysis);
+  const [analysis, setAnalysis] = useState(passedAnalysis);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [selectedReductions, setSelectedReductions] = useState(0);
+  const [isReanalyzing, setIsReanalyzing] = useState(false);
   
   useEffect(() => {
     if (!analysis || !sessionId) {
@@ -317,6 +319,96 @@ const Results = () => {
   };
 
   const callScript = `Hi, I'm requesting an itemized bill for account ${a.account_number || '[ID]'}, dates ${a.date_of_service || '[range]'}. Please include CPT or HCPCS for each service, modifiers, units, revenue codes, provider NPI or tax ID, and for medications the NDC, dose, and quantity. For blood services, include product codes, units transfused, and the medication administration record with times.`;
+  
+  // Re-analyze handler with cache cleaning
+  const handleReanalyze = async () => {
+    if (!sessionId) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Cannot re-analyze: missing session ID"
+      });
+      return;
+    }
+    
+    setIsReanalyzing(true);
+    toast({
+      title: "Fetching bill...",
+      description: "Retrieving original bill from storage..."
+    });
+    
+    try {
+      // Step 1: Fetch original PDF from storage
+      const { data: fileList, error: listError } = await supabase
+        .storage
+        .from('medical-bills')
+        .list(sessionId);
+      
+      if (listError || !fileList || fileList.length === 0) {
+        throw new Error("Could not find original bill file");
+      }
+      
+      const fileName = fileList[0].name;
+      const filePath = `${sessionId}/${fileName}`;
+      
+      console.log('[REANALYZE] Downloading file:', filePath);
+      
+      const { data: fileBlob, error: downloadError } = await supabase
+        .storage
+        .from('medical-bills')
+        .download(filePath);
+      
+      if (downloadError || !fileBlob) {
+        throw new Error("Failed to download bill file");
+      }
+      
+      // Convert Blob to File
+      const file = new File([fileBlob], fileName, { type: 'application/pdf' });
+      console.log('[REANALYZE] File retrieved:', file.name, file.size);
+      
+      // Step 2: Run fresh analysis with cache cleaning
+      toast({
+        title: "Re-analyzing...",
+        description: "Running fresh analysis (cleaning cache)..."
+      });
+      
+      const result = await uploadMedicalBill(file, { 
+        bypassCache: true,
+        cleanCache: true 
+      });
+      
+      console.log('[REANALYZE] Analysis complete:', result);
+      
+      // Step 3: Fetch full analysis result
+      const { data: fullResult, error: fetchError } = await supabase
+        .from('bill_analyses')
+        .select('*')
+        .eq('session_id', result.session_id)
+        .single();
+      
+      if (fetchError || !fullResult) {
+        throw new Error("Failed to fetch updated analysis");
+      }
+      
+      // Step 4: Update state with new analysis
+      setAnalysis(fullResult);
+      
+      toast({
+        title: "Success!",
+        description: "Analysis complete! Results updated with fresh data."
+      });
+      
+    } catch (error) {
+      console.error('[REANALYZE] Error:', error);
+      toast({
+        variant: "destructive",
+        title: "Re-analysis failed",
+        description: error instanceof Error ? error.message : "Unknown error occurred"
+      });
+    } finally {
+      setIsReanalyzing(false);
+    }
+  };
 
   const handleSelectionsChange = (totalReduction: number) => {
     setSelectedReductions(totalReduction);
@@ -392,7 +484,7 @@ const Results = () => {
         <div className="mb-8">
           <Card className="p-4">
             <div className="flex justify-between items-start gap-4">
-              <div>
+              <div className="flex-1">
                 <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">Provider</p>
                 <h2 className="text-xl font-bold">{hospitalName}</h2>
                 {a.date_of_service && (
@@ -401,9 +493,30 @@ const Results = () => {
                   </p>
                 )}
               </div>
-              <div className="text-right">
-                <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">Total Bill Amount</p>
-                <div className="text-2xl font-bold text-destructive">${totalCharged.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
+              <div className="flex items-center gap-4">
+                <div className="text-right">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase mb-1">Total Bill Amount</p>
+                  <div className="text-2xl font-bold text-destructive">${totalCharged.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
+                </div>
+                <Button
+                  onClick={handleReanalyze}
+                  disabled={isReanalyzing}
+                  variant="outline"
+                  size="sm"
+                  className="ml-4"
+                >
+                  {isReanalyzing ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Re-analyzing...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                      Re-analyze
+                    </>
+                  )}
+                </Button>
               </div>
             </div>
           </Card>

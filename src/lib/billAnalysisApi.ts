@@ -56,7 +56,7 @@ const CONFIG = {
  * @returns Upload response with job_id and ui_summary
  * @throws Error if upload fails
  */
-export async function uploadMedicalBill(file: File, options?: { bypassCache?: boolean }): Promise<UploadResponse> {
+export async function uploadMedicalBill(file: File, options?: { bypassCache?: boolean; cleanCache?: boolean }): Promise<UploadResponse> {
   const formData = new FormData();
   formData.append('file', file);
   
@@ -72,9 +72,14 @@ export async function uploadMedicalBill(file: File, options?: { bypassCache?: bo
     'Authorization': `Bearer ${authToken}`,
   };
   
-  // Also add cache bypass header
+  // Add cache bypass header
   if (options?.bypassCache) {
     headers['x-bypass-cache'] = 'true';
+  }
+  
+  // Add cache cleaning header
+  if (options?.cleanCache) {
+    headers['x-clean-cache'] = 'true';
   }
 
   const response = await fetch(CONFIG.UPLOAD_ENDPOINT, {
